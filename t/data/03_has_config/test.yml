@@ -1,0 +1,10 @@
+
+production_db:
+  - one
+  - two
+
+db_root: t/data
+
+subdir_mapping:
+  one: two
+

@@ -1,0 +1,25 @@
+#!env perl
+
+# PODNAME: pathfind
+
+use strict;
+use warnings;
+
+use Bio::Path::Find;
+use Data::Dump qw(dump);
+
+my $pf = Bio::Path::Find->new_with_options(
+  config_file => 't/data/05_find_database/prod.conf',
+  id          => '5477_6',
+  type        => 'lane',
+);
+
+# my $lanes = $pf->_find_lanes;
+#
+# foreach my $lane ( $lanes->all ) {
+#   print $lane->storage_path, "\n";
+# }
+$pf->find;
+
+$DB::single = 1;
+
