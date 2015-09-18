@@ -3,7 +3,7 @@ package Bio::Path::Find::Role::HasConfig;
 
 # ABSTRACT: role providing attributes for interacting with configurations
 
-use Moo::Role;
+use Moose::Role;
 
 use Types::Standard qw( Str HashRef );
 

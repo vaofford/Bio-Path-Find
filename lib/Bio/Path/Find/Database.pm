@@ -3,8 +3,9 @@ package Bio::Path::Find::Database;
 
 # ABSTRACT: class to handle interactions with the pathogens tracking databases
 
-use Moo;
-use MooX::StrictConstructor;
+use Moose;
+use namespace::autoclean;
+use MooseX::StrictConstructor;
 
 use Types::Standard qw( Str ArrayRef HashRef );
 use Carp qw( croak carp );

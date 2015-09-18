@@ -3,7 +3,7 @@ package Bio::Path::Find::Role::HasEnvironment;
 
 # ABSTRACT: role providing attributes for handling test versus production environments
 
-use Moo::Role;
+use Moose::Role;
 
 use Bio::Path::Find::Types qw( Environment );
 

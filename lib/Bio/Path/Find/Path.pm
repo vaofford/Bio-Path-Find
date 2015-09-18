@@ -3,8 +3,9 @@ package Bio::Path::Find::Path;
 
 # ABSTRACT: class to handle interactions with the pathogens data directory structures
 
-use Moo;
-use MooX::StrictConstructor;
+use Moose;
+use namespace::autoclean;
+use MooseX::StrictConstructor;
 
 use Types::Standard qw( Str HashRef );
 use Carp qw( croak carp );
@@ -217,6 +218,8 @@ sub get_tracking_name_from_database_name {
 }
 
 #-------------------------------------------------------------------------------
+
+__PACKAGE__->meta->make_immutable;
 
 1;
 

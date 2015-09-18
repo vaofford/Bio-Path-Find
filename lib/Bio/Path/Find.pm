@@ -1,15 +1,16 @@
 
 package Bio::Path::Find;
 
-use v5.10;
-
-use Moo;
-use MooX::StrictConstructor;
-use MooX::Options;
+use Moose;
+use namespace::autoclean;
+use MooseX::StrictConstructor;
 
 use Carp qw( croak carp );
 use File::Slurp;
 use File::Spec;
+
+# TODO this should allow short options but isn't working for some reason
+use Getopt::Long qw( :config auto_abbrev );
 
 use Types::Standard qw( ArrayRef Str );
 use Type::Utils qw( enum );
@@ -25,7 +26,8 @@ use Bio::Path::Find::Path;
 use Bio::Path::Find::Database;
 
 with 'Bio::Path::Find::Role::HasEnvironment',
-     'Bio::Path::Find::Role::HasConfig';
+     'Bio::Path::Find::Role::HasConfig',
+     'MooseX::Getopt';
 
 =head1 CONTACT
 
@@ -37,26 +39,29 @@ path-help@sanger.ac.uk
 #- command-line options --------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-option 'id' => (
-  is       => 'ro',
-  isa      => Str,
-  required => 1,
-  doc      => 'lane, sample or study ID, or name of file containing IDs',
+has 'id' => (
+  is            => 'ro',
+  isa           => Str,
+  required      => 1,
+  documentation => 'lane, sample or study ID, or name of file containing IDs',
 );
 
-option 'type' => (
+has 'type' => (
   is      => 'ro',
   isa     => IDType,
   default => 'lane',
-  doc     => 'ID type; must be one of: study, lane, file, library, sample, species',
+  documentation =>
+    'ID type; must be one of: study, lane, file, library, sample, species',
 );
 
-option 'file_id_type' => (
-  is      => 'ro',
-  isa     => enum( [qw( lane sample )] ),
-  default => 'lane',
-  doc     => 'type of IDs in file; must be either "lane" or "sample"',
+has 'file_id_type' => (
+  is            => 'ro',
+  isa           => enum( [qw( lane sample )] ),
+  default       => 'lane',
+  documentation => 'type of IDs in file; must be either "lane" or "sample"',
 );
+
+# we also get "config" and "environment" from the two roles that we use
 
 #-------------------------------------------------------------------------------
 #- private attributes ----------------------------------------------------------
@@ -157,6 +162,7 @@ sub find {
   foreach my $lane ( @{ $self->_find_lanes } ) {
     my $root = $self->_find_path->get_hierarchy_root_dir($lane->database_name);
     my $path = $lane->path;
+    # TODO switch to using Path::Class instead of File::Spec
     print File::Spec->catdir($root, $path), "\n";
   }
 
@@ -347,6 +353,8 @@ sub _get_lane_name {
 }
 
 #-------------------------------------------------------------------------------
+
+__PACKAGE__->meta->make_immutable;
 
 1;
 
