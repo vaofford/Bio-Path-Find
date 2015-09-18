@@ -76,7 +76,7 @@ my $rs;
 lives_ok { $rs = $schema->get_lanes_by_id('5477_6', 'lane') }
   'can call "get_lanes_by_id" on schema successfully';
 
-is $rs->count, 40, 'got expected number of rows in ResultSet';
+is $rs->count, 4, 'got expected number of rows in ResultSet';
 isa_ok $rs->first, 'Bio::Track::Schema::Result::LatestLane', 'lane';
 
 #---------------------------------------
