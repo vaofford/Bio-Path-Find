@@ -18,12 +18,16 @@ use Type::Params qw( compile );
 use Bio::Path::Find::Types qw(
   BioPathFindPath
   BioPathFindDatabase
+  BioPathFindFilter
+  BioPathFindSorter
   Environment
   IDType
 );
 
 use Bio::Path::Find::Path;
 use Bio::Path::Find::Database;
+use Bio::Path::Find::Filter;
+use Bio::Path::Find::Sorter;
 
 with 'Bio::Path::Find::Role::HasEnvironment',
      'Bio::Path::Find::Role::HasConfig',
@@ -67,39 +71,10 @@ has 'file_id_type' => (
 #- private attributes ----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-has '_find_path' => (
-  is      => 'ro',
-  isa     => BioPathFindPath,
-  lazy    => 1,
-  writer  => '_set_find_path',
-  builder => '_build_find_path',
-);
-
-sub _build_find_path {
-  my $self = shift;
-  return Bio::Path::Find::Path->new(
-    environment => $self->environment,
-    config_file => $self->config_file,
-  );
-}
-
-#---------------------------------------
-
-has '_find_db' => (
-  is      => 'ro',
-  isa     => BioPathFindDatabase,
-  lazy    => 1,
-  writer  => '_set_find_db',
-  builder => '_build_find_db',
-);
-
-sub _build_find_db {
-  my $self = shift;
-  return Bio::Path::Find::Database->new(
-    environment => $self->environment,
-    config_file => $self->config_file,
-  );
-}
+has '_find_path' => ( is => 'rw', isa => BioPathFindPath );
+has '_find_db'   => ( is => 'rw', isa => BioPathFindDatabase );
+has '_filter'    => ( is => 'rw', isa => BioPathFindFilter );
+has '_sorter'    => ( is => 'rw', isa => BioPathFindSorter );
 
 #---------------------------------------
 
@@ -146,6 +121,13 @@ sub BUILD {
     $self->_id_type($self->type);
   }
 
+  my $e = $self->environment;
+  my $c = $self->config_file;
+
+  $self->_find_path( Bio::Path::Find::Path->new(     environment => $e, config_file => $c ) );
+  $self->_find_db(   Bio::Path::Find::Database->new( environment => $e, config_file => $c ) );
+  $self->_filter(    Bio::Path::Find::Filter->new(   environment => $e, config_file => $c ) );
+  $self->_sorter(    Bio::Path::Find::Sorter->new(   environment => $e, config_file => $c ) );
 }
 
 #-------------------------------------------------------------------------------
@@ -224,7 +206,7 @@ sub _find_lanes {
 
     # TODO filter lanes
 
-    $db_results = $self->_sort_lanes($db_results);
+    $db_results = $self->_sorter->sort_lanes($db_results);
 
     # TODO generate stats
 
@@ -241,26 +223,6 @@ sub _find_lanes {
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-sub _sort_lanes {
-  my ( $self, $lanes ) = @_;
-
-  # convert an array of Bio::Track::Schema::Result::LatestLane objects into a
-  # hash, using $lane->name as the key
-  my %lanes_by_name = map { $_->name => $_ } @$lanes;
-
-  # sort the keys of that hash using the fiendishly complicated sort function
-  # below
-  my @sorted_names = sort _lane_sort keys %lanes_by_name;
-
-  # build the sorted list of lanes that we want to return
-  my @sorted_lanes;
-  push @sorted_lanes, $lanes_by_name{$_} for @sorted_names;
-
-  return \@sorted_lanes;
-}
-
-#-------------------------------------------------------------------------------
-
 sub _load_ids_from_file {
   my ( $self, $filename ) = @_;
 
@@ -273,83 +235,6 @@ sub _load_ids_from_file {
     unless scalar @ids;
 
   push @{ $self->_ids }, @ids;
-}
-
-#-------------------------------------------------------------------------------
-#- functions -------------------------------------------------------------------
-#-------------------------------------------------------------------------------
-
-# this function and "_get_lane_name" are cargo-culted from the equivalent
-# methods in the old Path::Find::Sort, with just a few tweaks to tidy up the
-# code
-
-sub _lane_sort {
-  my ( $lane_a, $end_a ) = _get_lane_name($a);
-  my ( $lane_b, $end_b ) = _get_lane_name($b);
-
-  my @a = split m/\_|\#/, $lane_a;
-  my @b = split m/\_|\#/, $lane_b;
-
-  # check @a and @b are the same length
-  my $len_a = scalar(@a);
-  my $len_b = scalar(@b);
-  unless ( $len_a == $len_b ) {
-    if ( $len_a > $len_b ) {
-      push @b, '0' for ( 1 .. ( $len_a - $len_b ) );
-    }
-    else {
-      push @a, '0' for ( 1 .. ( $len_b - $len_a ) );
-    }
-  }
-
-  for my $i ( 0 .. $#a ) {
-    return ( $a cmp $b ) if ( $a[$i] =~ m/\D+/ or $b[$i] =~ m/\D+/ );
-  }
-
-  if ( $#a == 2 and $#b == 2 and defined $end_a and defined $end_b ) {
-    return $a[0] <=> $b[0]
-        || $a[1] <=> $b[1]
-        || $a[2] <=> $b[2]
-        || $end_a cmp $end_b;
-  }
-  elsif ( $#a == 2 and $#b == 2 and not defined $end_a and not defined $end_b ) {
-    return $a[0] <=> $b[0]
-        || $a[1] <=> $b[1]
-        || $a[2] <=> $b[2];
-  }
-  elsif ( $#a == 1 and $#b == 1 and defined $end_a and defined $end_b ) {
-    return $a[0] <=> $b[0]
-        || $a[1] <=> $b[1]   # I'm fairly sure this is redundant..
-        || $end_a cmp $end_b;
-  }
-  else {
-    return $a[0] <=> $b[0]
-        || $a[1] <=> $b[1];  # I'm fairly sure this is redundant..
-  }
-}
-
-#-------------------------------------------------------------------------------
-
-# returns two components of the lane name, the "lane name" and the "end"...
-
-sub _get_lane_name {
-  my $lane_name = shift;
-
-  return ( $lane_name, undef ) unless $lane_name =~ m/\//;
-
-  my @dirs = File::Spec->splitdir( $lane_name );
-
-  # this used to use the "smartmatch" operator, ~~, but that results in a
-  # warning about use of an experimental feature... I think this is equivalent
-  my ( $tracking_index ) = grep { $dirs[$_] eq 'TRACKING' } 0 .. $#dirs;
-
-  # this look very dodgy... why 5 ? Presumably that's only correct if we
-  # stick with the directory hierarchy template that we've always used...
-  my $lane_index = $tracking_index + 5;
-
-  my $end = File::Spec->catdir( splice( @dirs, $lane_index + 1 ) );
-
-  return ( $dirs[$lane_index], $end );
 }
 
 #-------------------------------------------------------------------------------

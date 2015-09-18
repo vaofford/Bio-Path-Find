@@ -2,9 +2,11 @@
 package Bio::Path::Find::Types;
 
 use Type::Library -base, -declare => qw(
+  BioTrackSchema
   BioPathFindPath
   BioPathFindDatabase
-  BioTrackSchema
+  BioPathFindFilter
+  BioPathFindSorter
   IDType
   Environment
 );
@@ -12,9 +14,11 @@ use Type::Library -base, -declare => qw(
 use Type::Utils -all;
 use Types::Standard -types;
 
+class_type BioTrackSchema,      { class => 'Bio::Track::Schema' };
 class_type BioPathFindPath,     { class => 'Bio::Path::Find::Path' };
 class_type BioPathFindDatabase, { class => 'Bio::Path::Find::Database' };
-class_type BioTrackSchema,      { class => 'Bio::Track::Schema' };
+class_type BioPathFindFilter    { class => 'Bio::Path::Find::Filter' };
+class_type BioPathFindSorter    { class => 'Bio::Path::Find::Sorter' };
 
 enum IDType, [ qw(
   lane
