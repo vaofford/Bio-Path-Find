@@ -183,6 +183,8 @@ sub _find_lanes {
   # objects that we find
   my @results;
 
+  # TODO if we wanted to parallelise the database searching, this is
+  # TODO where it needs to happen...
   DB: foreach my $i ( 0 .. $#$available_db_names ) {
                          # ^^^ see http://www.perlmonks.org/?node_id=624502
     my $schema  = $available_schemas->[$i];
@@ -204,7 +206,7 @@ sub _find_lanes {
     # associated with each result
     $_->database_name($db_name) for ( @$db_results );
 
-    # TODO filter lanes
+    $db_results = $self->_filter->filter_lanes($db_results);
 
     $db_results = $self->_sorter->sort_lanes($db_results);
 
