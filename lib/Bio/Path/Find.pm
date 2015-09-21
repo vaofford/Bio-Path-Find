@@ -16,7 +16,6 @@ use Types::Standard qw( ArrayRef Str );
 use Type::Utils qw( enum );
 use Type::Params qw( compile );
 use Bio::Path::Find::Types qw(
-  BioPathFindPath
   BioPathFindDatabase
   BioPathFindFilter
   BioPathFindSorter
@@ -24,7 +23,6 @@ use Bio::Path::Find::Types qw(
   IDType
 );
 
-use Bio::Path::Find::Path;
 use Bio::Path::Find::Database;
 use Bio::Path::Find::Filter;
 use Bio::Path::Find::Sorter;
@@ -71,8 +69,21 @@ has 'file_id_type' => (
 #- private attributes ----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-has '_find_path' => ( is => 'rw', isa => BioPathFindPath );
-has '_find_db'   => ( is => 'rw', isa => BioPathFindDatabase );
+has 'db_manager' => (
+  is => 'ro',
+  isa => 'Bio::Path::Find::DatabaseManager',
+  lazy => 1,
+  builder => '_build_db_manager',
+);
+
+sub _build_db_manager {
+  my $self = shift;
+  return Bio::Path::Find::DatabaseManager->new(
+    environment => $self->environment,
+    config      => $self->config,
+  );
+}
+
 has '_filter'    => ( is => 'rw', isa => BioPathFindFilter );
 has '_sorter'    => ( is => 'rw', isa => BioPathFindSorter );
 
@@ -124,10 +135,8 @@ sub BUILD {
   my $e = $self->environment;
   my $c = $self->config_file;
 
-  $self->_find_path( Bio::Path::Find::Path->new(     environment => $e, config_file => $c ) );
-  $self->_find_db(   Bio::Path::Find::Database->new( environment => $e, config_file => $c ) );
-  $self->_filter(    Bio::Path::Find::Filter->new(   environment => $e, config_file => $c ) );
-  $self->_sorter(    Bio::Path::Find::Sorter->new(   environment => $e, config_file => $c ) );
+  $self->_filter( Bio::Path::Find::Filter->new( environment => $e, config_file => $c ) );
+  $self->_sorter( Bio::Path::Find::Sorter->new( environment => $e, config_file => $c ) );
 }
 
 #-------------------------------------------------------------------------------
