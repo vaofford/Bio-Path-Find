@@ -28,9 +28,9 @@ path-help@sanger.ac.uk
 
 Path to the configuration file.
 
-If C<environment> is 'C<test>', the default is a directory within the test
-suite, otherwise the default is a Sanger-specific disk location. Default is
-'C<prod>'.
+If C<environment> is 'C<test>', we look for a default configuration file in a
+directory within the test suite, otherwise the default is a Sanger-specific
+disk location.
 
 May be overridden by setting at instantiation.
 
