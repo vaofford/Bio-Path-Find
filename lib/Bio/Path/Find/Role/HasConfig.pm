@@ -48,7 +48,7 @@ sub _build_config_file {
   my $self = shift;
 
   my $config_file = $self->environment eq 'test'
-                  ? 't/data/03_has_config/test.conf'
+                  ? 't/data/04_has_config/test.conf'
                   : '/software/pathogen/projects/PathFind/config/prod.yml';
 
   croak "ERROR: config file ($config_file) does not exist"
