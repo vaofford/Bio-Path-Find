@@ -132,7 +132,7 @@ sub _build_db_root {
     carp 'WARNING: configuration (' . $self->config_file
          . ') does not specify the path to the root directory containing data directories ("db_root"); using default';
     $db_root = $self->environment eq 'test'
-             ? 't/data/03_database/root_dir'
+             ? 't/data/04_database/root_dir'
              : '/lustre/scratch108/pathogen/pathpipe';
   }
 
