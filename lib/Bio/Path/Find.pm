@@ -23,6 +23,7 @@ use Bio::Path::Find::Types qw(
   IDType
 );
 
+use Bio::Path::Find::DatabaseManager;
 use Bio::Path::Find::Database;
 use Bio::Path::Find::Filter;
 use Bio::Path::Find::Sorter;
@@ -69,7 +70,7 @@ has 'file_id_type' => (
 #- private attributes ----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-has 'db_manager' => (
+has '_db_manager' => (
   is => 'ro',
   isa => 'Bio::Path::Find::DatabaseManager',
   lazy => 1,
@@ -143,18 +144,23 @@ sub BUILD {
 #- public methods --------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# TODO this method needs to convert $lane->storage_path into a path to the
-# TODO symlinked directory hierarchy. The actual code to do the mapping should
-# TODO be bolted onto Bio::Path::Find::Path
-
 sub find {
   my $self = shift;
 
   foreach my $lane ( @{ $self->_find_lanes } ) {
-    my $root = $self->_find_path->get_hierarchy_root_dir($lane->database_name);
+
+    # from which database is the lane derived ?
+    my $database = $self->_db_manager->get_database( $lane->database_name );
+
+    # what is the root directory for files associated with that directory ?
+    my $root = $database->hierarchy_root_dir;
+
+    # what is the path for files for this specific lane ?
     my $path = $lane->path;
+
     # TODO switch to using Path::Class instead of File::Spec
     print File::Spec->catdir($root, $path), "\n";
+
   }
 
 }
@@ -172,8 +178,8 @@ sub _find_lanes {
 
   # (this is just a workaround for Config::General's stupid handling of
   # single-item lists)
-  if ( $self->_config->{always_search} ) {
-    my $as = $self->_config->{always_search};
+  if ( $self->config->{always_search} ) {
+    my $as = $self->config->{always_search};
     if ( ref $as eq 'ARRAY' ) {
       $always_search->{$_} = 1 for ( @$as );
     }
@@ -181,9 +187,6 @@ sub _find_lanes {
       $always_search->{$as} = 1;
     }
   }
-
-  my $available_schemas  = $self->_find_db->available_database_schemas;
-  my $available_db_names = $self->_find_db->available_database_names;
 
   # walk over the list of available databases and, for each ID, search for
   # lanes matching the specified ID
@@ -194,26 +197,26 @@ sub _find_lanes {
 
   # TODO if we wanted to parallelise the database searching, this is
   # TODO where it needs to happen...
-  DB: foreach my $i ( 0 .. $#$available_db_names ) {
-                         # ^^^ see http://www.perlmonks.org/?node_id=624502
-    my $schema  = $available_schemas->[$i];
-    my $db_name = $available_db_names->[$i];
+  DB: foreach my $db_name ( $self->_db_manager->database_names ) {
+    my $database = $self->_db_manager->get_database($db_name);
 
     # the results for this database
-    my $db_results;
+    my $db_results = [];
 
     ID: foreach my $id ( @{ $self->_ids } ) {
-      my $rs = $schema->get_lanes_by_id($id, $self->_id_type);
-      push @$db_results, $rs->all if $rs;
+      my $rs = $database->schema->get_lanes_by_id($id, $self->_id_type);
+      next ID unless $rs;
+      while ( my $result = $rs->next ) {
+        # tell every result (a Bio::Track::Schema::Result object) which
+        # database it comes from. We need this later to generate paths on disk
+        # for the files associated with each result
+        $result->database_name($db_name);
+        push @$db_results, $result;
+      }
     }
 
     # move on to the next database unless we got some results
     next DB unless scalar @$db_results;
-
-    # tell every result (a Bio::Track::Schema::Result object) which database it
-    # comes from. We need this later to generate paths on disk for the files
-    # associated with each result
-    $_->database_name($db_name) for ( @$db_results );
 
     $db_results = $self->_filter->filter_lanes($db_results);
 

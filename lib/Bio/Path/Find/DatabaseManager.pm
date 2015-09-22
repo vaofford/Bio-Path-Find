@@ -195,41 +195,24 @@ searched first.
 
 =cut
 
-has 'available_database_names' => (
+# TODO fix the documentation above
+
+has 'databases' => (
+  traits  => ['Hash'],
   is      => 'ro',
-  isa     => ArrayRef[Str],
+  isa     => HashRef[BioPathFindDatabase],
   lazy    => 1,
-  writer  => '_set_available_database_names',
-  builder => '_build_available_database_names',
+  handles => {
+    add_database   => 'set',
+    get_database   => 'get',
+    all_databases  => 'values',
+    database_names => 'keys',
+    database_pairs => 'kv',
+  },
+  builder => '_build_database_objects',
 );
 
-sub _build_available_database_names {
-  my $self = shift;
-  my ( $names, $objects ) = $self->_build_available_database_objects;
-  $self->_set_available_databases($objects);
-  return $names;
-}
-
-#---------------------------------------
-
-has 'available_databases' => (
-  is      => 'ro',
-  isa     => ArrayRef[BioPathFindDatabase],
-  lazy    => 1,
-  writer  => '_set_available_databases',
-  builder => '_build_available_databases',
-);
-
-sub _build_available_databases {
-  my $self = shift;
-  my ( $names, $objects ) = $self->_build_available_database_objects;
-  $self->_set_available_database_names($names);
-  return $objects;
-}
-
-#---------------------------------------
-
-sub _build_available_database_objects {
+sub _build_database_objects {
   my $self = shift;
 
   my $database_names = [];
@@ -241,13 +224,7 @@ sub _build_available_database_objects {
   # database names given in the "production_db" slot in the config
   $database_names = $self->_reorder_db_list($database_names);
 
-  # this will be the list of databases for which we have an associated
-  # directory on disk
-  my @available_database_names;
-
-  # and this will be the actual Bio::Path::Find::Database objects
-  my @available_databases;
-
+  my %databases;
   foreach my $database_name ( @$database_names ) {
     my $database = Bio::Path::Find::Database->new(
       name        => $database_name,
@@ -257,37 +234,11 @@ sub _build_available_database_objects {
 
     next unless defined $database->hierarchy_root_dir;
 
-    $self->add_database( $database_name, $database );
-
-    push @available_database_names, $database_name;
-    push @available_databases,      $database;
+    $databases{$database_name} = $database;
   }
 
-  return ( \@available_database_names, \@available_databases );
+  return \%databases;
 }
-
-#---------------------------------------
-
-has 'databases' => (
-  traits  => ['Hash'],
-  is      => 'ro',
-  isa     => HashRef [BioPathFindDatabase],
-  default => sub { {} },
-  handles => {
-    add_database  => 'set',
-    get_database  => 'get',
-    all_databases => 'values',
-  },
-);
-
-# make sure that the lists of database names and objects are initialised before
-# we try to return something from them
-before [ 'get_database', 'all_databases' ] => sub {
-  my $self = shift;
-  # can call either this or _build_available_database_objects, since both will
-  # force generation of the two lists
-  $self->_build_available_databases;
-};
 
 #-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------
