@@ -29,14 +29,51 @@ path-help@sanger.ac.uk
 
 =head1 ATTRIBUTES
 
+=attr name
+
+The name of the database handled by this object.
+
+B<Read only>.
+
 =cut
 
 has 'name' => (
-  is      => 'ro',
-  isa     => Str,
+  is       => 'ro',
+  isa      => Str,
+  required => 1,
 );
 
 #---------------------------------------
+
+=attr schema
+
+The L<Bio::Track::Schema> object for the database handled by this object.
+Connection parameters are taken from the configuration.
+In production, the database is assumed to be a MySQL instance. The
+configuration must contain the parameters C<host>, C<port>, and C<user>. If
+the connection requires a password, C<pass> must also be given, e.g.
+
+  <connection_params>
+    host dbhost
+    port 3306
+    user find_user
+  </connection_params>
+
+In a test environment, the database is assumed to be an SQLite DB file, in
+which case the configuration block must contain the key C<dbname>. The
+C<host>, C<port>, and C<user> keys must be present but can contain dummy
+values, e.g.
+
+  <connection_params>
+    dbname test_database.db
+    host host
+    port 3306
+    user user
+  </connection_params>
+
+B<Read only>.
+
+=cut
 
 has 'schema' => (
   is      => 'ro',
@@ -48,23 +85,13 @@ has 'schema' => (
 sub _build_schema {
   my $self = shift;
 
-  my $c = $self->config->{connection_params};
+  my $dsn = $self->_get_dsn;
 
-  my $schema;
-  if ( $self->environment eq 'test' ) {
-    croak 'ERROR: must specify SQLite DB location as "connection:dbname" in test config'
-      unless $c->{dbname};
-    $schema = Bio::Track::Schema->connect('dbi:SQLite:dbname=' . $c->{dbname});
-  }
-  else {
-    my $dsn = 'DBI:mysql:'
-            . "host=$c->{host};"
-            . "port=$c->{port};"
-            . 'database=' . $self->name;
-    my $user = $c->{user};
-    my $pass = $c->{pass} || undef;
-    $schema = Bio::Track::Schema->connect($dsn, $user, $pass);
-  }
+  my $user = $self->config->{connection_params}->{user};
+  my $pass = $self->config->{connection_params}->{pass} || undef;
+  my $schema = $self->is_test_env
+             ? Bio::Track::Schema->connect($dsn)
+             : Bio::Track::Schema->connect($dsn, $user, $pass);
 
   return $schema;
 }
@@ -105,7 +132,7 @@ sub _build_db_root {
     carp 'WARNING: configuration (' . $self->config_file
          . ') does not specify the path to the root directory containing data directories ("db_root"); using default';
     $db_root = $self->environment eq 'test'
-             ? 't/data/04_find_path/root_dir'
+             ? 't/data/03_database/root_dir'
              : '/lustre/scratch108/pathogen/pathpipe';
   }
 
@@ -160,8 +187,10 @@ sub _build_hierarchy_template {
 
 =head2 hierarchy_root_dir
 
-The root directory for the directory hierarchy that is associated with the
-given tracking database.  C<undef> if the directory does not exist.
+The root of the directory hierarchy that is associated with the given tracking
+database. C<undef> if the directory does not exist. The generation of the
+hierarchy root directory path takes into account the sub-directory mapping.
+See L<db_subdirs>.
 
 =cut
 
@@ -186,9 +215,7 @@ sub _build_hierarchy_root_dir {
          : undef;
 }
 
-#-------------------------------------------------------------------------------
-#- private attributes ----------------------------------------------------------
-#-------------------------------------------------------------------------------
+#---------------------------------------
 
 =attr db_subdirs
 
@@ -235,6 +262,33 @@ sub _build_db_subdirs {
   }
 
   return $db_subdirs;
+}
+
+#-------------------------------------------------------------------------------
+#- private methods -------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+# returns the DSN based on the connection parameters in the config
+
+sub _get_dsn {
+  my $self = shift;
+
+  my $c = $self->config->{connection_params};
+
+  my $dsn;
+  if ( $self->environment eq 'test' ) {
+    croak 'ERROR: must specify SQLite DB location as "connection:dbname" in test config'
+      unless $c->{dbname};
+    $dsn = 'dbi:SQLite:dbname=' . $c->{dbname};
+  }
+  else {
+    $dsn = 'DBI:mysql:'
+           . "host=$c->{host};"
+           . "port=$c->{port};"
+           . 'database=' . $self->name;
+  }
+
+  return $dsn;
 }
 
 #-------------------------------------------------------------------------------
