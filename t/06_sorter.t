@@ -5,7 +5,7 @@ use warnings;
 use Test::More;
 use Test::Exception;
 
-use Bio::Path::Find::Database;
+use Bio::Path::Find::DatabaseManager;
 
 use_ok(' Bio::Path::Find::Sorter');
 
@@ -13,9 +13,9 @@ my $sorter;
 lives_ok { $sorter = Bio::Path::Find::Sorter->new(environment => 'test', config_file => 't/data/06_sorter/test.conf') }
   'got a sorter';
 
-my $db_finder = Bio::Path::Find::Database->new(environment => 'test', config_file => 't/data/06_sorter/test.conf');
+my $dbm = Bio::Path::Find::DatabaseManager->new(environment => 'test', config_file => 't/data/06_sorter/test.conf');
 
-my $schema = $db_finder->get_schema('pathogen_test_track');
+my $schema = $dbm->get_database('pathogen_track_test')->schema;
 
 my $unsorted_rs = $schema->get_lanes_by_id('5477_6','lane');
 my @unsorted_lanes = $unsorted_rs->all;

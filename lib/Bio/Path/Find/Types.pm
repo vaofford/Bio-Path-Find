@@ -3,6 +3,7 @@ package Bio::Path::Find::Types;
 
 use Type::Library -base, -declare => qw(
   BioTrackSchema
+  BioPathFindDatabaseManager
   BioPathFindDatabase
   BioPathFindFilter
   BioPathFindSorter
@@ -13,10 +14,11 @@ use Type::Library -base, -declare => qw(
 use Type::Utils -all;
 use Types::Standard -types;
 
-class_type BioTrackSchema,      { class => 'Bio::Track::Schema' };
-class_type BioPathFindDatabase, { class => 'Bio::Path::Find::Database' };
-class_type BioPathFindFilter    { class => 'Bio::Path::Find::Filter' };
-class_type BioPathFindSorter    { class => 'Bio::Path::Find::Sorter' };
+class_type 'Bio::Track::Schema';
+class_type 'Bio::Path::Find::DatabaseManager';
+class_type 'Bio::Path::Find::Database';
+class_type 'Bio::Path::Find::Filter';
+class_type 'Bio::Path::Find::Sorter';
 
 enum IDType, [ qw(
   lane

@@ -6,7 +6,11 @@ package Bio::Path::Find::Filter;
 use Moose;
 use namespace::autoclean;
 
+use Path::Class;
 use Types::Standard qw( HashRef Str );
+use Bio::Path::Find::Types qw(
+  BioPathFindDatabaseManager
+);
 
 with 'Bio::Path::Find::Role::HasEnvironment',
      'Bio::Path::Find::Role::HasConfig';
@@ -28,6 +32,12 @@ L<Bio::Path::Find::Role::HasConfig> and
 L<Bio::Path::Find::Role::HasEnvironment>.
 
 =cut
+
+has 'db_manager' => (
+  is       => 'ro',
+  isa      => BioPathFindDatabaseManager,
+  required => 1,
+);
 
 #-------------------------------------------------------------------------------
 #- private attributes ----------------------------------------------------------
@@ -58,7 +68,6 @@ sub filter_lanes {
 
   foreach my $lane ( @$lanes ) {
 
-
     # if filetype is MAPSTAT_ID:
     #   _get_mapstat_id
 
@@ -84,26 +93,39 @@ sub filter_lanes {
 sub find_files_for_lane {
   my ( $self, $lane, $type ) = @_;
 
-  my $database_name = $lane->database_name;
-  my $storage_path  = $lane->storage_path;
-  my $symlink_path  = $lane->path;
-  my $files_rs      = $lane->latest_files;
-  my $extension     = $self->_type_extensions->{$type};
+  # this is the B::P::F::Database object for the database from which this
+  # lane was derived
+  my $database = $self->db_manager->get_database($lane->database_name);
 
-  # look first for files with the specified extension on the storage path
-  # for the files. The storage path is the path to files on the nexsans
-  my $path = File::Spec->catdir( $storage_path, $extension );
+  # root directory for files related to this database
+  my $root_dir = $database->hierarchy_root_dir;
+
+  # the canonical path to the files for this lane
+  my $storage_path = dir($root_dir, $lane->storage_path);
+
+  # the symlinked path to the files for the lane
+  my $symlink_path = dir($root_dir, $lane->path);
+
+  # the extension for the specified type of file
+  my $extension = $self->_type_extensions->{$type};
+
+  # look first for files with the specified extension on the storage path for
+  # the files. The storage path is the canonical path to files on the nexsans
+  my $path = file( $storage_path, $extension );
   return [ $path ] if ( $storage_path and -e $path );
 
   # look next on the symlinked directory path
-  $path = File::Spec->catdir( $symlink_path, $type );
+  $path = file( $symlink_path, $type );
   return [ $path ] if -e $path;
 
+  my $files_rs = $lane->latest_files;
+
   if ( defined $extension and $extension =~ m/fastq/ ) {
+    $extension =~ s/\*//;
     my @files;
     while ( my $file = $files_rs->next ) {
-      my $path = File::Spec->catdir( $symlink_path, $file->name );
-      push @files, $file if ( $file->name =~ m/$extension/ and -e $path );
+      my $path = file( $symlink_path, $file->name );
+      push @files, $path->stringify if ( $file->name =~ m/$extension/ and -e $path );
     }
     return \@files if scalar @files;
   }

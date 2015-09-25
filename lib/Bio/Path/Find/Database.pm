@@ -129,8 +129,7 @@ sub _build_db_root {
   my $db_root = $self->config->{db_root};
 
   if ( not defined $db_root ) {
-    carp 'WARNING: configuration (' . $self->config_file
-         . ') does not specify the path to the root directory containing data directories ("db_root"); using default';
+    carp 'WARNING: configuration does not specify the path to the root directory containing data directories ("db_root"); using default';
     $db_root = $self->environment eq 'test'
              ? 't/data/04_database/root_dir'
              : '/lustre/scratch108/pathogen/pathpipe';
@@ -172,8 +171,7 @@ sub _build_hierarchy_template {
   my $template = $self->config->{hierarchy_template};
 
   if ( not defined $template ) {
-    carp 'WARNING: configuration (' . $self->config_file
-         . ') does not specify the directory hierarchy template ("template"); using default';
+    carp 'WARNING: configuration does not specify the directory hierarchy template ("template"); using default';
     $template = 'genus:species-subspecies:TRACKING:projectssid:sample:technology:library:lane';
   }
 
@@ -250,8 +248,7 @@ sub _build_db_subdirs {
   my $db_subdirs = $self->config->{db_subdirs};
 
   if ( not defined $db_subdirs ) {
-    carp 'WARNING: configuration (' . $self->config_file
-         . ') does not specify the mapping between database name and sub-directory ("db_subdirs"); using default';
+    carp 'WARNING: configuration does not specify the mapping between database name and sub-directory ("db_subdirs"); using default';
     $db_subdirs = {
       pathogen_virus_track    => 'viruses',
       pathogen_prok_track     => 'prokaryotes',

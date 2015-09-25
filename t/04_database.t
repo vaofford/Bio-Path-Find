@@ -61,9 +61,9 @@ is $root, 't/data/04_database/root_dir/test_track/seq-pipelines',
   'got correct root dir';
 
 # see if we can perform tests on a test DB on a MySQL server
-$db = Bio::Path::Find::Database->new( environment => 'prod', name => 'pathogen_prok_track', config_file => 't/data/04_database/prod.conf');
+$db = Bio::Path::Find::Database->new( environment => 'prod', name => 'pathogen_track_test', config_file => 't/data/04_database/prod.conf');
 
-is $db->_get_dsn, 'DBI:mysql:host=patp-db;port=3347;database=pathogen_prok_track', 'correct DSN in production env';
+is $db->_get_dsn, 'DBI:mysql:host=patt-db;port=3346;database=pathogen_track_test', 'correct DSN in "production" env';
 
 my $can_connect;
 try {
@@ -74,7 +74,7 @@ try {
 
 SKIP: {
   skip "can't connect to MySQL database", 1 unless $can_connect;
-  is $db->schema->get_lanes_by_id('5477_6', 'lane'), 11, 'got expected number of lanes from production DB';
+  isa_ok $db->schema, 'Bio::Track::Schema', 'schema';
 }
 
 $DB::single = 1;

@@ -6,6 +6,8 @@ package Bio::Path::Find::Sorter;
 use Moose;
 use namespace::autoclean;
 
+use Path::Class;
+
 with 'Bio::Path::Find::Role::HasEnvironment',
      'Bio::Path::Find::Role::HasConfig';
 
@@ -115,7 +117,7 @@ sub _get_lane_name {
 
   return ( $lane_name, undef ) unless $lane_name =~ m/\//;
 
-  my @dirs = File::Spec->splitdir( $lane_name );
+  my @dirs = dir( $lane_name )->dir_list;
 
   # this used to use the "smartmatch" operator, ~~, but that results in a
   # warning about use of an experimental feature... I think this is equivalent
@@ -126,7 +128,7 @@ sub _get_lane_name {
   my $lane_index = $tracking_index + 5;
   # TODO make this load a hierarchy template from the config and work to that
 
-  my $end = File::Spec->catdir( splice( @dirs, $lane_index + 1 ) );
+  my $end = dir( splice( @dirs, $lane_index + 1 ) );
 
   return ( $dirs[$lane_index], $end );
 }

@@ -35,9 +35,9 @@ path-help@sanger.ac.uk
 A reference to a hash containing database connection parameters from the
 config.
 
-The parameters should be given using the key C<connection_params> and must specify
-C<host>, C<port>, and C<user>. If a password is required it should be given
-using C<pass>. For example, in a L<Config::General>-style config file:
+The parameters should be given using the key C<connection_params> and must
+specify C<host>, C<port>, and C<user>. If a password is required it should be
+given using C<pass>. For example, in a L<Config::General>-style config file:
 
   <connection_params>
     host mysql_database_host
@@ -60,13 +60,11 @@ sub _build_connection_params {
 
   my $connection = $self->config->{connection_params};
 
-  croak 'ERROR: configuration (' . $self->config_file
-       . ') does not specify any database connection parameters ("connection_params")'
+  croak 'ERROR: configuration does not specify any database connection parameters ("connection_params")'
     unless ( defined $connection and ref $connection eq 'HASH' );
 
   foreach ( qw( host user port ) ) {
-    croak 'ERROR: configuration (' . $self->config_file
-         . ") does not specify one of the required database connection parameters ($_)"
+    croak "ERROR: configuration does not specify one of the required database connection parameters ($_)"
       unless exists $connection->{$_};
   }
 
@@ -115,8 +113,7 @@ sub _build_production_db_names {
   my $dbs = $self->config->{production_db};
 
   if ( not defined $dbs ) {
-    carp 'WARNING: configuration ' . $self->config_file ? '(' . $self->config_file . ')' : ''
-         . ' does not specify the list of production databases ("production_db"); using default list';
+    carp 'WARNING: configuration does not specify the list of production databases ("production_db"); using default list';
     $dbs = [ qw(
       pathogen_pacbio_track
       pathogen_prok_track
@@ -139,11 +136,10 @@ sub _build_production_db_names {
 A reference to an array containing the names of the available data sources.
 
 In a production environment, the data sources will be the names of the
-databases that are found in the MySQL instance which is specified in the
+databases that are found in the MySQL instance that is specified in the
 config.
 
-In a test environment, the data source is a test SQLite database which is part
-of the test suite.
+In a test environment, there is a single data source, which is hard-coded.
 
 =cut
 
@@ -161,7 +157,7 @@ sub _build_data_sources {
   # the name of a test DB. Otherwise, retrieve the list by connecting to the
   # MySQL database using the connection parameters from the config
   my @sources = $self->environment eq 'test'
-              ? ( 'pathogen_test_track' )
+              ? ( 'pathogen_track_test' )
               : grep s/^DBI:mysql://, DBI->data_sources('mysql', $self->connection_params);
 
   croak 'ERROR: failed to retrieve a list of data sources'
@@ -172,10 +168,55 @@ sub _build_data_sources {
 
 #---------------------------------------
 
-=attr available_database_names
+=attr database_order
 
-A reference to an array containing the names of live, searchable, production
-pathogen databases.
+A reference to an array containing an ordered list of database names.
+
+This will be the list of ALL databases (both available and unavailable) in the
+MySQL instance, ordered with "track" DBs first, then "external", and then
+re-ordered according to the database names given in the C<production_db> slot
+in the config.
+
+=cut
+
+has 'database_order' => (
+  is      => 'rw',
+  isa     => ArrayRef[Str],
+  lazy    => 1,
+  builder => '_build_database_order',
+);
+
+sub _build_database_order {
+  my $self = shift;
+
+  my @reordered_db_list;
+
+  my %db_list_lookup = map { $_ => 1 } @{ $self->_database_names };
+
+  # first, add production databases to the output list
+  foreach my $database_name ( @{ $self->production_db_names } ) {
+    next unless $db_list_lookup{$database_name};
+    push @reordered_db_list, $database_name;
+
+    # remove already added DBs from the lookup, so that we can add the
+    # remainder below
+    delete $db_list_lookup{$database_name};
+  }
+
+  # add remaining DBs to output
+  foreach my $database_name ( sort keys %db_list_lookup ) {
+    push @reordered_db_list, $database_name;
+  }
+
+  return \@reordered_db_list;
+}
+
+#---------------------------------------
+
+=attr databases
+
+A reference to a hash containing available L<Bio::Path::Find::Database>
+objects, keyed on the name of the database.
 
 In order to appear in this list a database must:
 
@@ -188,14 +229,7 @@ L<Bio::Path::Find::Database::hierarchy_root_dir>).
 
 =back
 
-The list will be sorted to put "track" databases first, e.g.
-C<pathogen_euk_track>, followed by "external" databases, and finally the
-production databases will be moved to the top of this, so that they may be
-searched first.
-
 =cut
-
-# TODO fix the documentation above
 
 has 'databases' => (
   traits  => ['Hash'],
@@ -215,17 +249,11 @@ has 'databases' => (
 sub _build_database_objects {
   my $self = shift;
 
-  my $database_names = [];
-  push @$database_names, grep /^pathogen_.+_track$/,    @{ $self->data_sources };
-  push @$database_names, grep /^pathogen_.+_external$/, @{ $self->data_sources };
-
-  # this will be the list of all databases in the MySQL instance, ordered with
-  # "track" DBs first, then "external", and then re-ordered according to the
-  # database names given in the "production_db" slot in the config
-  $database_names = $self->_reorder_db_list($database_names);
-
   my %databases;
-  foreach my $database_name ( @$database_names ) {
+  foreach my $database_name ( @{ $self->_database_names } ) {
+    # it's cheap to build all of these objects, because they won't attempt to
+    # make a database connection until it's needed ("schema" is a lazy
+    # attribute)
     my $database = Bio::Path::Find::Database->new(
       name        => $database_name,
       environment => $self->environment,
@@ -241,37 +269,70 @@ sub _build_database_objects {
 }
 
 #-------------------------------------------------------------------------------
-#- private methods -------------------------------------------------------------
+#- private attributes ---------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# re-order the provided list of database names to move production databases to
-# the top. The list of production databases is taken from the 'production_dbs'
-# attribute.
+# this is the UNORDERED list of database names. In production mode the names
+# are retrieved from the data sources. In test most the list is hard-coded.
 
-sub _reorder_db_list {
-  my ( $self, $db_list ) = @_;
+has '_database_names' => (
+  is      => 'ro',
+  isa     => ArrayRef [Str],
+  lazy    => 1,
+  builder => '_build_database_names',
+);
 
-  my @reordered_db_list;
+sub _build_database_names {
+  my $self = shift;
 
-  my %db_list_lookup = map { $_ => 1 } @$db_list;
-
-  # first, add production databases to the output list
-  foreach my $database_name ( @{ $self->production_db_names } ) {
-    next unless $db_list_lookup{$database_name};
-    push @reordered_db_list, $database_name;
-
-    # remove already added DBs from the lookup, so that we can add the
-    # remainder below
-    delete $db_list_lookup{$database_name};
+  my @database_names = ();
+  if ( $self->is_test_env ) {
+    push @database_names, 'pathogen_track_test';
+  }
+  else {
+    push @database_names, grep /^pathogen_.+_track$/,    @{ $self->data_sources };
+    push @database_names, grep /^pathogen_.+_external$/, @{ $self->data_sources };
   }
 
-  # add remaining DBs to output
-  foreach my $database_name (sort keys %db_list_lookup ) {
-    push @reordered_db_list, $database_name;
-  }
-
-  return \@reordered_db_list;
+  return \@database_names;
 }
+
+#-------------------------------------------------------------------------------
+#- public methods --------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+=head1 METHODS
+
+=head2 add_database($name, $database)
+
+Adds a L<Bio::Path::Find::Database> to the list of databases that are tracked
+by the database manager.
+
+=head2 get_database($name)
+
+Returns the L<Bio::Path::Find::Database> with the given name.
+
+=head2 all_databases
+
+Returns an array of the L<Bio::Path::Find::Database> objects that are
+available from this database manager.
+
+=head2 database_names
+
+Returns a list of the names of all of the L<Bio::Path::Find::Database>
+objects that are available from this database manager.
+
+=head2 database_pairs
+
+Returns key/value pairs giving the name and object for each database:
+
+ foreach my $pair ( $dbm->database_pairs ) {
+   my $db_name = $pair->[0];
+   my $database = $pair->[1];
+   ...
+ }
+
+=cut
 
 #-------------------------------------------------------------------------------
 

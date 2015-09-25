@@ -7,14 +7,13 @@ use MooseX::StrictConstructor;
 
 use Carp qw( croak carp );
 use File::Slurp;
-use File::Spec;
+use Path::Class;
 
 # TODO this should allow short options but isn't working for some reason
 use Getopt::Long qw( :config auto_abbrev );
 
 use Types::Standard qw( ArrayRef Str );
 use Type::Utils qw( enum );
-use Type::Params qw( compile );
 use Bio::Path::Find::Types qw(
   BioPathFindDatabase
   BioPathFindFilter
@@ -134,10 +133,11 @@ sub BUILD {
   }
 
   my $e = $self->environment;
-  my $c = $self->config_file;
+  my $c = $self->config;
+  my $d = $self->_db_manager;
 
-  $self->_filter( Bio::Path::Find::Filter->new( environment => $e, config_file => $c ) );
-  $self->_sorter( Bio::Path::Find::Sorter->new( environment => $e, config_file => $c ) );
+  $self->_filter( Bio::Path::Find::Filter->new( environment => $e, config => $c, db_manager => $d ) );
+  $self->_sorter( Bio::Path::Find::Sorter->new( environment => $e, config => $c, db_manager => $d ) );
 }
 
 #-------------------------------------------------------------------------------
@@ -147,7 +147,15 @@ sub BUILD {
 sub find {
   my $self = shift;
 
-  foreach my $lane ( @{ $self->_find_lanes } ) {
+  my $lanes = $self->_find_lanes;
+
+  my $filtered_lanes = $self->_filter->filter_lanes($lanes);
+
+  my $sorted_lanes = $self->_sorter->sort_lanes($filtered_lanes);
+
+  # TODO generate stats
+
+  foreach my $lane ( @$sorted_lanes ) {
 
     # from which database is the lane derived ?
     my $database = $self->_db_manager->get_database( $lane->database_name );
@@ -158,8 +166,7 @@ sub find {
     # what is the path for files for this specific lane ?
     my $path = $lane->path;
 
-    # TODO switch to using Path::Class instead of File::Spec
-    print File::Spec->catdir($root, $path), "\n";
+    print dir($root, $path), "\n";
 
   }
 
@@ -195,14 +202,16 @@ sub _find_lanes {
   # objects that we find
   my @results;
 
-  # TODO if we wanted to parallelise the database searching, this is
-  # TODO where it needs to happen...
+  # TODO if we wanted to parallelise the database searching, this is where it
+  # TODO needs to happen... I've tried using Parallel::ForkManager but it's not
+  # TODO working for some reason that I can't immediately fathom
+
+  # TODO need to sort the list of databases according to the order of
+  # TODO the names in the "production_db" array in the config, and putting
+  # TODO "track" before "external", etc.
+
   DB: foreach my $db_name ( $self->_db_manager->database_names ) {
     my $database = $self->_db_manager->get_database($db_name);
-
-    # the results for this database
-    my $db_results = [];
-
     ID: foreach my $id ( @{ $self->_ids } ) {
       my $rs = $database->schema->get_lanes_by_id($id, $self->_id_type);
       next ID unless $rs;
@@ -211,20 +220,18 @@ sub _find_lanes {
         # database it comes from. We need this later to generate paths on disk
         # for the files associated with each result
         $result->database_name($db_name);
-        push @$db_results, $result;
+        push @results, $result;
       }
     }
 
     # move on to the next database unless we got some results
-    next DB unless scalar @$db_results;
+    # next DB unless scalar @results;
 
-    $db_results = $self->_filter->filter_lanes($db_results);
-
-    $db_results = $self->_sorter->sort_lanes($db_results);
-
-    # TODO generate stats
-
-    push @results, @$db_results;
+    # $db_results = $self->_filter->filter_lanes($db_results);
+    #
+    # $db_results = $self->_sorter->sort_lanes($db_results);
+    #
+    # # TODO generate stats
 
     # TODO this needs more consideration...
     # last DB unless $always_search->{$db_name};
