@@ -5,20 +5,20 @@
 use strict;
 use warnings;
 
+use Path::Class;
 use Bio::Path::Find;
 
-my $pf = Bio::Path::Find->new_with_options(
-  config_file => 't/data/05_find_database/prod.conf',
-  id          => '5477_6',
-  type        => 'lane',
+# get a finder
+my $pf = Bio::Path::Find->new(
+  config_file => 't/data/06_finder/test.conf',
+  environment => 'test',
 );
 
-# my $lanes = $pf->_find_lanes;
-#
-# foreach my $lane ( $lanes->all ) {
-#   print $lane->storage_path, "\n";
-# }
-$pf->find;
+$pf->print_paths(
+  id       => '5477_6',
+  type     => 'lane',
+  filetype => 'fastq',
+);
 
 $DB::single = 1;
 

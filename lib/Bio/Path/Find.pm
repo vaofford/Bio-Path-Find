@@ -1,35 +1,45 @@
 
 package Bio::Path::Find;
 
+use v5.10;
+
 use Moose;
 use namespace::autoclean;
 use MooseX::StrictConstructor;
 
 use Carp qw( croak carp );
-use File::Slurp;
+use File::Slurper qw( read_text );
 use Path::Class;
 
-# TODO this should allow short options but isn't working for some reason
-use Getopt::Long qw( :config auto_abbrev );
-
-use Types::Standard qw( ArrayRef Str );
+use Type::Params qw( compile );
+use Types::Standard qw(
+  Object
+  HashRef
+  ArrayRef
+  Str
+  Int
+  slurpy
+  Dict
+  Optional
+);
 use Type::Utils qw( enum );
 use Bio::Path::Find::Types qw(
-  BioPathFindDatabase
-  BioPathFindFilter
   BioPathFindSorter
-  Environment
   IDType
+  FileIDType
+  QCState
+  FileType
+  Environment
 );
+  # BioPathFindFilter
 
 use Bio::Path::Find::DatabaseManager;
-use Bio::Path::Find::Database;
-use Bio::Path::Find::Filter;
+# use Bio::Path::Find::Filter;
+use Bio::Path::Find::Lane;
 use Bio::Path::Find::Sorter;
 
 with 'Bio::Path::Find::Role::HasEnvironment',
-     'Bio::Path::Find::Role::HasConfig',
-     'MooseX::Getopt';
+     'Bio::Path::Find::Role::HasConfig';
 
 =head1 CONTACT
 
@@ -38,56 +48,20 @@ path-help@sanger.ac.uk
 =cut
 
 #-------------------------------------------------------------------------------
-#- command-line options --------------------------------------------------------
+#- public attributes -----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-has 'id' => (
-  is            => 'ro',
-  isa           => Str,
-  required      => 1,
-  documentation => 'lane, sample or study ID, or name of file containing IDs',
-);
+=head1 ATTRIBUTES
 
-has 'type' => (
-  is      => 'ro',
-  isa     => IDType,
-  default => 'lane',
-  documentation =>
-    'ID type; must be one of: study, lane, file, library, sample, species',
-);
+Inherits C<config> and C<environment> from the roles
+L<Bio::Path::Find::Role::HasConfig> and
+L<Bio::Path::Find::Role::HasEnvironment>.
 
-has 'file_id_type' => (
-  is            => 'ro',
-  isa           => enum( [qw( lane sample )] ),
-  default       => 'lane',
-  documentation => 'type of IDs in file; must be either "lane" or "sample"',
-);
-
-# we also get "config" and "environment" from the two roles that we use
+=cut
 
 #-------------------------------------------------------------------------------
 #- private attributes ----------------------------------------------------------
 #-------------------------------------------------------------------------------
-
-has '_db_manager' => (
-  is => 'ro',
-  isa => 'Bio::Path::Find::DatabaseManager',
-  lazy => 1,
-  builder => '_build_db_manager',
-);
-
-sub _build_db_manager {
-  my $self = shift;
-  return Bio::Path::Find::DatabaseManager->new(
-    environment => $self->environment,
-    config      => $self->config,
-  );
-}
-
-has '_filter'    => ( is => 'rw', isa => BioPathFindFilter );
-has '_sorter'    => ( is => 'rw', isa => BioPathFindSorter );
-
-#---------------------------------------
 
 # somewhere to store the list of IDs that we'll search for. This could be just
 # a single ID from the command line or many IDs from a file
@@ -107,73 +81,177 @@ has '_id_type' => (
   default => 'lane',
 );
 
-#-------------------------------------------------------------------------------
-#- construction ----------------------------------------------------------------
-#-------------------------------------------------------------------------------
+#---------------------------------------
 
-sub BUILD {
+has '_db_manager' => (
+  is      => 'ro',
+  isa     => 'Bio::Path::Find::DatabaseManager',
+  lazy    => 1,
+  builder => '_build_db_manager',
+);
+
+sub _build_db_manager {
   my $self = shift;
-
-  # if "type" is "file", we need to know what type of IDs we'll find in the
-  # file
-  croak qq(ERROR: if "type" is "file", you must also specify "file_id_type")
-    if ( $self->type eq 'file' and not $self->file_id_type );
-
-  # we can't use "type" to tell us reliably what kind of IDs we're working
-  # with, since it can be set to "file", in which case we need to look to
-  # "file_id_type" for type of IDs in the file...
-
-  if ( $self->type eq 'file' ) {
-    $self->_load_ids_from_file($self->id);
-    $self->_id_type($self->file_id_type);
-  }
-  else {
-    push @{ $self->_ids }, $self->id;
-    $self->_id_type($self->type);
-  }
-
-  my $e = $self->environment;
-  my $c = $self->config;
-  my $d = $self->_db_manager;
-
-  $self->_filter( Bio::Path::Find::Filter->new( environment => $e, config => $c, db_manager => $d ) );
-  $self->_sorter( Bio::Path::Find::Sorter->new( environment => $e, config => $c, db_manager => $d ) );
+  return Bio::Path::Find::DatabaseManager->new(
+    environment => $self->environment,
+    config      => $self->config,
+  );
 }
+
+#---------------------------------------
+
+# has '_filter' => (
+#   is      => 'rw',
+#   isa     => BioPathFindFilter,
+#   lazy    => 1,
+#   default => sub {
+#     my $self = shift;
+#     Bio::Path::Find::Filter->new(
+#       environment => $self->environment,
+#       config      => $self->config,
+#     );
+#   },
+# );
+
+#---------------------------------------
+
+has '_sorter' => (
+  is      => 'rw',
+  isa     => BioPathFindSorter,
+  lazy    => 1,
+  default => sub {
+    my $self = shift;
+    Bio::Path::Find::Sorter->new(
+      environment => $self->environment,
+      config      => $self->config,
+    );
+  },
+);
 
 #-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
 sub find {
-  my $self = shift;
+  state $check = compile(
+    Object,
+    slurpy Dict[
+      id           => Str,
+      type         => IDType,
+      file_id_type => Optional[FileIDType],
+      qc           => Optional[QCState],
+      filetype     => Optional[FileType],
+    ],
+  );
+  my ( $self, $params ) = $check->(@_);
 
+  # check for dependencies between parameters: if "type" is "file", we need to
+  # know what type of IDs we'll find in the file
+  croak qq(ERROR: if "type" is "file", you must also specify "file_id_type")
+    if ( $params->{type} eq 'file' and not $params->{file_id_type} );
+
+  #---------------------------------------
+
+  # we can't use "type" to tell us what kind of IDs we're working with, since
+  # it can be set to "file", in which case we need to look at "file_id_type"
+  # to get the type of IDs in the file...
+
+  if ( $params->{type} eq 'file' ) {
+    # read multiple IDs from a file
+    $self->_load_ids_from_file($params->{id});
+    $self->_id_type($params->{file_id_type});
+  }
+  else {
+    # use the single ID from the command line
+    push @{ $self->_ids }, $params->{id};
+    $self->_id_type($params->{type});
+  }
+
+  #---------------------------------------
+
+  # get a list of Bio::Path::Find::Lane objects
   my $lanes = $self->_find_lanes;
 
-  my $filtered_lanes = $self->_filter->filter_lanes($lanes);
+  # find files for the lanes
+  LANE: foreach my $lane ( @$lanes ) {
 
-  my $sorted_lanes = $self->_sorter->sort_lanes($filtered_lanes);
+    # ignore this lane if:
+    # 1. we've been told to look for a specific QC status, and
+    # 2. the lane has a QC status set, and
+    # 3. this lane's QC status doesn't match the required status
+    next LANE if ( defined $params->{qc} and
+                   defined $lane->row->qc_status and
+                   $lane->row->qc_status ne $params->{qc} );
+
+    # get a specific type of file
+    $lane->find_files($params->{filetype}) if $params->{filetype};
+
+    # $DB::single = 1;
+  }
+
+  # at this point we have a list of Bio::Path::Find::Lane objects, each of
+  # which has a QC status matching the supplied QC value, and which has gone
+  # off to look for the files associated with its row in the database
+
+  # TODO get a sorted list of lane objects
+  # my $sorted_lanes = $self->_sorter->sort_lanes($filtered_lanes);
 
   # TODO generate stats
 
-  foreach my $lane ( @$sorted_lanes ) {
+  return $lanes; # array of lane objects
+}
 
-    # from which database is the lane derived ?
-    my $database = $self->_db_manager->get_database( $lane->database_name );
+#-------------------------------------------------------------------------------
 
-    # what is the root directory for files associated with that directory ?
-    my $root = $database->hierarchy_root_dir;
+sub print_paths {
+  state $check = compile(
+    Object,
+    slurpy Dict[
+      id           => Str,
+      type         => IDType,
+      file_id_type => Optional[FileIDType],
+      qc           => Optional[QCState],
+      filetype     => Optional[FileType],
+    ],
+  );
+  my ( $self, $params ) = $check->(@_);
 
-    # what is the path for files for this specific lane ?
-    my $path = $lane->path;
+  my $lanes = $self->find(%$params);
 
-    print dir($root, $path), "\n";
-
+  foreach my $lane ( @$lanes ) {
+    if ( $params->{filetype} ) {
+      foreach my $file ( $lane->all_files ) {
+        print $file, "\n";
+      }
+    }
+    else {
+      print $lane->symlink_path, "\n";
+    }
   }
 
 }
 
 #-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+sub _load_ids_from_file {
+  my ( $self, $filename ) = @_;
+
+  croak "ERROR: no such file ($filename)"
+    unless -f $filename;
+
+  # TODO check if this will work with the expected usage. If users are used
+  # TODO to putting plex IDs as search terms, stripping lines starting with
+  # TODO "#" will break those searches
+  my @ids = grep m/^#/, read_text($filename);
+
+  croak "ERROR: no IDs found in file ($filename)"
+    unless scalar @ids;
+
+  push @{ $self->_ids }, @ids;
+}
+
 #-------------------------------------------------------------------------------
 
 sub _find_lanes {
@@ -198,9 +276,9 @@ sub _find_lanes {
   # walk over the list of available databases and, for each ID, search for
   # lanes matching the specified ID
 
-  # somewhere to store all of the Bio::Track::Schema::Result::LatestLane
-  # objects that we find
-  my @results;
+  # somewhere to store all of the Bio::Path::Find::Lane objects that we're
+  # going to build
+  my @lanes;
 
   # TODO if we wanted to parallelise the database searching, this is where it
   # TODO needs to happen... I've tried using Parallel::ForkManager but it's not
@@ -211,51 +289,35 @@ sub _find_lanes {
   # TODO "track" before "external", etc.
 
   DB: foreach my $db_name ( $self->_db_manager->database_names ) {
+
     my $database = $self->_db_manager->get_database($db_name);
+
     ID: foreach my $id ( @{ $self->_ids } ) {
+
       my $rs = $database->schema->get_lanes_by_id($id, $self->_id_type);
-      next ID unless $rs;
-      while ( my $result = $rs->next ) {
+      next ID unless $rs; # no matching lanes
+
+      while ( my $lane_row = $rs->next ) {
+
         # tell every result (a Bio::Track::Schema::Result object) which
         # database it comes from. We need this later to generate paths on disk
         # for the files associated with each result
-        $result->database_name($db_name);
-        push @results, $result;
+        $lane_row->database_name($db_name);
+        $lane_row->database($database);
+
+        # build a lightweight object to hold all of the data about a particular
+        # row
+        my $lane = Bio::Path::Find::Lane->new( row => $lane_row );
+
+        push @lanes, $lane;
       }
     }
-
-    # move on to the next database unless we got some results
-    # next DB unless scalar @results;
-
-    # $db_results = $self->_filter->filter_lanes($db_results);
-    #
-    # $db_results = $self->_sorter->sort_lanes($db_results);
-    #
-    # # TODO generate stats
 
     # TODO this needs more consideration...
     # last DB unless $always_search->{$db_name};
   }
 
-  return \@results;
-}
-
-#-------------------------------------------------------------------------------
-#- private methods -------------------------------------------------------------
-#-------------------------------------------------------------------------------
-
-sub _load_ids_from_file {
-  my ( $self, $filename ) = @_;
-
-  croak "ERROR: no such file ($filename)"
-    unless -f $filename;
-
-  my @ids = grep m/^#/, read_file($filename);
-
-  croak "ERROR: no IDs found in file ($filename)"
-    unless scalar @ids;
-
-  push @{ $self->_ids }, @ids;
+  return \@lanes;
 }
 
 #-------------------------------------------------------------------------------
@@ -263,4 +325,75 @@ sub _load_ids_from_file {
 __PACKAGE__->meta->make_immutable;
 
 1;
+
+__END__
+
+# sub _find_files_for_lane {
+#   my ( $self, $lane, $filetype ) = @_;
+#
+#   my $extension = $self->filetype_extensions->{$filetype} if $filetype;
+#
+#   if ( $filetype ) {
+#     if ( $filetype eq 'fastq' ) {
+#       $self->_get_fastqs($lane);
+#     }
+#     elsif ( $filetype eq 'corrected' ) {
+#       $self->_get_corrected($lane);
+#     }
+#   }
+#   elsif ( $extension ) {
+#     $self->_get_extension($lane, $extension) if $extension =~ m/\*/;
+#   }
+#
+# }
+
+#-------------------------------------------------------------------------------
+
+# sub _get_fastqs {
+#   my ( $self, $lane ) = @_;
+#
+#   my @found_files;
+#   while ( my $file = $lane->row->latest_files->next ) {
+#     my $filename = $file->name;
+#
+#     # for illumina, the database stores the names of the fastq files directly.
+#     # For pacbio, however, the database stores the names of the bax files. Work
+#     # out the names of the fastq files from those bax filenames
+#     $filename =~ s/\d{1}\.ba[xs]\.h5$/fastq.gz/ if $lane->row->database_name =~ m/pacbio/;
+#
+#     my $filepath = file( $lane->symlink_path, $filename );
+#
+#     $lane->add_file($filepath)
+#       if ( $filepath =~ m/fastq/ and
+#            $filepath !~ m/pool_1.fastq.gz/ and
+#            -e $filepath );
+#   }
+# }
+
+#-------------------------------------------------------------------------------
+
+# sub _get_corrected {
+#   my ( $self, $lane ) = @_;
+#
+#   my $filename = $lane->hierarchy_name . '.corrected.fastq.gz';
+#   my $filepath = file( $lane->symlink_path, $filename );
+#
+#   $lane->add_file($filepath) if -e $filepath;
+# }
+
+#-------------------------------------------------------------------------------
+
+# sub _get_extension {
+#   my ( $self, $lane, $extension ) = @_;
+#
+#   my @files = File::Find::Rule->file
+#                               ->in($lane->symlink_path)
+#                               ->name($extension)
+#                               ->maxdepth($self->search_depth)
+#                               ->extras( { follow => 1 } );
+#
+#   $lane->add_file($_) for @files;
+# }
+
+#-------------------------------------------------------------------------------
 

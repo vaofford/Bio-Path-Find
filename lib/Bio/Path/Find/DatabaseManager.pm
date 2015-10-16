@@ -277,7 +277,7 @@ sub _build_database_objects {
 
 has '_database_names' => (
   is      => 'ro',
-  isa     => ArrayRef [Str],
+  isa     => ArrayRef[Str],
   lazy    => 1,
   builder => '_build_database_names',
 );

@@ -3,10 +3,15 @@ package Bio::Path::Find::Sorter;
 
 # ABSTRACT: class to sort sets of results from a path find search
 
+use v5.10;
+
 use Moose;
 use namespace::autoclean;
 
 use Path::Class;
+use Type::Params qw( compile );
+use Types::Standard qw( Object slurpy Dict ArrayRef );
+use Bio::Path::Find::Types qw( BioPathFindLane );
 
 with 'Bio::Path::Find::Role::HasEnvironment',
      'Bio::Path::Find::Role::HasConfig';
@@ -38,11 +43,15 @@ L<Bio::Path::Find::Role::HasEnvironment>.
 =cut
 
 sub sort_lanes {
-  my ( $self, $lanes ) = @_;
+  state $check = compile(
+    Object,
+    ArrayRef[BioPathFindLane],
+  );
+  my ( $self, $lanes ) = $check->(@_);
 
   # convert an array of Bio::Track::Schema::Result::LatestLane objects into a
   # hash, using $lane->name as the key
-  my %lanes_by_name = map { $_->name => $_ } @$lanes;
+  my %lanes_by_name = map { $_->row->name => $_ } @{ $lanes };
 
   # sort the keys of that hash using the fiendishly complicated sort function
   # below
@@ -54,6 +63,9 @@ sub sort_lanes {
 
   return \@sorted_lanes;
 }
+
+# TODO this is only partially updated to use Bio::Path::Find::Lane objects.
+# TODO Needs more work to make the sorting understand
 
 #-------------------------------------------------------------------------------
 #- functions -------------------------------------------------------------------
