@@ -1,0 +1,9 @@
+* When the database says that a file exists, but the file is not found on disk,
+  issue a warning and send a mail to pathdev, or log the warning and have a
+  cron job that checks for new warnings periodically
+* Keep a log of pathfind runs, with a record of the time each one takes
+* Be careful trying to parallelise queries: pathfind is used from scripts
+  running on the farm, so it's possible to saturate the number of DB
+  connections
+* Could replicate the current set of pathogen_*_track databases and clear
+  out old data to make find queries quicker
