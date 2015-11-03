@@ -273,7 +273,7 @@ sub _build_database_objects {
 #-------------------------------------------------------------------------------
 
 # this is the UNORDERED list of database names. In production mode the names
-# are retrieved from the data sources. In test most the list is hard-coded.
+# are retrieved from the data sources. In test mode the list is hard-coded.
 
 has '_database_names' => (
   is      => 'ro',
@@ -287,7 +287,7 @@ sub _build_database_names {
 
   my @database_names = ();
   if ( $self->is_test_env ) {
-    push @database_names, 'pathogen_track_test';
+    push @database_names, 'pathogen_test_pathfind';
   }
   else {
     push @database_names, grep /^pathogen_.+_track$/,    @{ $self->data_sources };

@@ -1,14 +1,14 @@
 
 package Bio::Path::Find;
 
-use v5.10;
+use v5.10; # required for Type::Params use of "state"
 
 use Moose;
 use namespace::autoclean;
 use MooseX::StrictConstructor;
 
 use Carp qw( croak carp );
-use File::Slurper qw( read_text );
+use File::Slurper qw( read_lines );
 use Path::Class;
 
 use Type::Params qw( compile );
@@ -31,10 +31,8 @@ use Bio::Path::Find::Types qw(
   FileType
   Environment
 );
-  # BioPathFindFilter
 
 use Bio::Path::Find::DatabaseManager;
-# use Bio::Path::Find::Filter;
 use Bio::Path::Find::Lane;
 use Bio::Path::Find::Sorter;
 
@@ -100,21 +98,6 @@ sub _build_db_manager {
 
 #---------------------------------------
 
-# has '_filter' => (
-#   is      => 'rw',
-#   isa     => BioPathFindFilter,
-#   lazy    => 1,
-#   default => sub {
-#     my $self = shift;
-#     Bio::Path::Find::Filter->new(
-#       environment => $self->environment,
-#       config      => $self->config,
-#     );
-#   },
-# );
-
-#---------------------------------------
-
 has '_sorter' => (
   is      => 'rw',
   isa     => BioPathFindSorter,
@@ -173,6 +156,7 @@ sub find {
   my $lanes = $self->_find_lanes;
 
   # find files for the lanes
+  my $filtered_lanes = [];
   LANE: foreach my $lane ( @$lanes ) {
 
     # ignore this lane if:
@@ -183,22 +167,29 @@ sub find {
                    defined $lane->row->qc_status and
                    $lane->row->qc_status ne $params->{qc} );
 
-    # get a specific type of file
-    $lane->find_files($params->{filetype}) if $params->{filetype};
+    # return lanes that have a specific type of file
+    if ( $params->{filetype} ) {
+      $lane->find_files($params->{filetype});
+      push @$filtered_lanes, $lane if $lane->has_files;
+    }
+    # we don't care about files; return all lanes
+    else {
+      push @$filtered_lanes, $lane;
+    }
 
     # $DB::single = 1;
+
   }
 
   # at this point we have a list of Bio::Path::Find::Lane objects, each of
-  # which has a QC status matching the supplied QC value, and which has gone
-  # off to look for the files associated with its row in the database
+  # which has a QC status matching the supplied QC value. Each lane has also
+  # gone off to look for the files associated with its row in the database
 
-  # TODO get a sorted list of lane objects
-  # my $sorted_lanes = $self->_sorter->sort_lanes($filtered_lanes);
+  my $sorted_lanes = $self->_sorter->sort_lanes($filtered_lanes);
 
   # TODO generate stats
 
-  return $lanes; # array of lane objects
+  return $sorted_lanes; # array of lane objects
 }
 
 #-------------------------------------------------------------------------------
@@ -218,17 +209,22 @@ sub print_paths {
 
   my $lanes = $self->find(%$params);
 
+  my $found_something = 0;
   foreach my $lane ( @$lanes ) {
     if ( $params->{filetype} ) {
+      $found_something++ if $lane->has_files;
       foreach my $file ( $lane->all_files ) {
-        print $file, "\n";
+        say $file;
       }
     }
     else {
-      print $lane->symlink_path, "\n";
+      $found_something++;
+      say $lane->symlink_path;
     }
   }
 
+  say 'Could not find lanes or files for input data'
+    unless $found_something;
 }
 
 #-------------------------------------------------------------------------------
@@ -244,7 +240,7 @@ sub _load_ids_from_file {
   # TODO check if this will work with the expected usage. If users are used
   # TODO to putting plex IDs as search terms, stripping lines starting with
   # TODO "#" will break those searches
-  my @ids = grep m/^#/, read_text($filename);
+  my @ids = grep ! m/^#/, read_lines($filename);
 
   croak "ERROR: no IDs found in file ($filename)"
     unless scalar @ids;
@@ -302,7 +298,6 @@ sub _find_lanes {
         # tell every result (a Bio::Track::Schema::Result object) which
         # database it comes from. We need this later to generate paths on disk
         # for the files associated with each result
-        $lane_row->database_name($db_name);
         $lane_row->database($database);
 
         # build a lightweight object to hold all of the data about a particular
@@ -325,75 +320,4 @@ sub _find_lanes {
 __PACKAGE__->meta->make_immutable;
 
 1;
-
-__END__
-
-# sub _find_files_for_lane {
-#   my ( $self, $lane, $filetype ) = @_;
-#
-#   my $extension = $self->filetype_extensions->{$filetype} if $filetype;
-#
-#   if ( $filetype ) {
-#     if ( $filetype eq 'fastq' ) {
-#       $self->_get_fastqs($lane);
-#     }
-#     elsif ( $filetype eq 'corrected' ) {
-#       $self->_get_corrected($lane);
-#     }
-#   }
-#   elsif ( $extension ) {
-#     $self->_get_extension($lane, $extension) if $extension =~ m/\*/;
-#   }
-#
-# }
-
-#-------------------------------------------------------------------------------
-
-# sub _get_fastqs {
-#   my ( $self, $lane ) = @_;
-#
-#   my @found_files;
-#   while ( my $file = $lane->row->latest_files->next ) {
-#     my $filename = $file->name;
-#
-#     # for illumina, the database stores the names of the fastq files directly.
-#     # For pacbio, however, the database stores the names of the bax files. Work
-#     # out the names of the fastq files from those bax filenames
-#     $filename =~ s/\d{1}\.ba[xs]\.h5$/fastq.gz/ if $lane->row->database_name =~ m/pacbio/;
-#
-#     my $filepath = file( $lane->symlink_path, $filename );
-#
-#     $lane->add_file($filepath)
-#       if ( $filepath =~ m/fastq/ and
-#            $filepath !~ m/pool_1.fastq.gz/ and
-#            -e $filepath );
-#   }
-# }
-
-#-------------------------------------------------------------------------------
-
-# sub _get_corrected {
-#   my ( $self, $lane ) = @_;
-#
-#   my $filename = $lane->hierarchy_name . '.corrected.fastq.gz';
-#   my $filepath = file( $lane->symlink_path, $filename );
-#
-#   $lane->add_file($filepath) if -e $filepath;
-# }
-
-#-------------------------------------------------------------------------------
-
-# sub _get_extension {
-#   my ( $self, $lane, $extension ) = @_;
-#
-#   my @files = File::Find::Rule->file
-#                               ->in($lane->symlink_path)
-#                               ->name($extension)
-#                               ->maxdepth($self->search_depth)
-#                               ->extras( { follow => 1 } );
-#
-#   $lane->add_file($_) for @files;
-# }
-
-#-------------------------------------------------------------------------------
 

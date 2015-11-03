@@ -10,15 +10,24 @@ use Bio::Path::Find;
 
 # get a finder
 my $pf = Bio::Path::Find->new(
-  config_file => 't/data/06_finder/test.conf',
+  config_file => 't/data/07_finder/test.conf',
   environment => 'test',
 );
 
 $pf->print_paths(
-  id       => '5477_6',
-  type     => 'lane',
-  filetype => 'fastq',
+  id           => '5477_6',
+  type         => 'lane',
+  filetype     => 'bam',
+  # qc           => 'passed',
 );
+
+# $pf->print_paths(
+#   id           => 't/data/06_finder/ids.txt',
+#   type         => 'file',
+#   file_id_type => 'lane',
+#   # filetype     => 'fastq',
+#   # qc           => 'passed',
+# );
 
 $DB::single = 1;
 

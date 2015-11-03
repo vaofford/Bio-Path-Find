@@ -193,9 +193,10 @@ See L<db_subdirs>.
 =cut
 
 has 'hierarchy_root_dir' => (
-  is    => 'ro',
-  isa   => Str | Undef,
-  lazy  => 1,
+  is      => 'ro',
+  isa     => Str | Undef,
+  lazy    => 1,
+  writer  => '_set_hierarchy_root_dir',
   builder => '_build_hierarchy_root_dir',
 );
 

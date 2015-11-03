@@ -16,7 +16,6 @@ use Type::Library -base, -declare => qw(
   FileType
   Environment
 );
-  # BioPathFindFilter
 
 use Type::Utils -all;
 use Types::Standard -types;
@@ -25,16 +24,15 @@ class_type 'Bio::Track::Schema';
 class_type 'Bio::Track::Schema::Result::LatestLane';
 class_type 'Bio::Path::Find::DatabaseManager';
 class_type 'Bio::Path::Find::Database';
-# class_type 'Bio::Path::Find::Filter';
 class_type 'Bio::Path::Find::Lane';
 class_type 'Bio::Path::Find::Sorter';
 class_type 'Path::Class::File';
 class_type 'Path::Class::Dir';
 
-enum IDType,      [qw( lane sample database study file library species)];
-enum FileIDType,  [qw( lane sample)];
-enum QCState,     [qw( passed failed pending)];
-enum FileType,    [qw( fastq bam pacbio)];
+enum IDType,      [qw( lane sample database study file library species )];
+enum FileIDType,  [qw( lane sample )];
+enum QCState,     [qw( passed failed pending )];
+enum FileType,    [qw( fastq bam pacbio corrected )];
 enum Environment, [qw( test prod )];
 
 1;

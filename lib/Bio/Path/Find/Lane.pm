@@ -1,13 +1,18 @@
 
 package Bio::Path::Find::Lane;
 
+use v5.10; # required for Type::Params use of "state"
+
 use Moose;
 use namespace::autoclean;
 use MooseX::StrictConstructor;
 
-use Carp qw( carp );
+use Carp qw( carp croak );
 use Path::Class;
-use Types::Standard qw( Str Int HashRef ArrayRef );
+use File::Find::Rule;
+
+use Type::Params qw( compile );
+use Types::Standard qw( Object Str Int HashRef ArrayRef );
 use Bio::Path::Find::Types qw(
   BioTrackSchemaResultLatestLane
   PathClassFile
@@ -21,10 +26,32 @@ path-help@sanger.ac.uk
 =cut
 
 #-------------------------------------------------------------------------------
-#- public attributes -----------------------------------------------------------
+#- attributes ------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
 =head1 ATTRIBUTES
+
+=cut
+
+#-------------------------------------------------------------------------------
+#- required attributes ---------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+=attr row
+
+A L<Bio::Track::Schema::Result::LatestLane> object for this row.
+
+=cut
+
+has 'row' => (
+  is       => 'ro',
+  isa      => BioTrackSchemaResultLatestLane,
+  required => 1,
+);
+
+#-------------------------------------------------------------------------------
+#- optional read-write attributes ----------------------------------------------
+#-------------------------------------------------------------------------------
 
 =attr filetype_extensions
 
@@ -42,7 +69,7 @@ C<.fastq.gz>. The default mapping is:
 # make much sense...
 
 has 'filetype_extensions' => (
-  is      => 'ro',
+  is      => 'rw',
   isa     => HashRef[Str],
   default => sub {
     {
@@ -69,20 +96,9 @@ has 'search_depth' => (
   default => 1,
 );
 
-#---------------------------------------
-
-=attr row
-
-A L<Bio::Track::Schema::Result::LatestLane> object for this row.
-
-=cut
-
-has 'row' => (
-  is  => 'ro',
-  isa => BioTrackSchemaResultLatestLane,
-);
-
-#---------------------------------------
+#-------------------------------------------------------------------------------
+#- read-only attributes --------------------------------------------------------
+#-------------------------------------------------------------------------------
 
 =attr files
 
@@ -91,17 +107,21 @@ associated with this lane.
 
 =cut
 
+# this is a read-write attribute but it's only writeable via a private
+# accessor
+
 has 'files' => (
   traits  => ['Array'],
-  is      => 'rw',
+  is      => 'ro',
   isa     => ArrayRef[PathClassFile],
   default => sub { [] },
   handles => {
-    add_file     => 'push',
+    _add_file    => 'push',      # private method
     all_files    => 'elements',
     has_files    => 'count',
     has_no_files => 'is_empty',
     file_count   => 'count',
+    clear_files  => 'clear',
   },
 );
 
@@ -123,9 +143,18 @@ has 'root_dir' => (
 
 sub _build_root_dir {
   my $self = shift;
-  carp 'WARNING: no lane assigned; add a Bio::Track::Schema::Result::LatestLane first'
-    unless defined $self->row;
-  return dir( $self->row->database->hierarchy_root_dir );
+
+  my $root_dir = dir( $self->row->database->hierarchy_root_dir );
+
+  # sanity check: make sure that the root directory, the top of the filesystem
+  # tree for all of the files that we're going to look for, actually exists. If
+  # it doesn't, that might indicate a problem with the mountpoint on the
+  # machine and it's worth telling the user, so that they don't simply think
+  # their IDs etc. don't exist
+  croak "ERROR: can't see the filesystem root ($root_dir). This may indicate a problem with mountpoints"
+    unless -e $root_dir;
+
+  return $root_dir;
 }
 
 #---------------------------------------
@@ -174,23 +203,64 @@ sub _build_symlink_path {
 #- public methods --------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
+=head1 METHODS
+
+=head2 all_files
+
+Returns a list of the files for this lane. The files are represented by
+L<Path::Class::File> objects, giving the absolute path to the file on disk.
+
+=head2 has_files
+
+Returns true if this lane has files associated with it, false otherwise.
+B<Note> that this method will return false if the L<find_files> method has
+been run but there are no files found, and also if the L<find_files> method
+simply hasn't yet been run.
+
+=head2 has_no_files
+
+Returns true if this file has B<no> files associated with it, true otherwise.
+To be explicit, this is the inverse of L<has_files>.
+
+=head2 file_count
+
+Returns the number of files associated with this lane.
+
+=head2 clear_files
+
+Clears the list of found files. No return value.
+
+=cut
+
+#-------------------------------------------------------------------------------
+
+=head2 find_files($filetype)
+
+Look for files associated with this lane with a given filetype. Returns the
+number of files found.
+
+=cut
+
 sub find_files {
-  my ( $self, $filetype ) = @_;
+  state $check = compile( Object, Str );
+  my ( $self, $filetype ) = $check->(@_);
 
-  my $extension = $self->filetype_extensions->{$filetype} if $filetype;
+  $self->clear_files;
 
-  if ( $filetype ) {
-    if ( $filetype eq 'fastq' ) {
-      $self->_get_fastqs;
-    }
-    elsif ( $filetype eq 'corrected' ) {
-      $self->_get_corrected;
-    }
+  if ( $filetype eq 'fastq' ) {
+    $self->_get_fastqs;
   }
-  elsif ( $extension ) {
-    $self->_get_extension($extension) if $extension =~ m/\*/;
+  elsif ( $filetype eq 'corrected' ) {
+    $self->_get_corrected;
   }
 
+  if ( $self->has_no_files ) {
+    my $extension = $self->filetype_extensions->{$filetype};
+    $self->_get_extension($extension)
+      if ( defined $extension and $extension =~ m/\*/ );
+  }
+
+  return $self->file_count;
 }
 
 #-------------------------------------------------------------------------------
@@ -200,33 +270,39 @@ sub find_files {
 sub _get_fastqs {
   my $self = shift;
 
-  # we have to save a reference the list of files for each lane Result,
-  # otherwise DBIC will continually return the first row of the ResultSet
+  # we have to save a reference to the "latest_files" relationship for each
+  # lane before iterating over it, otherwise DBIC will continually return the
+  # first row of the ResultSet
   # (see https://metacpan.org/pod/DBIx::Class::ResultSet#next)
   my $files = $self->row->latest_files;
 
   my @found_files;
-  while ( my $file = $files->next ) {
+  FILE: while ( my $file = $files->next ) {
     my $filename = $file->name;
 
     # for illumina, the database stores the names of the fastq files directly.
     # For pacbio, however, the database stores the names of the bax files. Work
     # out the names of the fastq files from those bax filenames
     $filename =~ s/\d{1}\.ba[xs]\.h5$/fastq.gz/
-      if $self->row->database_name =~ m/pacbio/;
+      if $self->row->database->name =~ m/pacbio/;
 
     my $filepath = file( $self->symlink_path, $filename );
 
     if ( $filepath =~ m/fastq/ and
-         $filepath !~ m/pool_1.fastq.gz/ and
-         -e $filepath ) {
-      $self->add_file($filepath);
+         $filepath !~ m/pool_1.fastq.gz/ ) {
+
+      # the filename here is obtained from the database, so the file really
+      # should exist on disk. If it doesn't exist, if the symlink in the root
+      # directory tree is broken, we'll show a warning, because that indicates
+      # a fairly serious mismatch between the two halves of the tracking system
+      # (database and filesystem)
+      unless ( -e $filepath ) {
+        carp "ERROR: database says that '$filepath' should exist but it doesn't";
+        next FILE;
+      }
+
+      $self->_add_file($filepath);
     }
-
-    # TODO set up some test data: copy the files associated with the lanes
-    # TODO that we're looking for, putting them into t/data/06_finder/root_dir
-
-    $DB::single = 1;
   }
 }
 
@@ -235,10 +311,10 @@ sub _get_fastqs {
 sub _get_corrected {
   my $self = shift;
 
-  my $filename = $self->hierarchy_name . '.corrected.fastq.gz';
+  my $filename = $self->row->hierarchy_name . '.corrected.fastq.gz';
   my $filepath = file( $self->symlink_path, $filename );
 
-  $self->add_file($filepath) if -e $filepath;
+  $self->_add_file($filepath) if -e $filepath;
 }
 
 #-------------------------------------------------------------------------------
@@ -252,7 +328,7 @@ sub _get_extension {
                               ->maxdepth($self->search_depth)
                               ->extras( { follow => 1 } );
 
-  $self->add_file($_) for @files;
+  $self->_add_file($_) for @files;
 }
 
 #-------------------------------------------------------------------------------
