@@ -47,11 +47,11 @@ lives_ok { $ds = $dbm->data_sources }
   "no exception building list of test data_sources";
 
 # make sure we get the expected SQLite DB with the test config
-is_deeply $ds, [ 'pathogen_track_test' ], 'got expected list of test data sources';
+is_deeply $ds, [ 'pathogen_test_track' ], 'got expected list of test data sources';
 
 ok scalar keys %{ $dbm->databases }, 'got a Bio::Path::Find::Database object for test DB';
 
-my $db = $dbm->get_database('pathogen_track_test');
+my $db = $dbm->get_database('pathogen_test_track');
 isa_ok $db, 'Bio::Path::Find::Database', 'database object';
 isa_ok $db->schema, 'Bio::Track::Schema', 'schema';
 

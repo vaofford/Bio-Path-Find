@@ -64,9 +64,14 @@ L<Bio::Path::Find::Role::HasEnvironment>.
 # somewhere to store the list of IDs that we'll search for. This could be just
 # a single ID from the command line or many IDs from a file
 has '_ids' => (
+  traits  => ['Array'],
   is      => 'ro',
   isa     => ArrayRef[Str],
   default => sub { [] },
+  handles => {
+    '_add_id'    => 'push',
+    '_clear_ids' => 'clear',
+  }
 );
 
 #---------------------------------------
@@ -75,7 +80,7 @@ has '_ids' => (
 # "type" to give us that
 has '_id_type' => (
   is      => 'rw',
-  isa     => enum( [ qw( lane sample ) ] ),
+  isa     => IDType,
   default => 'lane',
 );
 
@@ -139,6 +144,8 @@ sub find {
   # it can be set to "file", in which case we need to look at "file_id_type"
   # to get the type of IDs in the file...
 
+  $self->_clear_ids;
+
   if ( $params->{type} eq 'file' ) {
     # read multiple IDs from a file
     $self->_load_ids_from_file($params->{id});
@@ -146,7 +153,8 @@ sub find {
   }
   else {
     # use the single ID from the command line
-    push @{ $self->_ids }, $params->{id};
+    # push @{ $self->_ids }, $params->{id};
+    $self->_add_id( $params->{id} );
     $self->_id_type($params->{type});
   }
 
@@ -211,16 +219,7 @@ sub print_paths {
 
   my $found_something = 0;
   foreach my $lane ( @$lanes ) {
-    if ( $params->{filetype} ) {
-      $found_something++ if $lane->has_files;
-      foreach my $file ( $lane->all_files ) {
-        say $file;
-      }
-    }
-    else {
-      $found_something++;
-      say $lane->symlink_path;
-    }
+    $found_something += $lane->print_paths;
   }
 
   say 'Could not find lanes or files for input data'
@@ -245,7 +244,8 @@ sub _load_ids_from_file {
   croak "ERROR: no IDs found in file ($filename)"
     unless scalar @ids;
 
-  push @{ $self->_ids }, @ids;
+  # push @{ $self->_ids }, @ids;
+  $self->_add_id(@ids);
 }
 
 #-------------------------------------------------------------------------------

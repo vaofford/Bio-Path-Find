@@ -27,10 +27,9 @@ $db = Bio::Path::Find::Database->new(
   name        => 'pathogen_test_track',
   config_file => 't/data/04_database/test.conf',
 );
-is $db->_get_dsn, 'dbi:SQLite:dbname=t/data/04_database/pathogen_test_track', 'correct DSN in test env';
 
+is $db->_get_dsn, 'dbi:SQLite:dbname=t/data/pathogen_prok_track.db', 'correct DSN in test env';
 is $db->db_root, 't/data/04_database/root_dir', 'got expected root directory';
-
 isa_ok $db->schema, 'Bio::Track::Schema', 'schema';
 
 my $broken_db = Bio::Path::Find::Database->new( environment => 'test', name => 'pathogen_test_track', config_file => 't/data/04_database/test_no_hierarchy_template.conf' );
@@ -63,7 +62,7 @@ is $root, 't/data/04_database/root_dir/test_track/seq-pipelines',
 # see if we can perform tests on a test DB on a MySQL server
 $db = Bio::Path::Find::Database->new( environment => 'prod', name => 'pathogen_track_test', config_file => 't/data/04_database/prod.conf');
 
-is $db->_get_dsn, 'DBI:mysql:host=patt-db;port=3346;database=pathogen_track_test', 'correct DSN in "production" env';
+is $db->_get_dsn, 'DBI:mysql:host=patt-db;port=3346;database=pathogen_track_test', 'correct DSN in dummy "production" env';
 
 my $can_connect;
 try {

@@ -157,7 +157,7 @@ sub _build_data_sources {
   # the name of a test DB. Otherwise, retrieve the list by connecting to the
   # MySQL database using the connection parameters from the config
   my @sources = $self->environment eq 'test'
-              ? ( 'pathogen_track_test' )
+              ? ( 'pathogen_test_track' )
               : grep s/^DBI:mysql://, DBI->data_sources('mysql', $self->connection_params);
 
   croak 'ERROR: failed to retrieve a list of data sources'
@@ -286,8 +286,10 @@ sub _build_database_names {
   my $self = shift;
 
   my @database_names = ();
-  if ( $self->is_test_env ) {
-    push @database_names, 'pathogen_test_pathfind';
+  if ( $self->is_in_test_env ) {
+    croak 'ERROR: must specify the name of a test database in the config when in test environment (set "test_db")'
+      unless defined $self->config->{test_db};
+    push @database_names, $self->config->{test_db};
   }
   else {
     push @database_names, grep /^pathogen_.+_track$/,    @{ $self->data_sources };

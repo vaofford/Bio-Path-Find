@@ -30,7 +30,7 @@ class_type 'Path::Class::File';
 class_type 'Path::Class::Dir';
 
 enum IDType,      [qw( lane sample database study file library species )];
-enum FileIDType,  [qw( lane sample )];
+enum FileIDType,  [qw( lane sample study)];
 enum QCState,     [qw( passed failed pending )];
 enum FileType,    [qw( fastq bam pacbio corrected )];
 enum Environment, [qw( test prod )];

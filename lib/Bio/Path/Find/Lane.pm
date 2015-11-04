@@ -59,7 +59,7 @@ Hash ref that maps a filetype, e.g. C<fastq>, to its file extension, e.g.
 C<.fastq.gz>. The default mapping is:
 
   fastq     => '.fastq.gz',
-  bam       => '.bam',
+  bam       => '*.bam',
   pacbio    => '*.h5',
   corrected => '*.corrected.*'
 
@@ -74,7 +74,7 @@ has 'filetype_extensions' => (
   default => sub {
     {
       fastq     => '.fastq.gz',
-      bam       => '.bam',
+      bam       => '*.bam', # NOTE no wildcard in mapping in original PathFind
       pacbio    => '*.h5',
       corrected => '*.corrected.*',
     };
@@ -199,6 +199,22 @@ sub _build_symlink_path {
   return dir( $self->root_dir, $self->row->path );
 }
 
+#---------------------------------------
+
+=attr found_file_type
+
+The type of file that was found when running L<find_files>, or C<undef> if
+L<find_files> has not yet been run. This is specified as an argument to
+L<find_files> and cannot be set separately. B<Read only>.
+
+=cut
+
+has 'found_file_type' => (
+  is     => 'rw',
+  isa    => Str,
+  writer => '_set_found_file_type',
+);
+
 #-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -245,6 +261,8 @@ sub find_files {
   state $check = compile( Object, Str );
   my ( $self, $filetype ) = $check->(@_);
 
+  $self->_set_found_file_type($filetype);
+
   $self->clear_files;
 
   if ( $filetype eq 'fastq' ) {
@@ -261,6 +279,37 @@ sub find_files {
   }
 
   return $self->file_count;
+}
+
+#-------------------------------------------------------------------------------
+
+=head2 print_paths
+
+Prints the paths for this lane.
+
+If a file type was specified when running L<find_files>, this method prints the
+path to that type of file only. If file type was not specified, this method
+prints the path to the directory containing all files for this lane.
+
+Returns the number of files found, if a file type was specified, or 1 if we're
+printing the path to the lane's directory.
+
+=cut
+
+sub print_paths {
+  my $self = shift;
+
+  my $rv = 0;
+  if ( $self->found_file_type ) {
+    say $_ for ( $self->all_files );
+    $rv += $self->has_files;
+  }
+  else {
+    say $self->symlink_path;
+    $rv = 1;
+  }
+
+  return $rv;
 }
 
 #-------------------------------------------------------------------------------
@@ -323,12 +372,12 @@ sub _get_extension {
   my ( $self, $extension ) = @_;
 
   my @files = File::Find::Rule->file
-                              ->in($self->symlink_path)
-                              ->name($extension)
+                              ->extras( { follow => 1 } )
                               ->maxdepth($self->search_depth)
-                              ->extras( { follow => 1 } );
+                              ->name($extension)
+                              ->in($self->symlink_path);
 
-  $self->_add_file($_) for @files;
+  $self->_add_file( file($_) ) for @files;
 }
 
 #-------------------------------------------------------------------------------

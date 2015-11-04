@@ -89,7 +89,7 @@ sub _build_schema {
 
   my $user = $self->config->{connection_params}->{user};
   my $pass = $self->config->{connection_params}->{pass} || undef;
-  my $schema = $self->is_test_env
+  my $schema = $self->is_in_test_env
              ? Bio::Track::Schema->connect($dsn)
              : Bio::Track::Schema->connect($dsn, $user, $pass);
 

@@ -44,7 +44,7 @@ has 'environment' => (
 #- public methods --------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-sub is_test_env {
+sub is_in_test_env {
   return shift->environment eq 'test';
 }
 
