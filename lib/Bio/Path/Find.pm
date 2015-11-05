@@ -40,9 +40,9 @@ BEGIN {
     log4perl.appender.Screen.layout                   = Log::Log4perl::Layout::PatternLayout
     log4perl.appender.Screen.layout.ConversionPattern = %M:%L %p: %m%n
 
-    log4perl.logger.Bio.Path.Find                     = DEBUG, Screen
-    log4perl.logger.Bio.Path.Find.Lane                = DEBUG, Screen
-    log4perl.logger.Bio.Path.Find.DatabaseManager     = DEBUG, Screen
+    log4perl.logger.Bio.Path.Find                     = ERROR, Screen
+    log4perl.logger.Bio.Path.Find.Lane                = ERROR, Screen
+    log4perl.logger.Bio.Path.Find.DatabaseManager     = ERROR, Screen
 
     log4perl.oneMessagePerAppender                    = 1
   );
@@ -322,13 +322,17 @@ sub _find_lanes {
   # TODO "track" before "external", etc.
 
   DB: foreach my $db_name ( $self->_db_manager->database_names ) {
+    $self->log->debug(qq(searching "$db_name"));
 
     my $database = $self->_db_manager->get_database($db_name);
 
     ID: foreach my $id ( @{ $self->_ids } ) {
+      $self->log->debug(qq(looking for ID "$id"));
 
       my $rs = $database->schema->get_lanes_by_id($id, $self->_id_type);
       next ID unless $rs; # no matching lanes
+
+      $self->log->debug('found ' . $rs->count . ' lanes');
 
       while ( my $lane_row = $rs->next ) {
 

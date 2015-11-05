@@ -160,7 +160,7 @@ sub _build_data_sources {
   # if we're in the test environment, spoof the data sources list and provide
   # the name of a test DB. Otherwise, retrieve the list by connecting to the
   # MySQL database using the connection parameters from the config
-  my @sources = $self->environment eq 'test'
+  my @sources = $self->is_in_test_env
               ? ( 'pathogen_test_track' )
               : grep s/^DBI:mysql://, DBI->data_sources('mysql', $self->connection_params);
 

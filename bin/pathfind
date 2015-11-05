@@ -33,8 +33,9 @@ my %option_types = (
 
 # set option defaults
 my %options = (
-  config      => 't/data/07_finder/test.conf',
-  environment => 'test',
+  config      => 'live.conf',
+  environment => 'prod',
+  verbose     => 0,
 );
 
 # parse the command line options
@@ -48,6 +49,7 @@ my $options_parsed_successfully = GetOptions(
   'file_id_type=s',
   'qc=s',
   'help|?',
+  'verbose+'
 );
 
 usage() if $options{help};
@@ -62,8 +64,12 @@ unless ( $options{id} and $options{type}) {
 
 # check types for supplied options
 while ( my ( $option_name, $option_value ) = each %options ) {
+  # skip the validation of this option unless we have a type to check for
+  next unless $option_types{$option_name};
+
   my $type = $option_types{$option_name}->{type};
   my $desc = $option_types{$option_name}->{desc};
+
   unless ( $type->check($option_value) ) {
     print STDERR qq(ERROR: option "$option_name" is not $desc\n);
     exit 1;
@@ -76,18 +82,31 @@ my $pf = Bio::Path::Find->new(
   environment => $options{environment},
 );
 
-# say "looking for id |$options{id}| which is of type |$options{type}|";
+# increase the log level in response to the "-verbose" flag
+foreach my $category ( qw ( Bio.Path.Find Bio.Path.Find.Lane Bio.Path.Find.DatabaseManager ) ) {
+  $pf->log($category)->more_logging($options{verbose}) if $options{verbose};
+}
+
+# turn on DBIC debugging if the "-verbose" option is use multiple times
+$ENV{DBIC_TRACE} = 1 if $options{verbose} > 3;
 
 my %parameters = (
-  id => $options{id},
+  id   => $options{id},
   type => $options{type},
 );
 
-foreach my $option ( grep ! m/(config|environment)/, keys %options ) {
+# pass only meaningful options on to the find/print method
+foreach my $option ( grep ! m/(verbose|config|environment)/, keys %options ) {
   $parameters{$option} = $options{$option} if $options{$option};
 }
 
 $pf->print_paths(%parameters);
+
+exit 0;
+
+#-------------------------------------------------------------------------------
+#- functions -------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 
 sub usage {
   say 'usage: pathfind ...';
