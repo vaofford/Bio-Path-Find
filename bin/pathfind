@@ -26,6 +26,7 @@ my %option_types = (
   environment  => { type => Environment, desc => 'either "test" or "prod"' },
   id           => { type => Str,         desc => 'a string' },
   type         => { type => IDType,      desc => 'a valid ID type' },
+  filetype     => { type => Str,         desc => 'a string' },
   file_id_type => { type => FileIDType,  desc => 'a valid file ID type' },
   qc           => { type => QCState,     desc => 'either "passed", "failed", or "pending"' },
 );
@@ -37,7 +38,7 @@ my %options = (
 );
 
 # parse the command line options
-GetOptions(
+my $options_parsed_successfully = GetOptions(
   \%options,
   'config=s',
   'environment=s',
@@ -50,6 +51,8 @@ GetOptions(
 );
 
 usage() if $options{help};
+
+exit 1 unless $options_parsed_successfully;
 
 # check for required parameters
 unless ( $options{id} and $options{type}) {
@@ -85,8 +88,6 @@ foreach my $option ( grep ! m/(config|environment)/, keys %options ) {
 }
 
 $pf->print_paths(%parameters);
-
-$DB::single = 1;
 
 sub usage {
   say 'usage: pathfind ...';
