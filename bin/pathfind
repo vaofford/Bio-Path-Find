@@ -2,32 +2,94 @@
 
 # PODNAME: pathfind
 
+use v5.10; # for "say"
+
 use strict;
 use warnings;
 
-use Path::Class;
+use Getopt::Long;
 use Bio::Path::Find;
 
-# get a finder
-my $pf = Bio::Path::Find->new(
-  config_file => 't/data/07_finder/test.conf',
+use Types::Standard qw( Str );
+use Bio::Path::Find::Types qw(
+  IDType
+  FileIDType
+  QCState
+  FileType
+  Environment
+);
+
+# a mapping that gives the type for each option, plus a short description of
+# the type that we can use in an error message
+my %option_types = (
+  config       => { type => Str,         desc => 'a string' },
+  environment  => { type => Environment, desc => 'either "test" or "prod"' },
+  id           => { type => Str,         desc => 'a string' },
+  type         => { type => IDType,      desc => 'a valid ID type' },
+  file_id_type => { type => FileIDType,  desc => 'a valid file ID type' },
+  qc           => { type => QCState,     desc => 'either "passed", "failed", or "pending"' },
+);
+
+# set option defaults
+my %options = (
+  config      => 't/data/07_finder/test.conf',
   environment => 'test',
 );
 
-$pf->print_paths(
-  id           => '5477_6',
-  type         => 'lane',
-  filetype     => 'bam',
-  # qc           => 'passed',
+# parse the command line options
+GetOptions(
+  \%options,
+  'config=s',
+  'environment=s',
+  'id=s',
+  'type=s',
+  'filetype=s',
+  'file_id_type=s',
+  'qc=s',
+  'help|?',
 );
 
-# $pf->print_paths(
-#   id           => 't/data/06_finder/ids.txt',
-#   type         => 'file',
-#   file_id_type => 'lane',
-#   # filetype     => 'fastq',
-#   # qc           => 'passed',
-# );
+usage() if $options{help};
+
+# check for required parameters
+unless ( $options{id} and $options{type}) {
+  print STDERR "ERROR: you must specify the ID (-id) and ID type (-type)\n";
+  exit 1;
+}
+
+# check types for supplied options
+while ( my ( $option_name, $option_value ) = each %options ) {
+  my $type = $option_types{$option_name}->{type};
+  my $desc = $option_types{$option_name}->{desc};
+  unless ( $type->check($option_value) ) {
+    print STDERR qq(ERROR: option "$option_name" is not $desc\n);
+    exit 1;
+  }
+}
+
+# get a finder
+my $pf = Bio::Path::Find->new(
+  config_file => $options{config},
+  environment => $options{environment},
+);
+
+# say "looking for id |$options{id}| which is of type |$options{type}|";
+
+my %parameters = (
+  id => $options{id},
+  type => $options{type},
+);
+
+foreach my $option ( grep ! m/(config|environment)/, keys %options ) {
+  $parameters{$option} = $options{$option} if $options{$option};
+}
+
+$pf->print_paths(%parameters);
 
 $DB::single = 1;
+
+sub usage {
+  say 'usage: pathfind ...';
+  exit 0;
+}
 
