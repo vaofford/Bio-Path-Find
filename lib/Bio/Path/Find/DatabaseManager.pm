@@ -10,13 +10,15 @@ use MooseX::StrictConstructor;
 use Types::Standard qw( Str ArrayRef HashRef );
 use Carp qw( croak carp );
 use DBI;
+use Data::Dump qw( pp );
 
 use Bio::Path::Find::Types qw( BioPathFindDatabase );
 use Bio::Track::Schema;
 use Bio::Path::Find::Database;
 
 with 'Bio::Path::Find::Role::HasEnvironment',
-     'Bio::Path::Find::Role::HasConfig';
+     'Bio::Path::Find::Role::HasConfig',
+     'MooseX::Log::Log4perl';
 
 =head1 CONTACT
 
@@ -126,6 +128,8 @@ sub _build_production_db_names {
   croak 'ERROR: no valid list of production databases ("production_db")'
     unless ( ref $dbs eq 'ARRAY' and scalar @$dbs );
 
+  $self->log->debug("list of production databases:\n", pp($dbs));
+
   return $dbs;
 }
 
@@ -162,6 +166,8 @@ sub _build_data_sources {
 
   croak 'ERROR: failed to retrieve a list of data sources'
     unless scalar @sources;
+
+  $self->log->debug("list of data sources from database:\n", pp(\@sources));
 
   return \@sources;
 }
@@ -207,6 +213,8 @@ sub _build_database_order {
   foreach my $database_name ( sort keys %db_list_lookup ) {
     push @reordered_db_list, $database_name;
   }
+
+  $self->log->debug("database order:\n", pp(\@reordered_db_list));
 
   return \@reordered_db_list;
 }
@@ -295,6 +303,8 @@ sub _build_database_names {
     push @database_names, grep /^pathogen_.+_track$/,    @{ $self->data_sources };
     push @database_names, grep /^pathogen_.+_external$/, @{ $self->data_sources };
   }
+
+  $self->log->debug("list of database names:\n", pp(\@database_names));
 
   return \@database_names;
 }

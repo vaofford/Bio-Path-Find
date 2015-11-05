@@ -19,6 +19,8 @@ use Bio::Path::Find::Types qw(
   PathClassDir
 );
 
+with 'MooseX::Log::Log4perl';
+
 =head1 CONTACT
 
 path-help@sanger.ac.uk
@@ -266,9 +268,11 @@ sub find_files {
   $self->clear_files;
 
   if ( $filetype eq 'fastq' ) {
+    $self->log->debug('looking for fastq files');
     $self->_get_fastqs;
   }
   elsif ( $filetype eq 'corrected' ) {
+    $self->log->debug('looking for "corrected" files');
     $self->_get_corrected;
   }
 
@@ -325,7 +329,6 @@ sub _get_fastqs {
   # (see https://metacpan.org/pod/DBIx::Class::ResultSet#next)
   my $files = $self->row->latest_files;
 
-  my @found_files;
   FILE: while ( my $file = $files->next ) {
     my $filename = $file->name;
 
@@ -371,11 +374,15 @@ sub _get_corrected {
 sub _get_extension {
   my ( $self, $extension ) = @_;
 
+  $self->log->debug(qq(searching for files with extension "$extension"));
+
   my @files = File::Find::Rule->file
                               ->extras( { follow => 1 } )
                               ->maxdepth($self->search_depth)
                               ->name($extension)
                               ->in($self->symlink_path);
+
+  $self->log->debug('found ' . scalar @files . ' files');
 
   $self->_add_file( file($_) ) for @files;
 }

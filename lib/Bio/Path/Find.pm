@@ -32,12 +32,30 @@ use Bio::Path::Find::Types qw(
   Environment
 );
 
+use Log::Log4perl qw(:easy);
+
+BEGIN {
+  my $logger_conf = q(
+    log4perl.appender.Screen                          = Log::Log4perl::Appender::Screen
+    log4perl.appender.Screen.layout                   = Log::Log4perl::Layout::PatternLayout
+    log4perl.appender.Screen.layout.ConversionPattern = %M:%L %p: %m%n
+
+    log4perl.logger.Bio.Path.Find                     = DEBUG, Screen
+    log4perl.logger.Bio.Path.Find.Lane                = DEBUG, Screen
+    log4perl.logger.Bio.Path.Find.DatabaseManager     = DEBUG, Screen
+
+    log4perl.oneMessagePerAppender                    = 1
+  );
+  Log::Log4perl->init_once(\$logger_conf);
+}
+
 use Bio::Path::Find::DatabaseManager;
 use Bio::Path::Find::Lane;
 use Bio::Path::Find::Sorter;
 
 with 'Bio::Path::Find::Role::HasEnvironment',
-     'Bio::Path::Find::Role::HasConfig';
+     'Bio::Path::Find::Role::HasConfig',
+     'MooseX::Log::Log4perl';
 
 =head1 CONTACT
 
@@ -150,18 +168,26 @@ sub find {
     # read multiple IDs from a file
     $self->_load_ids_from_file($params->{id});
     $self->_id_type($params->{file_id_type});
+
+    $self->log->info('finding multiple IDs from file ' . $params->{id}
+                     . ' of type "' . $params->{file_id_type} . '"');
   }
   else {
     # use the single ID from the command line
     # push @{ $self->_ids }, $params->{id};
     $self->_add_id( $params->{id} );
     $self->_id_type($params->{type});
+
+    $self->log->info('finding IDs "' . $params->{id} . '"'
+                     . ' of type "' . $params->{type} . '"');
   }
 
   #---------------------------------------
 
   # get a list of Bio::Path::Find::Lane objects
   my $lanes = $self->_find_lanes;
+
+  $self->log->info('found ' . scalar @$lanes . ' lanes');
 
   # find files for the lanes
   my $filtered_lanes = [];
@@ -171,22 +197,33 @@ sub find {
     # 1. we've been told to look for a specific QC status, and
     # 2. the lane has a QC status set, and
     # 3. this lane's QC status doesn't match the required status
-    next LANE if ( defined $params->{qc} and
-                   defined $lane->row->qc_status and
-                   $lane->row->qc_status ne $params->{qc} );
+    if ( defined $params->{qc} and
+         defined $lane->row->qc_status and
+         $lane->row->qc_status ne $params->{qc} ) {
+      $self->log->debug(
+        'lane "' . $lane->row->name
+        . '" filtered by QC status (actual status is "' . $lane->row->qc_status
+        . '"; requiring status "' . $params->{qc} . '")'
+      );
+      next LANE;
+    }
 
     # return lanes that have a specific type of file
     if ( $params->{filetype} ) {
       $lane->find_files($params->{filetype});
-      push @$filtered_lanes, $lane if $lane->has_files;
+      if ( $lane->has_files ) {
+        push @$filtered_lanes, $lane;
+      }
+      else {
+        $self->log->debug('lane "' . $lane->row->name . '" has no files of type "'
+                          . $params->{filetype} . '"; filtered out');
+      }
     }
     # we don't care about files; return all lanes
     else {
       push @$filtered_lanes, $lane;
+      $self->log->debug('showing lane directories');
     }
-
-    # $DB::single = 1;
-
   }
 
   # at this point we have a list of Bio::Path::Find::Lane objects, each of
