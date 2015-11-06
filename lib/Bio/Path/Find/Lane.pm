@@ -268,11 +268,9 @@ sub find_files {
   $self->clear_files;
 
   if ( $filetype eq 'fastq' ) {
-    $self->log->debug('looking for fastq files');
     $self->_get_fastqs;
   }
   elsif ( $filetype eq 'corrected' ) {
-    $self->log->debug('looking for "corrected" files');
     $self->_get_corrected;
   }
 
@@ -323,6 +321,8 @@ sub print_paths {
 sub _get_fastqs {
   my $self = shift;
 
+  $self->log->trace('looking for fastq files');
+
   # we have to save a reference to the "latest_files" relationship for each
   # lane before iterating over it, otherwise DBIC will continually return the
   # first row of the ResultSet
@@ -363,6 +363,8 @@ sub _get_fastqs {
 sub _get_corrected {
   my $self = shift;
 
+  $self->log->trace('looking for "corrected" files');
+
   my $filename = $self->row->hierarchy_name . '.corrected.fastq.gz';
   my $filepath = file( $self->symlink_path, $filename );
 
@@ -374,7 +376,7 @@ sub _get_corrected {
 sub _get_extension {
   my ( $self, $extension ) = @_;
 
-  $self->log->debug(qq(searching for files with extension "$extension"));
+  $self->log->trace(qq(searching for files with extension "$extension"));
 
   my @files = File::Find::Rule->file
                               ->extras( { follow => 1 } )
@@ -382,7 +384,7 @@ sub _get_extension {
                               ->name($extension)
                               ->in($self->symlink_path);
 
-  $self->log->debug('found ' . scalar @files . ' files');
+  $self->log->debug('trace ' . scalar @files . ' files');
 
   $self->_add_file( file($_) ) for @files;
 }
