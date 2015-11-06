@@ -45,8 +45,8 @@ my $options_parsed_successfully = GetOptions(
   'environment=s',
   'id=s',
   'type=s',
-  'filetype=s',
-  'file_id_type=s',
+  'filetype|ft=s',
+  'file_id_type|fit=s',
   'qc=s',
   'help|?',
   'verbose+'
@@ -87,7 +87,7 @@ foreach my $category ( qw ( Bio.Path.Find Bio.Path.Find.Lane Bio.Path.Find.Datab
   $pf->log($category)->more_logging($options{verbose}) if $options{verbose};
 }
 
-# turn on DBIC debugging if the "-verbose" option is use multiple times
+# turn on DBIC debugging if the "-verbose" option is used multiple times
 $ENV{DBIC_TRACE} = 1 if $options{verbose} > 3;
 
 my %parameters = (
