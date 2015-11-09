@@ -54,7 +54,5 @@ $lanes = $f->find(
 
 is scalar @$lanes, 50, 'found 50 lanes in study 607';
 
-$DB::single = 1;
-
 done_testing;
 

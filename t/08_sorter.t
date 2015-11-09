@@ -68,7 +68,5 @@ is_deeply \@actual_order, \@expected_order, 'SORTED lane names in expected order
 
 # TODO this needs way more test cases
 
-$DB::single = 1;
-
 done_testing;
 

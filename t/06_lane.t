@@ -57,7 +57,5 @@ stdout_is { $lane->print_paths } 't/data/linked/prokaryotes/seq-pipelines/Actino
 t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/544477.se.raw.sorted.bam
 ', 'printed expected paths';
 
-$DB::single = 1;
-
 done_testing;
 
