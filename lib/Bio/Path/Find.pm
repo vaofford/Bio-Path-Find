@@ -32,7 +32,7 @@ use Bio::Path::Find::Types qw(
   Environment
 );
 
-use Log::Log4perl qw(:easy);
+use Log::Log4perl;
 
 BEGIN {
   my $logger_conf = q(
