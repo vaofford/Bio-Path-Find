@@ -29,7 +29,5 @@ is $t->environment, 'test', 'object is in test environment when set by environme
 $t = Bio::Path::Find::TestClass->new( environment => 'prod' );
 is $t->environment, 'prod', 'object is in test environment when set by argument';
 
-$DB::single = 1;
-
 done_testing;
 
