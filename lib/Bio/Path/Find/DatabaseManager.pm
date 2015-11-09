@@ -11,6 +11,7 @@ use Types::Standard qw( Str ArrayRef HashRef );
 use Carp qw( croak carp );
 use DBI;
 use Data::Dump qw( pp );
+use Log::Log4perl;
 
 use Bio::Path::Find::Types qw( BioPathFindDatabase );
 use Bio::Track::Schema;
@@ -25,6 +26,28 @@ with 'Bio::Path::Find::Role::HasEnvironment',
 path-help@sanger.ac.uk
 
 =cut
+
+#-------------------------------------------------------------------------------
+#- logging ---------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+# Log4perl should be initialised by B::P::Find, but if this class is used
+# independently that initailsation never happens and we get a warning. Calling
+# "init_once" avoids this config overwritting the one in B::P::Find though, so
+# it's safe to have in both places.
+
+BEGIN {
+  my $logger_conf = q(
+    log4perl.appender.Screen                          = Log::Log4perl::Appender::Screen
+    log4perl.appender.Screen.layout                   = Log::Log4perl::Layout::PatternLayout
+    log4perl.appender.Screen.layout.ConversionPattern = %M:%L %p: %m%n
+
+    log4perl.logger.Bio.Path.Find.DatabaseManager     = ERROR, Screen
+
+    log4perl.oneMessagePerAppender                    = 1
+  );
+  Log::Log4perl->init_once(\$logger_conf);
+}
 
 #-------------------------------------------------------------------------------
 #- public attributes -----------------------------------------------------------
@@ -75,66 +98,6 @@ sub _build_connection_params {
 
 #---------------------------------------
 
-=attr production_db_names
-
-A reference to an array listing the names of the production databases. The names
-should be specified in the configuration using the key C<production_db>. For
-example, in a L<Config::General>-style config:
-
-  production_db pathogen_euk_track
-  production_db pathogen_prok_track
-  ...
-
-Note that the order of the databases is significant: the list of B<available>
-databases will be sorted so that names are returned in the order specified in
-the C<production_db> list.
-
-If C<production_db> is not found in the config, a warning is issued and we use
-the following default list:
-
-  pathogen_pacbio_track
-  pathogen_prok_track
-  pathogen_euk_track
-  pathogen_virus_track
-  pathogen_helminth_track
-
-B<Read-only>.
-
-=cut
-
-has 'production_db_names' => (
-  is      => 'ro',
-  isa     => ArrayRef[Str],
-  lazy    => 1,
-  builder => '_build_production_db_names',
-);
-
-sub _build_production_db_names {
-  my $self = shift;
-
-  my $dbs = $self->config->{production_db};
-
-  if ( not defined $dbs ) {
-    carp 'WARNING: configuration does not specify the list of production databases ("production_db"); using default list';
-    $dbs = [ qw(
-      pathogen_pacbio_track
-      pathogen_prok_track
-      pathogen_euk_track
-      pathogen_virus_track
-      pathogen_helminth_track
-    ) ];
-  }
-
-  croak 'ERROR: no valid list of production databases ("production_db")'
-    unless ( ref $dbs eq 'ARRAY' and scalar @$dbs );
-
-  $self->log->debug("list of production databases:\n", pp($dbs));
-
-  return $dbs;
-}
-
-#---------------------------------------
-
 =attr data_sources
 
 A reference to an array containing the names of the available data sources.
@@ -170,53 +133,6 @@ sub _build_data_sources {
   $self->log->debug("list of data sources from database:\n", pp(\@sources));
 
   return \@sources;
-}
-
-#---------------------------------------
-
-=attr database_order
-
-A reference to an array containing an ordered list of database names.
-
-This will be the list of ALL databases (both available and unavailable) in the
-MySQL instance, ordered with "track" DBs first, then "external", and then
-re-ordered according to the database names given in the C<production_db> slot
-in the config.
-
-=cut
-
-has 'database_order' => (
-  is      => 'rw',
-  isa     => ArrayRef[Str],
-  lazy    => 1,
-  builder => '_build_database_order',
-);
-
-sub _build_database_order {
-  my $self = shift;
-
-  my @reordered_db_list;
-
-  my %db_list_lookup = map { $_ => 1 } @{ $self->_database_names };
-
-  # first, add production databases to the output list
-  foreach my $database_name ( @{ $self->production_db_names } ) {
-    next unless $db_list_lookup{$database_name};
-    push @reordered_db_list, $database_name;
-
-    # remove already added DBs from the lookup, so that we can add the
-    # remainder below
-    delete $db_list_lookup{$database_name};
-  }
-
-  # add remaining DBs to output
-  foreach my $database_name ( sort keys %db_list_lookup ) {
-    push @reordered_db_list, $database_name;
-  }
-
-  $self->log->debug("database order:\n", pp(\@reordered_db_list));
-
-  return \@reordered_db_list;
 }
 
 #---------------------------------------
