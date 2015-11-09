@@ -45,21 +45,33 @@ isa_ok $db->schema, 'Bio::Track::Schema', 'schema';
 
 # use "production" config. Can't easily compare the list of databases, since that's
 # liable to change in the test instance
+$dbm = Bio::Path::Find::DatabaseManager->new( environment => 'prod', config_file => 't/data/05_database_manager/prod.conf');
 
 SKIP: {
-  skip 'no access to live DB; set TEST_MYSQL_HOST, TEST_MYSQL_PORT, TEST_MYSQL_USER', 4
-    unless ( defined $ENV{TEST_MYSQL_HOST} and
-             defined $ENV{TEST_MYSQL_PORT} and
-             defined $ENV{TEST_MYSQL_USER} );
+  skip 'no access to live DB; set TEST_MYSQL_HOST, TEST_MYSQL_PORT, TEST_MYSQL_USER', 3
+    unless ( $ENV{TEST_MYSQL_HOST} and
+             $ENV{TEST_MYSQL_PORT} and
+             $ENV{TEST_MYSQL_USER} );
 
-  lives_ok { $dbm = Bio::Path::Find::DatabaseManager->new( environment => 'prod', config_file => 't/data/05_database_manager/prod.conf') }
-    'no exception instantiating with prod config';
-  lives_ok { $ds = $dbm->data_sources }
-    'no exception building list of production data_sources';
+  diag 'connecting to MySQL DB';
 
-  $db = $dbm->get_database('pathogen_test_external');
-  isa_ok $db, 'Bio::Path::Find::Database', 'database object';
-  isa_ok $db->schema, 'Bio::Track::Schema', 'schema';
+  my $can_connect;
+  try {
+    $can_connect = 1 if $dbm->data_sources;
+  } catch {
+    $can_connect = 0;
+  };
+
+  SKIP: {
+    skip "MySQL database tests; check connection params", 3 unless $can_connect;
+
+    lives_ok { $ds = $dbm->data_sources }
+      'no exception building list of production data_sources';
+
+    $db = $dbm->get_database('pathogen_test_external');
+    isa_ok $db, 'Bio::Path::Find::Database', 'database object';
+    isa_ok $db->schema, 'Bio::Track::Schema', 'schema';
+  }
 
 }
 

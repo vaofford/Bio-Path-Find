@@ -59,21 +59,26 @@ warning_is { $root = $db->hierarchy_root_dir } [], 'no warning when subdir mappi
 is $root, 't/data/linked/prokaryotes/seq-pipelines',
   'got correct root dir';
 
+# check we get a valid DSN for a MySQL DB
+$db = Bio::Path::Find::Database->new( environment => 'prod', name => 'pathogen_track_test', config_file => 't/data/04_database/prod_dummy_creds.conf');
+is $db->_get_dsn, 'DBI:mysql:host=dbhost;port=3306;database=pathogen_track_test', 'correct DSN in "production"';
+
 # see if we can perform tests on a test DB on a MySQL server
 $db = Bio::Path::Find::Database->new( environment => 'prod', name => 'pathogen_track_test', config_file => 't/data/04_database/prod.conf');
 
-is $db->_get_dsn, 'DBI:mysql:host=patt-db;port=3346;database=pathogen_track_test', 'correct DSN in dummy "production" env';
-
-my $can_connect;
-try {
-  $can_connect = 1 if $db->schema;
-} catch {
-  $can_connect = 0;
-};
+isa_ok $db->schema, 'Bio::Track::Schema', 'schema';
 
 SKIP: {
-  skip "can't connect to MySQL database", 1 unless $can_connect;
-  isa_ok $db->schema, 'Bio::Track::Schema', 'schema';
+  skip 'no credentials for live DB; set TEST_MYSQL_HOST, TEST_MYSQL_PORT, TEST_MYSQL_USER', 1
+    unless ( $ENV{TEST_MYSQL_HOST} and
+             $ENV{TEST_MYSQL_PORT} and
+             $ENV{TEST_MYSQL_USER} );
+
+  diag 'connecting to MySQL DB';
+
+  lives_ok { $db->schema->resultset('LatestLane')->count }
+    'can count rows in lane table';
+
 }
 
 done_testing;
