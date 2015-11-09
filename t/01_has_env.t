@@ -29,7 +29,5 @@ is $t->environment, 'test', 'object is in test environment when set by argument'
 
 ok $t->is_in_test_env, 'in test env';
 
-$DB::single = 1;
-
 done_testing;
 
