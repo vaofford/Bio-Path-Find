@@ -78,6 +78,12 @@ sub _build_config {
       files           => [ $self->config_file ],
       use_ext         => 1,
       flatten_to_hash => 1,
+      driver_args     => {
+        General => {
+          -InterPolateEnv  => 1,
+          -InterPolateVars => 1,
+        },
+      },
     }
   );
 
