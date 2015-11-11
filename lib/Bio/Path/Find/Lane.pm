@@ -19,7 +19,8 @@ use Bio::Path::Find::Types qw(
   PathClassDir
 );
 
-with 'MooseX::Log::Log4perl';
+with 'MooseX::Log::Log4perl',
+     'MooseX::Traits';
 
 =head1 CONTACT
 

@@ -3,6 +3,7 @@ package Bio::Path::Find::Types;
 
 use Type::Library -base, -declare => qw(
   BioTrackSchema
+  BioTrackSchemaResultBase
   BioTrackSchemaResultLatestLane
   BioPathFindDatabaseManager
   BioPathFindDatabase
@@ -21,6 +22,7 @@ use Type::Utils -all;
 use Types::Standard -types;
 
 class_type 'Bio::Track::Schema';
+class_type 'Bio::Track::Schema::ResultBase';
 class_type 'Bio::Track::Schema::Result::LatestLane';
 class_type 'Bio::Path::Find::DatabaseManager';
 class_type 'Bio::Path::Find::Database';

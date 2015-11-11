@@ -343,7 +343,8 @@ sub _find_lanes {
 
         # build a lightweight object to hold all of the data about a particular
         # row
-        my $lane = Bio::Path::Find::Lane->new( row => $lane_row );
+        my $lane = Bio::Path::Find::Lane->with_traits('Bio::Path::Find::Role::Stats::Path')
+                                        ->new( row => $lane_row );
 
         push @lanes, $lane;
       }
