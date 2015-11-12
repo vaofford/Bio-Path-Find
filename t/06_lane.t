@@ -57,5 +57,10 @@ stdout_is { $lane->print_paths } 't/data/linked/prokaryotes/seq-pipelines/Actino
 t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/544477.se.raw.sorted.bam
 ', 'printed expected paths';
 
+lives_ok { $lane->status_files } 'no exception when finding status files';
+my @pipelines = keys %{ $lane->status_files };
+is scalar @pipelines, 1, 'got one status file';
+is $pipelines[0], 'stored', 'got status file for "stored" pipeline';
+
 done_testing;
 

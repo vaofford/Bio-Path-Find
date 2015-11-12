@@ -9,8 +9,10 @@ use Type::Library -base, -declare => qw(
   BioPathFindDatabase
   BioPathFindLane
   BioPathFindSorter
+  BioPathFindLaneStatusFile
   PathClassFile
   PathClassDir
+  Datetime
   IDType
   FileIDType
   QCState
@@ -28,8 +30,16 @@ class_type 'Bio::Path::Find::DatabaseManager';
 class_type 'Bio::Path::Find::Database';
 class_type 'Bio::Path::Find::Lane';
 class_type 'Bio::Path::Find::Sorter';
+class_type 'Bio::Path::Find::LaneStatusFile';
 class_type 'Path::Class::File';
 class_type 'Path::Class::Dir';
+
+# (see https://metacpan.org/pod/release/TOBYINK/Type-Tiny-1.000005/lib/Type/Tiny/Manual/Libraries.pod)
+class_type 'Datetime', { class => 'DateTime' };
+
+coerce Datetime,
+  from Int,   via { 'DateTime'->from_epoch( epoch => $_ ) },
+  from Undef, via { 'DateTime'->now };
 
 enum IDType,      [qw( lane sample database study file library species )];
 enum FileIDType,  [qw( lane sample study)];
