@@ -1,6 +1,8 @@
 
 package Bio::Path::Find::Lane;
 
+# ABSTRACT: a class for working with information about a sequencing lane
+
 use v5.10; # required for Type::Params use of "state"
 
 use Moose;
@@ -11,12 +13,12 @@ use Carp qw( carp croak );
 use Path::Class;
 use File::Find::Rule;
 
-use Bio::Path::Find::LaneStatusFile;
+use Bio::Path::Find::LaneStatus;
 
 use Type::Params qw( compile );
 use Types::Standard qw( Object Str Int HashRef ArrayRef );
 use Bio::Path::Find::Types qw(
-  BioPathFindLaneStatusFile
+  BioPathFindLaneStatus
   BioTrackSchemaResultLatestLane
   PathClassFile
   PathClassDir
@@ -223,39 +225,26 @@ has 'found_file_type' => (
 
 #---------------------------------------
 
-=attr status_files
+=attr status
 
-Reference to a hash containing a pipeline name as the key and the corresponding
-status file object (L<Bio::Path::Find::LaneStatusFile>) as the value.
+The L<Bio::Path::Find::LaneStatus> object for this lane.
 
 =cut
 
-has 'status_files' => (
-  traits  => ['Hash'],
+has 'status' => (
   is      => 'ro',
-  isa     => HashRef[BioPathFindLaneStatusFile],
+  isa     => BioPathFindLaneStatus,
   lazy    => 1,
-  builder => '_build_status_files',
-  handles => {
-    all_status_files => 'values',
-    has_status_files => 'count',
-  },
+  builder => '_build_status',
+  handles => [
+    'pipeline_status',
+  ],
 );
 
-sub _build_status_files {
+sub _build_status {
   my $self = shift;
 
-  my $files = {};
-
-  foreach my $status_file ( grep m/_job_status$/, $self->symlink_path->children ) {
-    my $status_file_object = Bio::Path::Find::LaneStatusFile->new(
-      lane        => $self,
-      status_file => $status_file,
-    );
-    $files->{ $status_file_object->pipeline_name } = $status_file_object;
-  }
-
-  return $files;
+  return Bio::Path::Find::LaneStatus->new( lane => $self );
 }
 
 #-------------------------------------------------------------------------------
@@ -292,15 +281,6 @@ Returns the number of files associated with this lane.
 =head2 clear_files
 
 Clears the list of found files. No return value.
-
-=head2 all_status_files
-
-Returns a list of the L<Bio::Path::Find::LaneStatusFile> objects for this lane.
-
-=head2 has_status_files
-
-Returns true if there are any available status file objects for this lane.
-False otherwise.
 
 =cut
 

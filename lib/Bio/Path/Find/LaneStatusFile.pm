@@ -1,6 +1,8 @@
 
 package Bio::Path::Find::LaneStatusFile;
 
+# ABSTRACT: a wrapper around job status files
+
 use Moose;
 use namespace::autoclean;
 use MooseX::StrictConstructor;
@@ -16,7 +18,6 @@ use Types::Standard qw(
   Int
 );
 use Bio::Path::Find::Types qw(
-  BioPathFindLane
   PathClassFile
   Datetime
 );
@@ -27,20 +28,13 @@ use Bio::Path::Find::Types qw(
 
 # required attributes
 
-has 'lane' => (
-  is       => 'ro',
-  isa      => BioPathFindLane,
-  required => 1,
-  handles  => {
-    database_status => 'qc_status',
-  },
-);
-
 has 'status_file' => (
   is       => 'ro',
   isa      => PathClassFile,
   required => 1,
 );
+
+#---------------------------------------
 
 # attributes populated when we read a file
 
@@ -49,7 +43,6 @@ has 'last_update'        => ( is => 'ro', isa => Datetime,      writer => '_set_
 # (coerce from an epoch time in the status file)
 has 'current_status'     => ( is => 'ro', isa => Str,           writer => '_set_current_status' );
 has 'number_of_attempts' => ( is => 'ro', isa => Int,           writer => '_set_number_of_attempts' );
-
 
 has 'pipeline_name' => (
   is      => 'ro',
@@ -60,9 +53,22 @@ has 'pipeline_name' => (
 
 sub _build_pipeline_name {
   my $self = shift;
-  foreach my $flag ( keys %{ $self->_flag_mapping } ) {
-    return $self->_flag_mapping->{$flag} if $self->config_file =~ m/$flag/;
+
+  unless ( defined $self->config_file ) {
+    carp 'ERROR: no config file loaded' unless defined $self->config_file;
+    return '';
   }
+
+  foreach my $file_re ( keys %{ $self->_file_mapping } ) {
+    return $self->_file_mapping->{$file_re} if $self->config_file =~ m/$file_re/;
+  }
+
+  # if we get to here then the status file specified a valid, found-on-disk
+  # config file, but that config file doesn't match any of the known
+  # pipelines in the _file_mapping. That suggests it's a new, or otherwise
+  # unknown, pipeline, so we should at least warn about it.
+  carp "ERROR: unrecognised pipeline in config file";
+  return '';
 }
 
 #-------------------------------------------------------------------------------
@@ -71,11 +77,12 @@ sub _build_pipeline_name {
 
 # maps a component of the name of a status file to the pipeline name
 
-has '_flag_mapping' => (
+has '_file_mapping' => (
   is      => 'ro',
   isa     => HashRef[Str],
   default => sub {
     {
+    # file regex           pipeline name
       import            => 'import',
       mapping           => 'mapped',
       qc                => 'qc',

@@ -1,6 +1,8 @@
 
 package Bio::Path::Find::Types;
 
+# ABSTRACT: a type library for path find
+
 use Type::Library -base, -declare => qw(
   BioTrackSchema
   BioTrackSchemaResultBase
@@ -9,6 +11,7 @@ use Type::Library -base, -declare => qw(
   BioPathFindDatabase
   BioPathFindLane
   BioPathFindSorter
+  BioPathFindLaneStatus
   BioPathFindLaneStatusFile
   PathClassFile
   PathClassDir
@@ -30,6 +33,7 @@ class_type 'Bio::Path::Find::DatabaseManager';
 class_type 'Bio::Path::Find::Database';
 class_type 'Bio::Path::Find::Lane';
 class_type 'Bio::Path::Find::Sorter';
+class_type 'Bio::Path::Find::LaneStatus';
 class_type 'Bio::Path::Find::LaneStatusFile';
 class_type 'Path::Class::File';
 class_type 'Path::Class::Dir';

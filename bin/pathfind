@@ -21,6 +21,7 @@ use Bio::Path::Find::Types qw(
 
 # a mapping that gives the type for each option, plus a short description of
 # the type that we can use in an error message
+# TODO see if we can use something like Type::Library to do this validation
 my %option_types = (
   config       => { type => Str,         desc => 'a string' },
   environment  => { type => Environment, desc => 'either "test" or "prod"' },

@@ -15,12 +15,12 @@ my $dbm = Bio::Path::Find::DatabaseManager->new(
   config_file => 't/data/06_lane/test.conf',
 );
 
-my $database = $dbm->get_database('pathogen_prok_track');
-my $lanes    = $database->schema->get_lanes_by_id('10018_1', 'lane');
+my $database  = $dbm->get_database('pathogen_prok_track');
+my $lane_rows = $database->schema->get_lanes_by_id('10018_1', 'lane');
 
-is $lanes->count, 50, 'got 50 lanes';
+is $lane_rows->count, 50, 'got 50 lanes';
 
-my $lane_row = $lanes->first;
+my $lane_row = $lane_rows->first;
 $lane_row->database($database);
 
 my $lane;
@@ -57,10 +57,56 @@ stdout_is { $lane->print_paths } 't/data/linked/prokaryotes/seq-pipelines/Actino
 t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/544477.se.raw.sorted.bam
 ', 'printed expected paths';
 
-lives_ok { $lane->status_files } 'no exception when finding status files';
-my @pipelines = keys %{ $lane->status_files };
-is scalar @pipelines, 1, 'got one status file';
-is $pipelines[0], 'stored', 'got status file for "stored" pipeline';
+# status object
+isa_ok $lane->status, 'Bio::Path::Find::LaneStatus', 'lane status object';
+is $lane->pipeline_status('stored'), 'Done', 'got pipeline status directly from the Lane';
+
+# check the stats for a lane
+
+# get a new lane and apply the trait that produces stats appropriate for the
+# pathfind script
+lives_ok { $lane = Bio::Path::Find::Lane->with_traits('Bio::Path::Find::Role::Stats::Path')
+                                        ->new( row => $lane_row ) }
+  'no exception when applying Stats::Path trait to lane';
+
+my $expected_stats = [
+  '607',
+  'APP_N2_OP1',
+  '10018_1#1',
+  '47',
+  '397141',
+  '18665627',
+  'QC',
+  'Streptococcus_suis_P1_7_v1',
+  '2007491',
+  'bwa',
+  '525354',
+  '0.0',
+  '0.0',
+  '0',
+  '0.00',
+  '0.01',
+  '2.3',
+  '90.2',
+  '0.00',
+  '0.0000',
+  '0.044',
+  'pending',
+  'pending',
+  '1',
+  '2.0868283360403e-05',
+  '0.0112145340361108',
+  '3.57142857142857',
+  'Done',
+  'Done',
+  'Done',
+  '-',
+  '-',
+  '-',
+  '-',
+];
+
+is_deeply $lane->stats, $expected_stats, 'got expected stats for lane';
 
 done_testing;
 

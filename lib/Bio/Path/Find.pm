@@ -1,6 +1,8 @@
 
 package Bio::Path::Find;
 
+# ABSTRACT: find information about sequencing lanes
+
 use v5.10; # required for Type::Params use of "state"
 
 use Moose;
@@ -312,14 +314,6 @@ sub _find_lanes {
   # somewhere to store all of the Bio::Path::Find::Lane objects that we're
   # going to build
   my @lanes;
-
-  # TODO if we wanted to parallelise the database searching, this is where it
-  # TODO needs to happen... I've tried using Parallel::ForkManager but it's not
-  # TODO working for some reason that I can't immediately fathom
-
-  # TODO need to sort the list of databases according to the order of
-  # TODO the names in the "production_db" array in the config, and putting
-  # TODO "track" before "external", etc.
 
   DB: foreach my $db_name ( $self->_db_manager->database_names ) {
     $self->log->debug(qq(searching "$db_name"));
