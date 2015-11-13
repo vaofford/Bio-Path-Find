@@ -38,11 +38,18 @@ use Log::Log4perl;
 
 BEGIN {
   my $logger_conf = q(
+
+    log4perl.appender.File                            = Log::Log4perl::Appender::File
+    log4perl.appender.File.layout                     = Log::Log4perl::Layout::PatternLayout
+    log4perl.appender.File.layout.ConversionPattern   = %M:%L %p: %m%n
+    log4perl.appender.File.filename                   = pathfind.log
+    log4perl.appender.File.Threshold                  = INFO
+
     log4perl.appender.Screen                          = Log::Log4perl::Appender::Screen
     log4perl.appender.Screen.layout                   = Log::Log4perl::Layout::PatternLayout
     log4perl.appender.Screen.layout.ConversionPattern = %M:%L %p: %m%n
 
-    log4perl.logger.Bio.Path.Find                     = ERROR, Screen
+    log4perl.logger.Bio.Path.Find                     = INFO, File, Screen
     log4perl.logger.Bio.Path.Find.Lane                = ERROR, Screen
     log4perl.logger.Bio.Path.Find.DatabaseManager     = ERROR, Screen
 
