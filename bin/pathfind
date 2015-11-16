@@ -8,7 +8,7 @@ use strict;
 use warnings;
 
 use Getopt::Long;
-use Bio::Path::Find;
+use Bio::Path::Find::Finder;
 
 use Types::Standard qw( Str );
 use Bio::Path::Find::Types qw(
@@ -78,13 +78,13 @@ while ( my ( $option_name, $option_value ) = each %options ) {
 }
 
 # get a finder
-my $pf = Bio::Path::Find->new(
+my $pf = Bio::Path::Find::Finder->new(
   config_file => $options{config},
   environment => $options{environment},
 );
 
 # increase the log level in response to the "-verbose" flag
-foreach my $category ( qw ( Bio.Path.Find Bio.Path.Find.Lane Bio.Path.Find.DatabaseManager ) ) {
+foreach my $category ( qw ( Bio.Path.Find.Finder Bio.Path.Find.Lane Bio.Path.Find.DatabaseManager ) ) {
   $pf->log($category)->more_logging($options{verbose}) if $options{verbose};
 }
 

@@ -8,7 +8,7 @@ use Test::Output;
 use File::Slurper qw( read_text );
 use Path::Class;
 
-use_ok('Bio::Path::Find');
+use Bio::Path::Find::Finder;
 
 # find files in production mode, so that we can check that the log file name is
 # correctly set according to environment
@@ -24,7 +24,7 @@ SKIP: {
   diag 'connecting to MySQL DB';
 
   my $f;
-  lives_ok { $f = Bio::Path::Find->new(environment => 'prod', config_file => 't/data/07_finder/prod.conf') }
+  lives_ok { $f = Bio::Path::Find::Finder->new(environment => 'prod', config_file => 't/data/07_finder/prod.conf') }
     'got a finder in production mode';
 
   my $lanes = $f->find(

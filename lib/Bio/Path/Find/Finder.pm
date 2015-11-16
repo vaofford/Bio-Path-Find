@@ -1,5 +1,5 @@
 
-package Bio::Path::Find;
+package Bio::Path::Find::Finder;
 
 # ABSTRACT: find information about sequencing lanes
 
@@ -115,7 +115,7 @@ sub _build_logger_config {
     # loggers
 
     # general debugging
-    log4perl.logger.Bio.Path.Find                     = INFO, Screen
+    log4perl.logger.Bio.Path.Find.Finder              = INFO, Screen
     log4perl.logger.Bio.Path.Find.Lane                = ERROR, Screen
     log4perl.logger.Bio.Path.Find.DatabaseManager     = ERROR, Screen
 

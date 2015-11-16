@@ -8,7 +8,7 @@ use Test::Output;
 use File::Slurper qw( read_text );
 use Path::Class;
 
-use_ok('Bio::Path::Find');
+use_ok('Bio::Path::Find::Finder');
 
 # create a test log file and make sure it isn't already there
 my $test_log = file('t/data/07_finder/_pathfind_test.log');
@@ -16,7 +16,7 @@ $test_log->remove;
 
 # find lanes using a lane name
 my $f;
-lives_ok { $f = Bio::Path::Find->new(environment => 'test', config_file => 't/data/07_finder/test.conf') }
+lives_ok { $f = Bio::Path::Find::Finder->new(environment => 'test', config_file => 't/data/07_finder/test.conf') }
   'got a finder';
 
 my $lanes = $f->find(
