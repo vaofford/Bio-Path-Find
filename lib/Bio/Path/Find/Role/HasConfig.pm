@@ -28,9 +28,9 @@ path-help@sanger.ac.uk
 
 Path to the configuration file.
 
-If C<environment> is 'C<test>', the default is a directory within the test
-suite, otherwise the default is a Sanger-specific disk location. Default is
-'C<prod>'.
+If C<environment> is 'C<test>', we look for a default configuration file in a
+directory within the test suite, otherwise the default is a Sanger-specific
+disk location.
 
 May be overridden by setting at instantiation.
 
@@ -48,7 +48,7 @@ sub _build_config_file {
   my $self = shift;
 
   my $config_file = $self->environment eq 'test'
-                  ? 't/data/03_has_config/test.conf'
+                  ? 't/data/04_has_config/test.conf'
                   : '/software/pathogen/projects/PathFind/config/prod.yml';
 
   croak "ERROR: config file ($config_file) does not exist"
@@ -57,12 +57,10 @@ sub _build_config_file {
   return $config_file;
 }
 
-#-------------------------------------------------------------------------------
-#- private attributes ----------------------------------------------------------
-#-------------------------------------------------------------------------------
+#---------------------------------------
 
 # the configuration hash
-has '_config' => (
+has 'config' => (
   is      => 'rw',
   isa     => HashRef,
   lazy    => 1,
@@ -80,6 +78,12 @@ sub _build_config {
       files           => [ $self->config_file ],
       use_ext         => 1,
       flatten_to_hash => 1,
+      driver_args     => {
+        General => {
+          -InterPolateEnv  => 1,
+          -InterPolateVars => 1,
+        },
+      },
     }
   );
 

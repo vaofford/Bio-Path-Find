@@ -1,36 +1,55 @@
 
 package Bio::Path::Find::Types;
 
+# ABSTRACT: a type library for path find
+
 use Type::Library -base, -declare => qw(
   BioTrackSchema
-  BioPathFindPath
+  BioTrackSchemaResultBase
+  BioTrackSchemaResultLatestLane
+  BioPathFindDatabaseManager
   BioPathFindDatabase
-  BioPathFindFilter
+  BioPathFindLane
   BioPathFindSorter
+  BioPathFindLaneStatus
+  BioPathFindLaneStatusFile
+  PathClassFile
+  PathClassDir
+  Datetime
   IDType
+  FileIDType
+  QCState
+  FileType
   Environment
 );
 
 use Type::Utils -all;
 use Types::Standard -types;
 
-class_type BioTrackSchema,      { class => 'Bio::Track::Schema' };
-class_type BioPathFindPath,     { class => 'Bio::Path::Find::Path' };
-class_type BioPathFindDatabase, { class => 'Bio::Path::Find::Database' };
-class_type BioPathFindFilter    { class => 'Bio::Path::Find::Filter' };
-class_type BioPathFindSorter    { class => 'Bio::Path::Find::Sorter' };
+class_type 'Bio::Track::Schema';
+class_type 'Bio::Track::Schema::ResultBase';
+class_type 'Bio::Track::Schema::Result::LatestLane';
+class_type 'Bio::Path::Find::DatabaseManager';
+class_type 'Bio::Path::Find::Database';
+class_type 'Bio::Path::Find::Lane';
+class_type 'Bio::Path::Find::Sorter';
+class_type 'Bio::Path::Find::LaneStatus';
+class_type 'Bio::Path::Find::LaneStatusFile';
+class_type 'Path::Class::File';
+class_type 'Path::Class::Dir';
 
-enum IDType, [ qw(
-  lane
-  sample
-  database
-  study
-  file
-  library
-  species
-) ];
+# (see https://metacpan.org/pod/release/TOBYINK/Type-Tiny-1.000005/lib/Type/Tiny/Manual/Libraries.pod)
+class_type 'Datetime', { class => 'DateTime' };
 
-enum Environment, [ qw( test prod ) ];
+coerce Datetime,
+  from Int,   via { 'DateTime'->from_epoch( epoch => $_ ) },
+  from Undef, via { 'DateTime'->now };
+
+enum IDType,      [qw( lane sample database study file library species )];
+enum FileIDType,  [qw( lane sample study)];
+enum QCState,     [qw( passed failed pending )];
+enum FileType,    [qw( fastq bam pacbio corrected )];
+enum Environment, [qw( test prod )];
 
 1;
 

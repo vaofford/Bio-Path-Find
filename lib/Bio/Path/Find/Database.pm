@@ -1,19 +1,18 @@
 
 package Bio::Path::Find::Database;
 
-# ABSTRACT: class to handle interactions with the pathogens tracking databases
+# ABSTRACT: class to handle interactions with a specific pathogens tracking database
 
 use Moose;
 use namespace::autoclean;
 use MooseX::StrictConstructor;
 
-use Types::Standard qw( Str ArrayRef HashRef );
+use Types::Standard qw( Str ArrayRef HashRef Undef );
 use Carp qw( croak carp );
 use DBI;
 
 use Bio::Track::Schema;
-use Bio::Path::Find::Path;
-use Bio::Path::Find::Types qw( BioPathFindPath BioTrackSchema );
+use Bio::Path::Find::Types qw( BioTrackSchema );
 
 with 'Bio::Path::Find::Role::HasEnvironment',
      'Bio::Path::Find::Role::HasConfig';
@@ -30,337 +29,264 @@ path-help@sanger.ac.uk
 
 =head1 ATTRIBUTES
 
-=attr connection_params
+=attr name
 
-A reference to a hash containing database connection parameters from the
-config.
+The name of the database handled by this object.
 
-The parameters should be given using the key C<connection_params> and must specify
-C<host>, C<port>, and C<user>. If a password is required it should be given
-using C<pass>. For example, in a L<Config::General>-style config file:
-
-  <connection_params>
-    host mysql_database_host
-    port 3306
-    user myuser
-    pass mypass
-  </connection_params>
+B<Read only>.
 
 =cut
 
-has 'connection_params' => (
-  is      => 'ro',
-  isa     => HashRef[Str],
-  lazy    => 1,
-  writer  => '_set_connection_params',
-  builder => '_build_connection_params',
+has 'name' => (
+  is       => 'ro',
+  isa      => Str,
+  required => 1,
 );
 
-sub _build_connection_params {
+#---------------------------------------
+
+=attr schema
+
+The L<Bio::Track::Schema> object for the database handled by this object.
+Connection parameters are taken from the configuration.
+In production, the database is assumed to be a MySQL instance. The
+configuration must contain the parameters C<host>, C<port>, and C<user>. If
+the connection requires a password, C<pass> must also be given, e.g.
+
+  <connection_params>
+    host dbhost
+    port 3306
+    user find_user
+  </connection_params>
+
+In a test environment, the database is assumed to be an SQLite DB file, in
+which case the configuration block must contain the key C<dbname>. The
+C<host>, C<port>, and C<user> keys must be present but can contain dummy
+values, e.g.
+
+  <connection_params>
+    dbname test_database.db
+    host host
+    port 3306
+    user user
+  </connection_params>
+
+B<Read only>.
+
+=cut
+
+has 'schema' => (
+  is      => 'ro',
+  isa     => BioTrackSchema,
+  lazy    => 1,
+  builder => '_build_schema',
+);
+
+sub _build_schema {
   my $self = shift;
 
-  my $connection = $self->_config->{connection_params};
+  my $dsn = $self->_get_dsn;
 
-  croak 'ERROR: configuration (' . $self->config_file
-       . ') does not specify any database connection parameters ("connection_params")'
-    unless ( defined $connection and ref $connection eq 'HASH' );
+  my $user = $self->config->{connection_params}->{user};
+  my $pass = $self->config->{connection_params}->{pass} || undef;
+  my $schema = $self->is_in_test_env
+             ? Bio::Track::Schema->connect($dsn)
+             : Bio::Track::Schema->connect($dsn, $user, $pass);
 
-  foreach ( qw( host user port ) ) {
-    croak 'ERROR: configuration (' . $self->config_file
-         . ") does not specify one of the required database connection parameters ($_)"
-      unless exists $connection->{$_};
-  }
-
-  return $connection;
+  return $schema;
 }
 
 #---------------------------------------
 
-=attr production_dbs
+=attr db_root
 
-A reference to an array listing the names of the production databases. The names
-should be specified in the configuration using the key C<production_db>. For
-example, in a L<Config::General>-style config:
+Every database must have an associated directory, which contains the flat files
+that store the data. The C<db_root> attribute gives the root of this directory
+hierarchy. The root directory should be specified in the configuration file,
+using the key C<db_root>.
 
-  production_db pathogen_euk_track
-  production_db pathogen_prok_track
-  ...
-
-Note that the order of the databases is significant: the list of B<available>
-databases will be sorted so that names are returned in the order specified in
-the C<production_db> list.
-
-If C<production_db> is not found in the config, a warning is issued and we use
-the following default list:
-
-  pathogen_pacbio_track
-  pathogen_prok_track
-  pathogen_euk_track
-  pathogen_virus_track
-  pathogen_helminth_track
+If C<db_root> is not found in the config, a warning is issued and we use a
+default value: if the C<environment> attribute is set to C<test>, C<db_root>
+defaults to a directory in the test suite, otherwise the default is a
+Sanger-specific disk location.
 
 B<Read-only>.
 
 =cut
 
-has 'production_dbs' => (
-  is      => 'ro',
-  isa     => ArrayRef[Str],
-  lazy    => 1,
-  writer  => '_set_production_dbs',
-  builder => '_build_production_dbs',
+has 'db_root' => (
+  is       => 'ro',
+  isa      => Str,
+  lazy     => 1,
+  writer   => '_set_db_root',
+  builder  => '_build_db_root',
 );
 
-sub _build_production_dbs {
+sub _build_db_root {
   my $self = shift;
 
-  my $dbs = $self->_config->{production_db};
+  # find the root directory for the directory structure containing the data
+  my $db_root = $self->config->{db_root};
 
-  if ( not defined $dbs ) {
-    carp 'WARNING: configuration (' . $self->config_file
-         . ') does not specify the list of production databases ("production_db"); using default list';
-    $dbs = [ qw(
-      pathogen_pacbio_track
-      pathogen_prok_track
-      pathogen_euk_track
-      pathogen_virus_track
-      pathogen_helminth_track
-    ) ];
+  if ( not defined $db_root ) {
+    carp 'WARNING: configuration does not specify the path to the root directory containing data directories ("db_root"); using default';
+    $db_root = $self->environment eq 'test'
+             ? 't/data/04_database/root_dir'
+             : '/lustre/scratch108/pathogen/pathpipe';
   }
 
-  croak 'ERROR: no valid list of production databases ("production_db")'
-    unless ( ref $dbs eq 'ARRAY' and scalar @$dbs );
+  croak "ERROR: data hierarchy root directory ($db_root) does not exist (or is not a directory)"
+    unless -d $db_root;
 
-  return $dbs;
+  return $db_root;
 }
 
 #---------------------------------------
 
-=attr data_sources
+=attr hierarchy_template
 
-A reference to an array containing the names of the available data sources.
+Template for the directory hierarchy where flat files are stored. Must be a
+colon-separated list of directory names.
 
-In a production environment, the data sources will be the names of the
-databases that are found in the MySQL instance which is specified in the
-config.
+If C<hierarchy_template> is not specified in the configuration, a warning is
+issued and we use the following default:
 
-In a test environment, the data source is a test SQLite database which is part
-of the test suite.
+  genus:species-subspecies:TRACKING:projectssid:sample:technology:library:lane
+
+B<Read-only>.
 
 =cut
 
-has 'data_sources' => (
+has 'hierarchy_template' => (
   is      => 'ro',
-  isa     => ArrayRef[Str],
+  isa     => Str,
   lazy    => 1,
-  writer  => '_set_data_sources',
-  builder => '_build_data_sources',
+  builder => '_build_hierarchy_template',
 );
 
-sub _build_data_sources {
+sub _build_hierarchy_template {
   my $self = shift;
 
-  # if we're in the test environment, spoof the data sources list and provide
-  # the name of a test DB. Otherwise, retrieve the list by connecting to the
-  # MySQL database using the connection parameters from the config
-  my @sources = $self->environment eq 'test'
-              ? ( 'pathogen_test_track' )
-              : grep s/^DBI:mysql://, DBI->data_sources('mysql', $self->connection_params);
+  # find the template for the directory hierarchy in the config
+  my $template = $self->config->{hierarchy_template};
 
-  croak 'ERROR: failed to retrieve a list of data sources'
-    unless scalar @sources;
+  if ( not defined $template ) {
+    carp 'WARNING: configuration does not specify the directory hierarchy template ("template"); using default';
+    $template = 'genus:species-subspecies:TRACKING:projectssid:sample:technology:library:lane';
+  }
 
-  return \@sources;
+  croak "ERROR: invalid directory hierarchy template ($template)"
+    unless $template =~ m/^([\w-]+:?)+$/;
+
+  return $template;
 }
 
 #---------------------------------------
 
-=attr available_database_schemas
+=head2 hierarchy_root_dir
 
-A reference to an array containing L<DBIx::Class::Schema|DBIC schema> objects
-for the available databases, as given by L<available_database_names>.
-
-See L<available_database_names> for an explanation of what constitutes an
-"available" database.
+The root of the directory hierarchy that is associated with the given tracking
+database. C<undef> if the directory does not exist. The generation of the
+hierarchy root directory path takes into account the sub-directory mapping.
+See L<db_subdirs>.
 
 =cut
 
-has 'available_database_schemas' => (
+has 'hierarchy_root_dir' => (
   is      => 'ro',
-  isa     => ArrayRef[BioTrackSchema],
+  isa     => Str | Undef,
   lazy    => 1,
-  writer  => '_set_available_database_schemas',
-  builder => '_build_available_database_schemas',
+  writer  => '_set_hierarchy_root_dir',
+  builder => '_build_hierarchy_root_dir',
 );
 
-  # NOTE This could be horrible memory hungry. If we create a new schema object
-  # for every N databases and each one used M mb of memory, we could end up
-  # using N * M mb if we do this. It might be safer to generate and destroy
-  # each schema in turn
-
-  # TODO profile this and see how bad it is
-
-sub _build_available_database_schemas {
+sub _build_hierarchy_root_dir {
   my $self = shift;
 
-  my $db_list = $self->available_database_names;
+  my $sub_dir = exists $self->db_subdirs->{$self->name}
+              ? $self->db_subdirs->{$self->name}
+              : $self->name;
 
-  my @schemas;
-  foreach my $db_name ( @$db_list ) {
-    my $schema = $self->get_schema($db_name);
-    next unless defined $schema;
-    push @schemas, $schema;
-  }
+  my $hierarchy_root_dir = $self->db_root . "/$sub_dir/seq-pipelines";
 
-  return \@schemas;
+  return ( -d $hierarchy_root_dir )
+         ? $hierarchy_root_dir
+         : undef;
 }
 
 #---------------------------------------
 
-=attr available_database_names
+=attr db_subdirs
 
-A reference to an array containing the names of live, searchable, production
-pathogen databases.
+It's possible for a given database to have a sub-directory with a different
+name in the data directories. This attribute specifies the mapping between
+database name and subdirectory name.
 
-In order to appear in this list a database must:
+If C<db_subdirs> is not found in the configuration, a warning is issued and we
+use the following default mapping:
 
-=over
+  pathogen_virus_track    => 'viruses',
+  pathogen_prok_track     => 'prokaryotes',
+  pathogen_euk_track      => 'eukaryotes',
+  pathogen_helminth_track => 'helminths',
+  pathogen_rnd_track      => 'rnd',
 
-=item exist in the list of data sources (see L<data_sources>)
-
-=item have an associated directory structure (see L<Bio::Path::Find::Path::get_hierarchy_root_dir>).
-
-=back
-
-The list will be sorted to put "track" databases first, e.g.
-C<pathogen_euk_track>, followed by "external" databases, and finally the
-production databases will be moved to the top of this, so that they may be
-searched first.
+B<Read-only>.
 
 =cut
 
-has 'available_database_names' => (
+has 'db_subdirs' => (
   is      => 'ro',
-  isa     => ArrayRef[Str],
+  isa     => HashRef,
   lazy    => 1,
-  writer  => '_set_available_database_names',
-  builder => '_build_available_database_names',
+  builder => '_build_db_subdirs',
 );
 
-sub _build_available_database_names {
+sub _build_db_subdirs {
   my $self = shift;
 
-  my $db_list = [];
-  push @$db_list, grep /^pathogen_.+_track$/,    @{ $self->data_sources };
-  push @$db_list, grep /^pathogen_.+_external$/, @{ $self->data_sources };
+  # try to find the mapping in the config
+  my $db_subdirs = $self->config->{db_subdirs};
 
-  # this will be the list of all databases in the MySQL instance, ordered with
-  # "track" DBs first, then "external", and then re-ordered according to the
-  # database names given in the "production_db" slot in the config
-  $db_list = $self->_reorder_db_list($db_list);
-
-  # this will be the list of databases for which we have an associated
-  # directory on disk
-  my @db_list_out;
-
-  foreach my $database_name ( @$db_list ) {
-    my $root_dir = $self->_path->get_hierarchy_root_dir($database_name);
-    next unless defined $root_dir;
-    push @db_list_out, $database_name;
+  if ( not defined $db_subdirs ) {
+    carp 'WARNING: configuration does not specify the mapping between database name and sub-directory ("db_subdirs"); using default';
+    $db_subdirs = {
+      pathogen_virus_track    => 'viruses',
+      pathogen_prok_track     => 'prokaryotes',
+      pathogen_euk_track      => 'eukaryotes',
+      pathogen_helminth_track => 'helminths',
+      pathogen_rnd_track      => 'rnd',
+    };
   }
 
-  return \@db_list_out;
-}
-
-#-------------------------------------------------------------------------------
-#- private attributes ----------------------------------------------------------
-#-------------------------------------------------------------------------------
-
-has '_path' => (
-  is      => 'ro',
-  isa     => BioPathFindPath,
-  lazy    => 1,
-  default => sub {
-    my $self = shift;
-    Bio::Path::Find::Path->new(
-      environment => $self->environment,
-      config_file => $self->config_file
-    );
-  }
-);
-
-#-------------------------------------------------------------------------------
-#- public methods --------------------------------------------------------------
-#-------------------------------------------------------------------------------
-
-=head1 METHODS
-
-=head2 get_schema($database_name)
-
-Returns a L<Bio::Track::Schema> object for the specified database. If we can't
-connect to the database, or if there is no accompanying directory hierarchy, as
-specified in the config, the method returns C<undef>.
-
-=cut
-
-sub get_schema {
-  my ( $self, $db_name ) = @_;
-
-  my %pathogen_database_names = map { $_ => 1 } @{ $self->available_database_names };
-
-  return unless $pathogen_database_names{$db_name};
-
-  my $c = $self->_config->{connection_params};
-  my $schema;
-  if ( $self->environment eq 'test' ) {
-    croak 'ERROR: must specify SQLite DB location as "connection:dbname" in test config'
-      unless $c->{dbname};
-    $schema = Bio::Track::Schema->connect('dbi:SQLite:dbname=' . $c->{dbname});
-  }
-  else {
-    my $dsn = 'DBI:mysql:'
-            . "host=$c->{host};"
-            . "port=$c->{port};"
-            . "database=$db_name";
-    my $user = $c->{user};
-    my $pass = $c->{pass} || undef;
-    $schema = Bio::Track::Schema->connect($dsn, $user, $pass);
-  }
-
-  return $schema;
+  return $db_subdirs;
 }
 
 #-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# re-order the provided list of database names to move production databases to
-# the top. The list of production databases is taken from the 'production_dbs'
-# attribute.
+# returns the DSN based on the connection parameters in the config
 
-sub _reorder_db_list {
-  my ( $self, $db_list ) = @_;
+sub _get_dsn {
+  my $self = shift;
 
-  my @reordered_db_list;
+  my $c = $self->config->{connection_params};
 
-  my %db_list_lookup = map { $_ => 1 } @$db_list;
-
-  # first, add production databases to the output list
-  foreach my $database_name ( @{ $self->production_dbs } ) {
-    next unless $db_list_lookup{$database_name};
-    push @reordered_db_list, $database_name;
-
-    # remove already added DBs from the lookup, so that we can add the
-    # remainder below
-    delete $db_list_lookup{$database_name};
+  my $dsn;
+  if ( $self->environment eq 'test' ) {
+    croak 'ERROR: must specify SQLite DB location as "connection:dbname" in test config'
+      unless $c->{dbname};
+    $dsn = 'dbi:SQLite:dbname=' . $c->{dbname};
+  }
+  else {
+    $dsn = 'DBI:mysql:'
+           . "host=$c->{host};"
+           . "port=$c->{port};"
+           . 'database=' . $self->name;
   }
 
-  # add remaining DBs to output
-  foreach my $database_name (sort keys %db_list_lookup ) {
-    push @reordered_db_list, $database_name;
-  }
-
-  return \@reordered_db_list;
+  return $dsn;
 }
 
 #-------------------------------------------------------------------------------

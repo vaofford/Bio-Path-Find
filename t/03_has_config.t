@@ -18,6 +18,10 @@ package main;
 use Test::More;
 use Test::Exception;
 
+BEGIN {
+  $ENV{BPF_TEST_VALUE} = 'a_value';
+}
+
 use_ok('Bio::Path::Find::TestClass');
 
 my $t;
@@ -27,13 +31,8 @@ lives_ok { $t = Bio::Path::Find::TestClass->new( environment => 'test' ) }
 is $t->environment, 'test', 'object is in test environment';
 
 my $expected_config = {
-  db_root       => 't/data',
-  production_db => [
-    qw(
-      one
-      two
-    )
-  ],
+  db_root        => 't/data',
+  from_env       => 'a_value',
   subdir_mapping => {
     one => 'two',
   },
@@ -41,12 +40,7 @@ my $expected_config = {
 
 $t = Bio::Path::Find::TestClass->new( config_file => 't/data/03_has_config/test.conf' );
 is $t->environment, 'prod', 'object is in prod environment';
-is_deeply $t->_config, $expected_config, 'got expected config from Config::General-style config';
-
-$t = Bio::Path::Find::TestClass->new( config_file => 't/data/03_has_config/test.yml' );
-is_deeply $t->_config, $expected_config, 'got same config from YAML config';
-
-$DB::single = 1;
+is_deeply $t->config, $expected_config, 'got expected config from Config::General-style config';
 
 done_testing;
 
