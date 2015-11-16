@@ -8,7 +8,6 @@ use namespace::autoclean;
 use MooseX::StrictConstructor;
 
 use Carp qw( carp croak );
-use File::Slurper qw( read_lines );
 use Path::Class;
 use DateTime;
 
@@ -105,7 +104,7 @@ sub BUILD {
   croak q(ERROR: can't find status file ") . $self->status_file . q(")
     unless -f $self->status_file;
 
-  my @lines = read_lines $self->status_file;
+  my @lines = $self->status_file->slurp(chomp => 1);
 
   unless ( scalar @lines == 4 ) {
     carp 'WARNING: not a valid status file (' . $self->status_file . ')';

@@ -7,7 +7,6 @@ use Moose::Role;
 
 use Carp qw( croak );
 use Path::Class;
-use File::Slurper qw( read_lines );
 
 use Types::Standard qw(
   ArrayRef
@@ -274,7 +273,7 @@ sub _het_snp_stats {
 
   return qw( NA NA NA NA ) unless -f $report_file;
 
-  my @lines = read_lines $report_file;
+  my @lines = $report_file->slurp(chomp => 1);
 
   return split m/\t/, $lines[1];
 }

@@ -7,7 +7,6 @@ package Bio::Path::Find::Role::PathFind;
 
 use Moose::Role;
 use Path::Class;
-use File::Slurper qw( read_lines );
 
 with 'Bio::Path::Find::Role::Stats';
 

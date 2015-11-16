@@ -5,7 +5,6 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use Test::Output;
-use File::Slurper qw( read_text );
 use Path::Class;
 
 use Bio::Path::Find::Finder;

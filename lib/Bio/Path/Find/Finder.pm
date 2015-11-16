@@ -10,7 +10,6 @@ use namespace::autoclean;
 use MooseX::StrictConstructor;
 
 use Carp qw( croak carp );
-use File::Slurper qw( read_lines );
 use Path::Class;
 
 use Type::Params qw( compile );
@@ -228,7 +227,7 @@ sub find {
 
   if ( $params->{type} eq 'file' ) {
     # read multiple IDs from a file
-    $self->_load_ids_from_file($params->{id});
+    $self->_load_ids_from_file(file $params->{id});
     $self->_id_type($params->{file_id_type});
 
     $self->log->debug('finding multiple IDs from file ' . $params->{id}
@@ -341,7 +340,7 @@ sub _load_ids_from_file {
   # TODO check if this will work with the expected usage. If users are used
   # TODO to putting plex IDs as search terms, stripping lines starting with
   # TODO "#" will break those searches
-  my @ids = grep ! m/^#/, read_lines($filename);
+  my @ids = grep ! m/^#/, $filename->slurp(chomp => 1);
 
   croak "ERROR: no IDs found in file ($filename)"
     unless scalar @ids;

@@ -5,7 +5,6 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use Test::Output;
-use File::Slurper qw( read_text );
 use Path::Class;
 
 use_ok('Bio::Path::Find::Finder');
@@ -43,14 +42,14 @@ is scalar @$lanes, 76, 'found 76 failed lanes with ID 10263_4';
 # check paths
 
 # look at directory paths
-my $paths = read_text('t/data/07_finder/lane_10050_2_dir_paths.txt');
+my $paths = file('t/data/07_finder/lane_10050_2_dir_paths.txt')->slurp;
 
 stdout_is { $f->print_paths( id => '10050_2', type => 'lane' ) }
   $paths,
   'got expected paths for lanes without filetype';
 
 # and file paths, when we're looking for a specific type of file
-$paths = read_text('t/data/07_finder/lane_10050_2_file_paths.txt');
+$paths = file('t/data/07_finder/lane_10050_2_file_paths.txt')->slurp;
 
 stdout_is { $f->print_paths(id => '10050_2', type => 'lane', qc => 'pending', filetype => 'fastq') }
   $paths,
