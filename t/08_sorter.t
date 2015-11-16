@@ -8,6 +8,11 @@ use Test::Exception;
 use Bio::Path::Find::DatabaseManager;
 use Bio::Path::Find::Lane;
 
+use Log::Log4perl qw( :easy );
+
+# initialise l4p to avoid warnings
+Log::Log4perl->easy_init( $FATAL );
+
 use_ok('Bio::Path::Find::Sorter');
 
 my $sorter;

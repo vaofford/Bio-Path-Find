@@ -11,7 +11,6 @@ use Types::Standard qw( Str ArrayRef HashRef );
 use Carp qw( croak carp );
 use DBI;
 use Data::Dump qw( pp );
-use Log::Log4perl;
 
 use Bio::Path::Find::Types qw( BioPathFindDatabase );
 use Bio::Track::Schema;
@@ -26,28 +25,6 @@ with 'Bio::Path::Find::Role::HasEnvironment',
 path-help@sanger.ac.uk
 
 =cut
-
-#-------------------------------------------------------------------------------
-#- logging ---------------------------------------------------------------------
-#-------------------------------------------------------------------------------
-
-# Log4perl should be initialised by B::P::Find, but if this class is used
-# independently that initailsation never happens and we get a warning. Calling
-# "init_once" avoids this config overwritting the one in B::P::Find though, so
-# it's safe to have in both places.
-
-BEGIN {
-  my $logger_conf = q(
-    log4perl.appender.Screen                          = Log::Log4perl::Appender::Screen
-    log4perl.appender.Screen.layout                   = Log::Log4perl::Layout::PatternLayout
-    log4perl.appender.Screen.layout.ConversionPattern = %M:%L %p: %m%n
-
-    log4perl.logger.Bio.Path.Find.DatabaseManager     = ERROR, Screen
-
-    log4perl.oneMessagePerAppender                    = 1
-  );
-  Log::Log4perl->init_once(\$logger_conf);
-}
 
 #-------------------------------------------------------------------------------
 #- public attributes -----------------------------------------------------------
@@ -211,7 +188,7 @@ sub _build_database_names {
 
   my @database_names = ();
   if ( $self->is_in_test_env ) {
-    croak 'ERROR: must specify the name of a test database in the config when in test environment (set "test_db")'
+    croak 'ERROR: when in the test environment, the configuration must specify the name of a test database (set "test_db")'
       unless defined $self->config->{test_db};
     push @database_names, $self->config->{test_db};
   }

@@ -6,6 +6,11 @@ use Test::More;
 use Test::Exception;
 use Path::Class;
 
+use Log::Log4perl qw( :easy );
+
+# initialise l4p to avoid warnings
+Log::Log4perl->easy_init( $FATAL );
+
 # get a lane object to play with
 use Bio::Path::Find::Lane;
 use Bio::Path::Find::DatabaseManager;

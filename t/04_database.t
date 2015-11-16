@@ -78,7 +78,6 @@ SKIP: {
 
   lives_ok { $db->schema->resultset('LatestLane')->count }
     'can count rows in lane table';
-
 }
 
 done_testing;

@@ -6,6 +6,10 @@ use Test::More;
 use Test::Exception;
 use Test::Warn;
 use Try::Tiny;
+use Log::Log4perl qw( :easy );
+
+# initialise l4p to avoid warnings
+Log::Log4perl->easy_init( $FATAL );
 
 use_ok('Bio::Path::Find::DatabaseManager');
 

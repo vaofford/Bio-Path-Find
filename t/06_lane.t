@@ -8,6 +8,11 @@ use Test::Output;
 
 use Bio::Path::Find::DatabaseManager;
 
+use Log::Log4perl qw( :easy );
+
+# initialise l4p to avoid warnings
+Log::Log4perl->easy_init( $FATAL );
+
 use_ok('Bio::Path::Find::Lane');
 
 my $dbm = Bio::Path::Find::DatabaseManager->new(

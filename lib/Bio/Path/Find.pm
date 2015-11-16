@@ -18,6 +18,7 @@ use Types::Standard qw(
   Object
   HashRef
   ArrayRef
+  Ref
   Str
   Int
   slurpy
@@ -33,30 +34,6 @@ use Bio::Path::Find::Types qw(
   FileType
   Environment
 );
-
-use Log::Log4perl;
-
-BEGIN {
-  my $logger_conf = q(
-
-    log4perl.appender.File                            = Log::Log4perl::Appender::File
-    log4perl.appender.File.layout                     = Log::Log4perl::Layout::PatternLayout
-    log4perl.appender.File.layout.ConversionPattern   = %M:%L %p: %m%n
-    log4perl.appender.File.filename                   = pathfind.log
-    log4perl.appender.File.Threshold                  = INFO
-
-    log4perl.appender.Screen                          = Log::Log4perl::Appender::Screen
-    log4perl.appender.Screen.layout                   = Log::Log4perl::Layout::PatternLayout
-    log4perl.appender.Screen.layout.ConversionPattern = %M:%L %p: %m%n
-
-    log4perl.logger.Bio.Path.Find                     = INFO, File, Screen
-    log4perl.logger.Bio.Path.Find.Lane                = ERROR, Screen
-    log4perl.logger.Bio.Path.Find.DatabaseManager     = ERROR, Screen
-
-    log4perl.oneMessagePerAppender                    = 1
-  );
-  Log::Log4perl->init_once(\$logger_conf);
-}
 
 use Bio::Path::Find::DatabaseManager;
 use Bio::Path::Find::Lane;
@@ -88,8 +65,72 @@ L<Bio::Path::Find::Role::HasEnvironment>.
 #- private attributes ----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
+# set the location of the log file, depending on whether we're in test mode
+
+has '_log_file' => (
+  is => 'ro',
+  isa => Str,
+  lazy => 1,
+  builder => '_build_log_file',
+);
+
+sub _build_log_file {
+  my $self = shift;
+  return $self->is_in_test_env
+         ? $self->config->{test_logfile}
+         : $self->config->{logfile};
+}
+
+#---------------------------------------
+
+# define the configuration for the Log::Log4perl logger
+
+has '_logger_config' => (
+  is      => 'ro',
+  isa     => 'Ref',
+  lazy    => 1,
+  builder => '_build_logger_config',
+);
+
+sub _build_logger_config {
+  my $self = shift;
+
+  my $LOGFILE = $self->_log_file;
+
+  return \qq(
+
+    # appenders
+
+    # an appender to log the command line to file
+    log4perl.appender.File                            = Log::Log4perl::Appender::File
+    log4perl.appender.File.layout                     = Log::Log4perl::Layout::PatternLayout
+    log4perl.appender.File.layout.ConversionPattern   = %d %m%n
+    log4perl.appender.File.filename                   = $LOGFILE
+    log4perl.appender.File.Threshold                  = INFO
+
+    log4perl.appender.Screen                          = Log::Log4perl::Appender::Screen
+    log4perl.appender.Screen.layout                   = Log::Log4perl::Layout::PatternLayout
+    log4perl.appender.Screen.layout.ConversionPattern = %M:%L %p: %m%n
+
+    # loggers
+
+    # general debugging
+    log4perl.logger.Bio.Path.Find                     = INFO, Screen
+    log4perl.logger.Bio.Path.Find.Lane                = ERROR, Screen
+    log4perl.logger.Bio.Path.Find.DatabaseManager     = ERROR, Screen
+
+    # command line logging
+    log4perl.logger.command_log                       = INFO, File
+
+    log4perl.oneMessagePerAppender                    = 1
+  );
+}
+
+#---------------------------------------
+
 # somewhere to store the list of IDs that we'll search for. This could be just
 # a single ID from the command line or many IDs from a file
+
 has '_ids' => (
   traits  => ['Array'],
   is      => 'ro',
@@ -105,6 +146,7 @@ has '_ids' => (
 
 # the actual type of the IDs we'll be searching for, since we can't rely on
 # "type" to give us that
+
 has '_id_type' => (
   is      => 'rw',
   isa     => IDType,
@@ -142,6 +184,17 @@ has '_sorter' => (
     );
   },
 );
+
+#-------------------------------------------------------------------------------
+#- construction ----------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+sub BUILD {
+  my $self = shift;
+
+  # all we need to do here is initialise the logger
+  Log::Log4perl->init_once($self->_logger_config);
+}
 
 #-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
@@ -192,6 +245,9 @@ sub find {
   }
 
   #---------------------------------------
+
+  # log the command line to file
+  $self->_log_command($params);
 
   # get a list of Bio::Path::Find::Lane objects
   my $lanes = $self->_find_lanes;
@@ -356,6 +412,19 @@ sub _find_lanes {
   }
 
   return \@lanes;
+}
+
+#-------------------------------------------------------------------------------
+
+sub _log_command {
+  my ( $self, $params ) = @_;
+
+  my $command_line = $0;
+  while ( my ( $opt, $value ) = each %$params ) {
+    $command_line .= " -$opt $value";
+  }
+
+  $self->log('command_log')->info($command_line);
 }
 
 #-------------------------------------------------------------------------------
