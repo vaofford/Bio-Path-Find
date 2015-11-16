@@ -231,8 +231,8 @@ sub find {
     $self->_load_ids_from_file($params->{id});
     $self->_id_type($params->{file_id_type});
 
-    $self->log->info('finding multiple IDs from file ' . $params->{id}
-                     . ' of type "' . $params->{file_id_type} . '"');
+    $self->log->debug('finding multiple IDs from file ' . $params->{id}
+                      . ' of type "' . $params->{file_id_type} . '"');
   }
   else {
     # use the single ID from the command line
@@ -240,8 +240,8 @@ sub find {
     $self->_add_id( $params->{id} );
     $self->_id_type($params->{type});
 
-    $self->log->info('finding IDs "' . $params->{id} . '"'
-                     . ' of type "' . $params->{type} . '"');
+    $self->log->debug('finding IDs "' . $params->{id} . '"'
+                      . ' of type "' . $params->{type} . '"');
   }
 
   #---------------------------------------
@@ -252,7 +252,7 @@ sub find {
   # get a list of Bio::Path::Find::Lane objects
   my $lanes = $self->_find_lanes;
 
-  $self->log->info('found ' . scalar @$lanes . ' lanes');
+  $self->log->debug('found ' . scalar @$lanes . ' lanes');
 
   # find files for the lanes
   my $filtered_lanes = [];
@@ -400,7 +400,7 @@ sub _find_lanes {
 
         # build a lightweight object to hold all of the data about a particular
         # row
-        my $lane = Bio::Path::Find::Lane->with_traits('Bio::Path::Find::Role::Stats::Path')
+        my $lane = Bio::Path::Find::Lane->with_traits('Bio::Path::Find::Role::PathFind')
                                         ->new( row => $lane_row );
 
         push @lanes, $lane;

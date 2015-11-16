@@ -1,5 +1,5 @@
 
-package Bio::Path::Find::Role::Stats::Path;
+package Bio::Path::Find::Role::PathFind;
 
 # ABSTRACT: a role that collects together statistics for a lane
 

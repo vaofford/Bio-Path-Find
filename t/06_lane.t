@@ -70,7 +70,7 @@ is $lane->pipeline_status('stored'), 'Done', 'got pipeline status directly from 
 
 # get a new lane and apply the trait that produces stats appropriate for the
 # pathfind script
-lives_ok { $lane = Bio::Path::Find::Lane->with_traits('Bio::Path::Find::Role::Stats::Path')
+lives_ok { $lane = Bio::Path::Find::Lane->with_traits('Bio::Path::Find::Role::PathFind')
                                         ->new( row => $lane_row ) }
   'no exception when applying Stats::Path trait to lane';
 

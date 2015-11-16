@@ -271,7 +271,7 @@ simply hasn't yet been run.
 
 =head2 has_no_files
 
-Returns true if this file has B<no> files associated with it, true otherwise.
+Returns true if this file has B<no> files associated with it, false otherwise.
 To be explicit, this is the inverse of L<has_files>.
 
 =head2 file_count
