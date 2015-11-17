@@ -3,14 +3,17 @@ package Bio::Path::Find::Role::PathFind;
 
 # ABSTRACT: a role that collects together statistics for a lane
 
-# this Role produces statistics appropriate for the pathfind script
-
 use Moose::Role;
 use Path::Class;
 
 with 'Bio::Path::Find::Role::Stats';
 
-sub _build_headers {
+#-------------------------------------------------------------------------------
+#- methods required by the Stats role ------------------------------------------
+#-------------------------------------------------------------------------------
+
+# build an array of headers for the statistics display
+sub _build_stats_headers {
   my $self = shift;
 
   return [
@@ -51,6 +54,9 @@ sub _build_headers {
   ];
 }
 
+#-------------------------------------------------------------------------------
+
+# collect together the fields for the statistics display
 sub _build_stats {
   my $self = shift;
 

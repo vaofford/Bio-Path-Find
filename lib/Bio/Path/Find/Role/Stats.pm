@@ -20,7 +20,8 @@ use Bio::Path::Find::Types qw(
   BioTrackSchemaResultBase
 );
 
-requires '_build_headers', '_build_stats';
+requires '_build_stats_headers',
+         '_build_stats';
 
 #-------------------------------------------------------------------------------
 #- public attributes -----------------------------------------------------------
@@ -32,11 +33,11 @@ Reference to an array containing column headers for stats output.
 
 =cut
 
-has 'headers' => (
+has 'stats_headers' => (
   is      => 'ro',
   isa     => ArrayRef[Str],
   lazy    => 1,
-  builder => '_build_headers',
+  builder => '_build_stats_headers',
 );
 
 #---------------------------------------

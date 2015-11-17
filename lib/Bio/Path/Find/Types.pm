@@ -3,6 +3,9 @@ package Bio::Path::Find::Types;
 
 # ABSTRACT: a type library for path find
 
+use Try::Tiny;
+use Carp qw( croak );
+
 use Type::Library -base, -declare => qw(
   BioTrackSchema
   BioTrackSchemaResultBase
