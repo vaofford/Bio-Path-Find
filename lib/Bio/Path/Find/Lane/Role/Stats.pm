@@ -1,5 +1,5 @@
 
-package Bio::Path::Find::Role::Stats;
+package Bio::Path::Find::Lane::Role::Stats;
 
 # ABSTRACT: a role that provides methods for retrieving and formatting statistics about lanes
 

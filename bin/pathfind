@@ -2,10 +2,18 @@
 
 # PODNAME: pathfind
 
-use v5.10; # for "say"
-
 use strict;
 use warnings;
+
+use Bio::Path::Find::App::PathFind;
+
+my $pathfind = Bio::Path::Find::App::PathFind->new_with_options;
+
+$pathfind->run;
+
+exit;
+
+__END__
 
 use Getopt::Long;
 use Bio::Path::Find::Finder;

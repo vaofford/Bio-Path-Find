@@ -27,7 +27,7 @@ SKIP: {
     'got a finder in production mode';
 
   my $lanes = $f->find(
-    id   => '10263_4',
+    ids  => [ '10263_4' ],
     type => 'lane'
   );
 

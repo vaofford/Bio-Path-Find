@@ -1,126 +1,207 @@
 
 package Bio::Path::Find;
 
-# this is a placeholder for a class that needs to do most of the things that
-# are currently done by the bin/pathfind script, which is included here in the
-# DATA block.
+# ABSTRACT: coordinate the finding and presention of lane data
 
-1;
+use v5.10; # required for:
+           #   Type::Params' use of "state"
+           #   general use of "say"
 
-__END__
-#!/usr/bin/env perl
+use Moose;
+use namespace::autoclean;
+use MooseX::StrictConstructor;
 
-# PODNAME: pathfind
+use Carp qw( croak carp );
 
-use v5.10; # for "say"
-
-use strict;
-use warnings;
-
-use Getopt::Long;
-use Bio::Path::Find::Finder;
-
-use Types::Standard qw( Str );
+use Type::Params qw( compile );
+use Types::Standard qw(
+  ArrayRef
+  Str
+  Object
+  slurpy
+  Dict
+  Optional
+);
+use Type::Utils qw( enum );
 use Bio::Path::Find::Types qw(
+  BioPathFindFinder
+  BioPathFindLane
   IDType
   FileIDType
   QCState
   FileType
-  Environment
+  PathClassDir
+  PathClassFile
 );
 
-# a mapping that gives the type for each option, plus a short description of
-# the type that we can use in an error message
-# TODO see if we can use something like Type::Library to do this validation
-my %option_types = (
-  config       => { type => Str,         desc => 'a string' },
-  environment  => { type => Environment, desc => 'either "test" or "prod"' },
-  id           => { type => Str,         desc => 'a string' },
-  type         => { type => IDType,      desc => 'a valid ID type' },
-  filetype     => { type => Str,         desc => 'a string' },
-  file_id_type => { type => FileIDType,  desc => 'a valid file ID type' },
-  qc           => { type => QCState,     desc => 'either "passed", "failed", or "pending"' },
+use Bio::Path::Find::Finder;
+
+with 'Bio::Path::Find::Role::HasConfig',
+     'Bio::Path::Find::Role::HasEnvironment',
+     'MooseX::Log::Log4perl';
+
+#-------------------------------------------------------------------------------
+#- private attributes ----------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+has '_finder' => (
+  is      => 'ro',
+  isa     => BioPathFindFinder,
+  lazy    => 1,
+  builder => '_build_finder',
 );
 
-# set option defaults
-my %options = (
-  config      => 'live.conf',
-  environment => 'prod',
-  verbose     => 0,
-);
+sub _build_finder {
+  my $self = shift;
 
-# parse the command line options
-my $options_parsed_successfully = GetOptions(
-  \%options,
-  'config=s',
-  'environment=s',
-  'id=s',
-  'type=s',
-  'filetype|ft=s',
-  'file_id_type|fit=s',
-  'qc=s',
-  'help|?',
-  'verbose+'
-);
-
-usage() if $options{help};
-
-exit 1 unless $options_parsed_successfully;
-
-# check for required parameters
-unless ( $options{id} and $options{type}) {
-  print STDERR "ERROR: you must specify the ID (-id) and ID type (-type)\n";
-  exit 1;
+  return Bio::Path::Find::Finder->new(
+    config      => $self->config,
+    environment => $self->environment,
+  );
 }
 
-# check types for supplied options
-while ( my ( $option_name, $option_value ) = each %options ) {
-  # skip the validation of this option unless we have a type to check for
-  next unless $option_types{$option_name};
+#-------------------------------------------------------------------------------
+#- public methods --------------------------------------------------------------
+#-------------------------------------------------------------------------------
 
-  my $type = $option_types{$option_name}->{type};
-  my $desc = $option_types{$option_name}->{desc};
+=head2 find($params)
 
-  unless ( $type->check($option_value) ) {
-    print STDERR qq(ERROR: option "$option_name" is not $desc\n);
-    exit 1;
+Find lanes.
+
+=cut
+
+sub find {
+  state $check = compile(
+    Object,
+    slurpy Dict[
+      id           => Str,
+      type         => IDType,
+      file_id_type => Optional[FileIDType],
+      qc           => Optional[QCState],
+      filetype     => Optional[FileType],
+    ],
+  );
+  my ( $self, $params ) = $check->(@_);
+
+  # check for dependencies between parameters: if "type" is "file", we need to
+  # know what type of IDs we'll find in the file
+  croak q(ERROR: if "type" is "file", you must also specify "file_id_type")
+    if ( $params->{type} eq 'file' and not $params->{file_id_type} );
+
+  #---------------------------------------
+
+  # we can't use "type" to tell us what kind of IDs we're working with, since
+  # it can be set to "file", in which case we need to look at "file_id_type"
+  # to get the type of IDs in the file...
+
+  my ( $ids, $type );
+  if ( $params->{type} eq 'file' ) {
+    # read multiple IDs from a file
+    $ids  = $self->_load_ids_from_file( file($params->{id}) );
+    $type = $params->{file_id_type};
+
+    $self->log->debug('found ' . scalar @$ids . ' IDs from file ' . $params->{id}
+                      . qq(, of type "$type") );
   }
+  else {
+    # use the single ID from the command line
+    $ids  = [ $params->{id} ];
+    $type = $params->{type};
+
+    $self->log->debug(  q(looking for single ID, ") . $params->{id} .q(")
+                      . q(, of type ") . $params->{type} . q(") );
+  }
+
+  #---------------------------------------
+
+  # find lanes
+
+  # build the parameters for the finder. Omit undefined options, or Moose spits
+  # the dummy
+  my %finder_params = (
+    ids  => $ids,
+    type => $type,
+  );
+  $finder_params{qc}       = $params->{qc}       if defined $params->{qc};
+  $finder_params{filetype} = $params->{filetype} if defined $params->{filetype};
+
+  my $lanes = $self->_finder->find_lanes(%finder_params);
+
+  $self->log->debug( 'found ' . scalar @$lanes . ' lanes' );
+
+  return $lanes;
 }
-
-# get a finder
-my $pf = Bio::Path::Find::Finder->new(
-  config_file => $options{config},
-  environment => $options{environment},
-);
-
-# increase the log level in response to the "-verbose" flag
-foreach my $category ( qw ( Bio.Path.Find.Finder Bio.Path.Find.Lane Bio.Path.Find.DatabaseManager ) ) {
-  $pf->log($category)->more_logging($options{verbose}) if $options{verbose};
-}
-
-# turn on DBIC debugging if the "-verbose" option is used multiple times
-$ENV{DBIC_TRACE} = 1 if $options{verbose} > 3;
-
-my %parameters = (
-  id   => $options{id},
-  type => $options{type},
-);
-
-# pass only meaningful options on to the find/print method
-foreach my $option ( grep ! m/(verbose|config|environment)/, keys %options ) {
-  $parameters{$option} = $options{$option} if $options{$option};
-}
-
-$pf->print_paths(%parameters);
-
-exit 0;
 
 #-------------------------------------------------------------------------------
-#- functions -------------------------------------------------------------------
+
+=head2 print_paths($lanes)
+
+Print paths for supplied lanes.
+
+=cut
+
+sub print_paths {
+  state $check = compile( Object, ArrayRef[BioPathFindLane] );
+  my ( $self, $lanes ) = $check->(@_);
+
+  say 'Could not find lanes or files for input data' unless scalar @$lanes;
+
+  $_->print_paths for ( @$lanes );
+}
+
 #-------------------------------------------------------------------------------
 
-sub usage {
-  say 'usage: pathfind ...';
-  exit 0;
+=head2 symlink($dest)
+
+Create symlinks for all found files in the destination directory.
+
+=cut
+
+sub symlink {
+  state $check = compile( Object, ArrayRef[BioPathFindLane], PathClassDir );
+  my ( $self, $lanes, $destination ) = $check->(@_);
+
+  say 'Could not find lanes or files for input data' unless scalar @$lanes;
+
+  $_->symlink($destination) for ( @$lanes );
 }
+
+#-------------------------------------------------------------------------------
+
+=head2 stats
+
+Returns the statistics report for the found lanes.
+
+=cut
+
+sub stats {
+  my ( $self, $args ) = @_;
+
+  # TODO fill in this method
+}
+
+#-------------------------------------------------------------------------------
+#- private methods -------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+sub _load_ids_from_file {
+  my ( $self, $filename ) = @_;
+
+  croak "ERROR: no such file ($filename)" unless -f $filename;
+
+  # TODO check if this will work with the expected usage. If users are used
+  # TODO to putting plex IDs as search terms, stripping lines starting with
+  # TODO "#" will break those searches
+  my @ids = grep ! m/^#/, $filename->slurp(chomp => 1);
+
+  croak "ERROR: no IDs found in file ($filename)" unless scalar @ids;
+
+  return \@ids;
+}
+
+#-------------------------------------------------------------------------------
+
+__PACKAGE__->meta->make_immutable;
+
+1;
 

@@ -215,10 +215,10 @@ The type of file that was found when running L<find_files>, or C<undef> if
 L<find_files> has not yet been run. This attribute acts as a proxy for checking
 if this C<Lane> has found files yet. If C<found_file_type> is set, i.e. not
 C<undef>, the L<find_files> method has been called. This can be checked using
-L<has_found_files> predicate.
+the L<has_found_files> predicate.
 
-This is specified as an argument to L<find_files> and cannot be set separately.
-B<Read only>.
+The type of tile to find is specified as an argument to L<find_files> and
+cannot be set separately. B<Read only>.
 
 =cut
 
@@ -362,7 +362,7 @@ sub print_paths {
 
 #-------------------------------------------------------------------------------
 
-=head2 method
+=head2 make_symlink
 
 General symlinks for files from this lane. Requires two arguments:
 
@@ -381,7 +381,7 @@ generated
 
 =cut
 
-sub symlink {
+sub make_symlink {
   state $check = compile(
     Object,
     slurpy Dict[

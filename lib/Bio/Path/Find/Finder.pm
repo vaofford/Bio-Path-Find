@@ -19,7 +19,6 @@ use Types::Standard qw(
   Object
   HashRef
   ArrayRef
-  Ref
   Str
   Int
   slurpy
@@ -33,7 +32,6 @@ use Bio::Path::Find::Types qw(
   FileIDType
   QCState
   FileType
-  Environment
 );
 
 use Bio::Path::Find::DatabaseManager;
@@ -107,96 +105,6 @@ has '_script_name' => (
 
 #---------------------------------------
 
-# set the location of the log file, depending on whether we're in test mode
-
-has '_log_file' => (
-  is => 'ro',
-  isa => Str,
-  lazy => 1,
-  builder => '_build_log_file',
-);
-
-sub _build_log_file {
-  my $self = shift;
-  return $self->is_in_test_env
-         ? $self->config->{test_logfile}
-         : $self->config->{logfile};
-}
-
-#---------------------------------------
-
-# define the configuration for the Log::Log4perl logger
-
-has '_logger_config' => (
-  is      => 'ro',
-  isa     => 'Ref',
-  lazy    => 1,
-  builder => '_build_logger_config',
-);
-
-sub _build_logger_config {
-  my $self = shift;
-
-  my $LOGFILE = $self->_log_file;
-
-  return \qq(
-
-    # appenders
-
-    # an appender to log the command line to file
-    log4perl.appender.File                            = Log::Log4perl::Appender::File
-    log4perl.appender.File.layout                     = Log::Log4perl::Layout::PatternLayout
-    log4perl.appender.File.layout.ConversionPattern   = %d %m%n
-    log4perl.appender.File.filename                   = $LOGFILE
-    log4perl.appender.File.Threshold                  = INFO
-
-    log4perl.appender.Screen                          = Log::Log4perl::Appender::Screen
-    log4perl.appender.Screen.layout                   = Log::Log4perl::Layout::PatternLayout
-    log4perl.appender.Screen.layout.ConversionPattern = %M:%L %p: %m%n
-
-    # loggers
-
-    # general debugging
-    log4perl.logger.Bio.Path.Find.Finder              = INFO, Screen
-    log4perl.logger.Bio.Path.Find.Lane                = ERROR, Screen
-    log4perl.logger.Bio.Path.Find.DatabaseManager     = ERROR, Screen
-
-    # command line logging
-    log4perl.logger.command_log                       = INFO, File
-
-    log4perl.oneMessagePerAppender                    = 1
-  );
-}
-
-#---------------------------------------
-
-# somewhere to store the list of IDs that we'll search for. This could be just
-# a single ID from the command line or many IDs from a file
-
-has '_ids' => (
-  traits  => ['Array'],
-  is      => 'ro',
-  isa     => ArrayRef[Str],
-  default => sub { [] },
-  handles => {
-    '_add_id'    => 'push',
-    '_clear_ids' => 'clear',
-  }
-);
-
-#---------------------------------------
-
-# the actual type of the IDs we'll be searching for, since we can't rely on
-# "type" to give us that
-
-has '_id_type' => (
-  is      => 'rw',
-  isa     => IDType,
-  default => 'lane',
-);
-
-#---------------------------------------
-
 has '_db_manager' => (
   is      => 'ro',
   isa     => 'Bio::Path::Find::DatabaseManager',
@@ -228,75 +136,30 @@ has '_sorter' => (
 );
 
 #-------------------------------------------------------------------------------
-#- construction ----------------------------------------------------------------
-#-------------------------------------------------------------------------------
-
-sub BUILD {
-  my $self = shift;
-
-  # all we need to do here is initialise the logger
-  Log::Log4perl->init_once($self->_logger_config);
-}
-
-#-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-sub find {
+sub find_lanes {
   state $check = compile(
     Object,
-    slurpy Dict[
-      id           => Str,
-      type         => IDType,
-      file_id_type => Optional[FileIDType],
-      qc           => Optional[QCState],
-      filetype     => Optional[FileType],
+    slurpy Dict [
+      ids      => ArrayRef[Str],
+      type     => IDType,
+      qc       => Optional[QCState],
+      filetype => Optional[FileType],
     ],
   );
   my ( $self, $params ) = $check->(@_);
 
-  # check for dependencies between parameters: if "type" is "file", we need to
-  # know what type of IDs we'll find in the file
-  croak q(ERROR: if "type" is "file", you must also specify "file_id_type")
-    if ( $params->{type} eq 'file' and not $params->{file_id_type} );
-
-  #---------------------------------------
-
-  # we can't use "type" to tell us what kind of IDs we're working with, since
-  # it can be set to "file", in which case we need to look at "file_id_type"
-  # to get the type of IDs in the file...
-
-  $self->_clear_ids;
-
-  if ( $params->{type} eq 'file' ) {
-    # read multiple IDs from a file
-    $self->_load_ids_from_file(file $params->{id});
-    $self->_id_type($params->{file_id_type});
-
-    $self->log->debug('finding multiple IDs from file ' . $params->{id}
-                      . ' of type "' . $params->{file_id_type} . '"');
-  }
-  else {
-    # use the single ID from the command line
-    # push @{ $self->_ids }, $params->{id};
-    $self->_add_id( $params->{id} );
-    $self->_id_type($params->{type});
-
-    $self->log->debug('finding IDs "' . $params->{id} . '"'
-                      . ' of type "' . $params->{type} . '"');
-  }
-
-  #---------------------------------------
-
-  # log the command line to file
-  $self->_log_command($params);
+  $self->log->debug( 'searching with ' . scalar @{ $params->{ids} }
+                     . ' IDs of type "' . $params->{type} . q(") );
 
   # get a list of Bio::Path::Find::Lane objects
-  my $lanes = $self->_find_lanes;
+  my $lanes = $self->_find_lanes( $params->{ids}, $params->{type} );
 
   $self->log->debug('found ' . scalar @$lanes . ' lanes');
 
-  # find files for the lanes
+  # find files for the lanes and filter based on the files and the QC status
   my $filtered_lanes = [];
   LANE: foreach my $lane ( @$lanes ) {
 
@@ -328,10 +191,9 @@ sub find {
                           . $params->{filetype} . '"; filtered out');
       }
     }
-    # we don't care about files; return all lanes
     else {
+      # we don't care about files; return all lanes
       push @$filtered_lanes, $lane;
-      $self->log->debug('showing lane directories');
     }
   }
 
@@ -339,63 +201,18 @@ sub find {
   # which has a QC status matching the supplied QC value. Each lane has also
   # gone off to look for the files associated with its row in the database
 
+  # sort the lanes based on lane name, etc.
   my $sorted_lanes = $self->_sorter->sort_lanes($filtered_lanes);
 
   return $sorted_lanes; # array of lane objects
 }
 
 #-------------------------------------------------------------------------------
-
-sub print_paths {
-  state $check = compile(
-    Object,
-    slurpy Dict[
-      id           => Str,
-      type         => IDType,
-      file_id_type => Optional[FileIDType],
-      qc           => Optional[QCState],
-      filetype     => Optional[FileType],
-    ],
-  );
-  my ( $self, $params ) = $check->(@_);
-
-  my $lanes = $self->find(%$params);
-
-  my $found_something = 0;
-  foreach my $lane ( @$lanes ) {
-    $found_something += $lane->print_paths;
-  }
-
-  say 'Could not find lanes or files for input data'
-    unless $found_something;
-}
-
-#-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-sub _load_ids_from_file {
-  my ( $self, $filename ) = @_;
-
-  croak "ERROR: no such file ($filename)"
-    unless -f $filename;
-
-  # TODO check if this will work with the expected usage. If users are used
-  # TODO to putting plex IDs as search terms, stripping lines starting with
-  # TODO "#" will break those searches
-  my @ids = grep ! m/^#/, $filename->slurp(chomp => 1);
-
-  croak "ERROR: no IDs found in file ($filename)"
-    unless scalar @ids;
-
-  # push @{ $self->_ids }, @ids;
-  $self->_add_id(@ids);
-}
-
-#-------------------------------------------------------------------------------
-
 sub _find_lanes {
-  my $self = shift;
+  my ( $self, $ids, $type ) = @_;
 
   # somewhere to store all of the Bio::Path::Find::Lane objects that we're
   # going to build
@@ -408,10 +225,10 @@ sub _find_lanes {
 
     my $database = $self->_db_manager->get_database($db_name);
 
-    ID: foreach my $id ( @{ $self->_ids } ) {
-      $self->log->debug(qq(looking for ID "$id"));
+    ID: foreach my $id ( @$ids ) {
+      $self->log->debug( qq(looking for ID "$id") );
 
-      my $rs = $database->schema->get_lanes_by_id($id, $self->_id_type);
+      my $rs = $database->schema->get_lanes_by_id($id, $type);
       next ID unless $rs; # no matching lanes
 
       $self->log->debug('found ' . $rs->count . ' lanes');
@@ -430,8 +247,8 @@ sub _find_lanes {
           $lane = Bio::Path::Find::Lane->with_traits( $self->script_role )
                                        ->new( row => $lane_row );
         } catch {
-          croak "ERROR: couldn't apply role '" . $self->script_role
-                . "' to lanes ($_)";
+          croak q|ERROR: couldn't apply role "| . $self->script_role
+                . qq|" to lanes ($_)|;
         };
 
         push @lanes, $lane;
@@ -441,19 +258,6 @@ sub _find_lanes {
   }
 
   return \@lanes;
-}
-
-#-------------------------------------------------------------------------------
-
-sub _log_command {
-  my ( $self, $params ) = @_;
-
-  my $command_line = $0;
-  while ( my ( $opt, $value ) = each %$params ) {
-    $command_line .= " -$opt $value";
-  }
-
-  $self->log('command_log')->info($command_line);
 }
 
 #-------------------------------------------------------------------------------

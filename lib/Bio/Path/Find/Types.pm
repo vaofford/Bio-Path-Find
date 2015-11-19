@@ -12,6 +12,7 @@ use Type::Library -base, -declare => qw(
   BioTrackSchemaResultLatestLane
   BioPathFindDatabaseManager
   BioPathFindDatabase
+  BioPathFindFinder
   BioPathFindLane
   BioPathFindSorter
   BioPathFindLaneStatus
@@ -34,6 +35,7 @@ class_type 'Bio::Track::Schema::ResultBase';
 class_type 'Bio::Track::Schema::Result::LatestLane';
 class_type 'Bio::Path::Find::DatabaseManager';
 class_type 'Bio::Path::Find::Database';
+class_type 'Bio::Path::Find::Finder';
 class_type 'Bio::Path::Find::Lane';
 class_type 'Bio::Path::Find::Sorter';
 class_type 'Bio::Path::Find::LaneStatus';

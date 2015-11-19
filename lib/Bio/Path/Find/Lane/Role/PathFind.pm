@@ -1,12 +1,12 @@
 
-package Bio::Path::Find::Role::PathFind;
+package Bio::Path::Find::Lane::Role::PathFind;
 
 # ABSTRACT: a role that collects together statistics for a lane
 
 use Moose::Role;
 use Path::Class;
 
-with 'Bio::Path::Find::Role::Stats';
+with 'Bio::Path::Find::Lane::Role::Stats';
 
 #-------------------------------------------------------------------------------
 #- methods required by the Stats role ------------------------------------------
