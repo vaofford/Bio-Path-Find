@@ -36,8 +36,11 @@ with 'MooseX::Getopt::Usage',
 requires 'run';
 
 #-------------------------------------------------------------------------------
-#- public attributes -----------------------------------------------------------
+#- common attributes -----------------------------------------------------------
 #-------------------------------------------------------------------------------
+
+# these are attributes that are common to all roles. Attributes that are
+# specific to one particular application go in the concrete app class.
 
 # the values of these attributes are taken from the command line options, which
 # are set up by the "new_with_options" call that instantiates the *Find object
@@ -68,63 +71,6 @@ has 'file_id_type' => (
   cmd_aliases   => 'ft',
   traits        => ['Getopt'],
 );
-
-has 'filetype' => (
-  documentation => 'file type to find; fastq | bam | pacbio | corrected',
-  is            => 'rw',
-  isa           => FileType,
-  cmd_aliases   => 'f',
-  traits        => ['Getopt'],
-);
-
-has 'qc' => (
-  documentation => 'QC state; passed | failed | pending',
-  is            => 'rw',
-  isa           => QCState,
-  cmd_aliases   => 'q',
-  traits        => ['Getopt'],
-);
-
-# TODO implement this
-has 'symlink' => (
-  documentation => 'create symlinks for data files in the specified directory',
-  is            => 'rw',
-  isa           => PathClassDir->plus_coercions(DirFromStr), # (coerce from strings to Path::Class::Dir objects)
-  cmd_aliases   => 'l',
-  traits        => ['Getopt'],
-  trigger       => sub {
-    my ( $self, $new_dir, $old_dir ) = @_;
-    # throw an exception unless the specified directory is sensible
-    croak 'ERROR: no such directory, ' . $new_dir unless -d $new_dir;
-  },
-);
-# TODO implement this
-# has 'stats' => (
-#   documentation => 'filename for statistics output',
-#   is          => 'rw',
-#   isa         => Str,
-#   cmd_aliases => 's',
-#   traits        => ['Getopt'],
-# );
-
-# TODO implement this
-# has 'rename' => (
-#   documentation => 'replace hash (#) with underscore (_) in filenames',
-#   is            => 'rw',
-#   isa           => Bool,
-#   cmd_aliases   => 'r',
-#   traits        => ['Getopt'],
-# );
-
-# TODO implement this
-# has 'archive' => (
-#   documentation => 'filename for archive',
-#   is            => 'rw',
-#   isa           => Bool,
-#   cmd_aliases   => 'a',
-#   traits        => ['Getopt'],
-# );
-
 
 has 'verbose' => (
   documentation => 'show debugging messages',
@@ -220,6 +166,7 @@ sub _build_logger_config {
     # loggers
 
     # general debugging
+    log4perl.logger.Bio.Path.Find.App.TestFind         = $LEVEL, Screen
     log4perl.logger.Bio.Path.Find.App.PathFind         = $LEVEL, Screen
     log4perl.logger.Bio.Path.Find.Finder               = $LEVEL, Screen
     log4perl.logger.Bio.Path.Find.Lane                 = $LEVEL, Screen
@@ -301,20 +248,12 @@ sub BUILD {
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# format and log the command parameters. Prepend the name of the script and add
-# a "-" to each option
+# log the command line to file
 
 sub _log_command {
   my $self = shift;
 
-  # these are the command line options that we'll include as part of the
-  # command line
-  my @options = qw( id type filetype file_id_type qc);
-
-  my $command_line = $0;
-  foreach my $opt ( @options ) {
-    $command_line .= " -$opt " . $self->$opt if $self->$opt;
-  }
+  my $command_line = join ' ', $0, @ARGV;
 
   $self->log('command_log')->info($command_line);
 }

@@ -40,8 +40,74 @@ with 'Bio::Path::Find::App::Role::AppRole',
 =cut
 
 #-------------------------------------------------------------------------------
+#- public attributes -----------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+has 'filetype' => (
+  documentation => 'file type to find; fastq | bam | pacbio | corrected',
+  is            => 'rw',
+  isa           => FileType,
+  cmd_aliases   => 'f',
+  traits        => ['Getopt'],
+);
+
+has 'qc' => (
+  documentation => 'QC state; passed | failed | pending',
+  is            => 'rw',
+  isa           => QCState,
+  cmd_aliases   => 'q',
+  traits        => ['Getopt'],
+);
+
+# TODO implement these
+
+has 'symlink' => (
+  documentation => 'create symlinks for data files in the specified directory',
+  is            => 'rw',
+  isa           => PathClassDir->plus_coercions(DirFromStr), # (coerce from strings to Path::Class::Dir objects)
+  cmd_aliases   => 'l',
+  traits        => ['Getopt'],
+  trigger       => sub {
+    my ( $self, $new_dir, $old_dir ) = @_;
+    # throw an exception unless the specified directory is sensible
+    croak 'ERROR: no such directory, ' . $new_dir unless -d $new_dir;
+  },
+);
+has 'stats' => (
+  documentation => 'filename for statistics output',
+  is            => 'rw',
+  isa           => Str,
+  cmd_aliases   => 's',
+  traits        => ['Getopt'],
+);
+
+has 'rename' => (
+  documentation => 'replace hash (#) with underscore (_) in filenames',
+  is            => 'rw',
+  isa           => Bool,
+  cmd_aliases   => 'r',
+  traits        => ['Getopt'],
+);
+
+has 'archive' => (
+  documentation => 'filename for archive',
+  is            => 'rw',
+  isa           => Bool,
+  cmd_aliases   => 'a',
+  traits        => ['Getopt'],
+);
+
+#-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
 #-------------------------------------------------------------------------------
+
+=head1 METHODS
+
+=head2 run
+
+Find files according to the input parameters.
+
+=cut
 
 sub run {
   my $self = shift;
