@@ -1,7 +1,7 @@
 
 package Bio::Path::Find::App::Role::AppRole;
 
-# ABSTRACT: a role the carries most of the boilerplate for "finder" apps
+# ABSTRACT: a role that carries most of the boilerplate for "finder" apps
 
 use Moose::Role;
 
@@ -9,6 +9,7 @@ use Path::Class;
 use Carp qw( croak );
 
 use Types::Standard qw(
+  ArrayRef
   Str
   Bool
 );
@@ -21,11 +22,13 @@ use Bio::Path::Find::Types qw(
   QCState
   BioPathFindFinder
   PathClassFile
+  PathClassDir
+  DirFromStr
 );
 
-use Bio::Path::Find;
+use Bio::Path::Find::Finder;
 
-with 'MooseX::Getopt',
+with 'MooseX::Getopt::Usage',
      'MooseX::Log::Log4perl',
      'Bio::Path::Find::Role::HasConfig',
      'Bio::Path::Find::Role::HasEnvironment';
@@ -36,23 +39,129 @@ requires 'run';
 #- public attributes -----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# options
-has 'id'           => ( is => 'rw', isa => Str,         traits => [ 'Getopt' ], cmd_aliases => 'i', required => 1 );
-has 'type'         => ( is => 'rw', isa => IDType,      traits => [ 'Getopt' ], cmd_aliases => 't', required => 1 );
-has 'filetype'     => ( is => 'rw', isa => FileType,    traits => [ 'Getopt' ], cmd_aliases => 'f'  );
-has 'file_id_type' => ( is => 'rw', isa => FileIDType,  traits => [ 'Getopt' ], cmd_aliases => 'ft' );
-has 'qc'           => ( is => 'rw', isa => QCState,     traits => [ 'Getopt' ], cmd_aliases => 'q'  );
-has 'symlink'      => ( is => 'rw', isa => Str,         traits => [ 'Getopt' ], cmd_aliases => 'l'  );
-has 'stats'        => ( is => 'rw', isa => Str,         traits => [ 'Getopt' ], cmd_aliases => 's'  );
-has 'rename'       => ( is => 'rw', isa => Bool,        traits => [ 'Getopt' ], cmd_aliases => 'r'  );
-has 'archive'      => ( is => 'rw', isa => Bool,        traits => [ 'Getopt' ], cmd_aliases => 'a'  );
+# the values of these attributes are taken from the command line options, which
+# are set up by the "new_with_options" call that instantiates the *Find object
+# in the main script, e.g. pathfind
 
-has 'verbose'      => ( is => 'rw', isa => Bool,        traits => [ 'Getopt' ], cmd_aliases => 'v', default => 0 );
+has 'id' => (
+  documentation => 'ID or name of file containing IDs',
+  is            => 'rw',
+  isa           => Str,
+  cmd_aliases   => 'i',
+  required      => 1,
+  traits        => ['Getopt'],
+);
 
-# non-option attributes
-# # TODO get rid of the hard-coded config file path
-has 'config_file'  => ( is => 'rw', isa => Str,         traits => [ 'Getopt' ], default => 'live.conf' );
-has 'environment'  => ( is => 'rw', isa => Environment, traits => [ 'NoGetopt' ], default => 'prod' );
+has 'type' => (
+  documentation => 'ID type, or "file" for IDs in a file',
+  is            => 'rw',
+  isa           => IDType,
+  cmd_aliases   => 't',
+  required      => 1,
+  traits        => ['Getopt'],
+);
+
+has 'file_id_type' => (
+  documentation => 'type of IDs in the input file',
+  is            => 'rw',
+  isa           => FileIDType,
+  cmd_aliases   => 'ft',
+  traits        => ['Getopt'],
+);
+
+has 'filetype' => (
+  documentation => 'file type to find; fastq | bam | pacbio | corrected',
+  is            => 'rw',
+  isa           => FileType,
+  cmd_aliases   => 'f',
+  traits        => ['Getopt'],
+);
+
+has 'qc' => (
+  documentation => 'QC state; passed | failed | pending',
+  is            => 'rw',
+  isa           => QCState,
+  cmd_aliases   => 'q',
+  traits        => ['Getopt'],
+);
+
+# TODO implement this
+has 'symlink' => (
+  documentation => 'create symlinks for data files in the specified directory',
+  is            => 'rw',
+  isa           => PathClassDir->plus_coercions(DirFromStr), # (coerce from strings to Path::Class::Dir objects)
+  cmd_aliases   => 'l',
+  traits        => ['Getopt'],
+  trigger       => sub {
+    my ( $self, $new_dir, $old_dir ) = @_;
+    # throw an exception unless the specified directory is sensible
+    croak 'ERROR: no such directory, ' . $new_dir unless -d $new_dir;
+  },
+);
+# TODO implement this
+# has 'stats' => (
+#   documentation => 'filename for statistics output',
+#   is          => 'rw',
+#   isa         => Str,
+#   cmd_aliases => 's',
+#   traits        => ['Getopt'],
+# );
+
+# TODO implement this
+# has 'rename' => (
+#   documentation => 'replace hash (#) with underscore (_) in filenames',
+#   is            => 'rw',
+#   isa           => Bool,
+#   cmd_aliases   => 'r',
+#   traits        => ['Getopt'],
+# );
+
+# TODO implement this
+# has 'archive' => (
+#   documentation => 'filename for archive',
+#   is            => 'rw',
+#   isa           => Bool,
+#   cmd_aliases   => 'a',
+#   traits        => ['Getopt'],
+# );
+
+
+has 'verbose' => (
+  documentation => 'show debugging messages',
+  is            => 'rw',
+  isa           => Bool,
+  cmd_aliases   => 'v',
+  default       => 0,
+  traits        => ['Getopt'],
+);
+
+# these are "non-option" attributes
+has 'environment'  => ( is => 'rw', isa => Environment, default => 'prod' );
+has 'config_file'  => ( is => 'rw', isa => Str,         default => 'live.conf' );
+# TODO get rid of the hard-coded config file path somehow
+
+# configure the usage message. This method is used by MooseX::Getopt::Usage to
+# determine which POD sections are used to build the usage message, i.e. the
+# DESCRIPTION section from the POD in the concrete application class, e.g.
+# Bio::Path::Find::App::PathFind, provides the usage message.
+#
+# If we miss this method out, MooseX::Getopt will auto-generate the options
+# list, which is in hash order and shows all attributes, not just the command
+# line options
+
+sub getopt_usage_config {
+  return ( usage_sections => [ 'DESCRIPTION' ] );
+}
+
+#-------------------------------------------------------------------------------
+#- private attributes ----------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+# these are just internal slots to hold the real list of IDs and the correct
+# ID type, after we've worked out what the user is handing us by examining the
+# input parameters in "sub BUILD"
+has '_ids' => (  is => 'rw', isa => ArrayRef[Str] );
+has '_type' => ( is => 'rw', isa => IDType );
 
 #---------------------------------------
 
@@ -93,7 +202,7 @@ sub _build_logger_config {
   my $LOGFILE = $self->_log_file;
   my $LEVEL   = $self->verbose ? 'DEBUG' : 'WARN';
 
-  return \qq(
+  my $config_string = qq(
 
     # appenders
 
@@ -111,8 +220,7 @@ sub _build_logger_config {
     # loggers
 
     # general debugging
-    log4perl.logger.Bio.Path.Find.CommandLine.PathFind = DEBUG, Screen
-    log4perl.logger.Bio.Path.Find                      = $LEVEL, Screen
+    log4perl.logger.Bio.Path.Find.App.PathFind         = $LEVEL, Screen
     log4perl.logger.Bio.Path.Find.Finder               = $LEVEL, Screen
     log4perl.logger.Bio.Path.Find.Lane                 = $LEVEL, Screen
     log4perl.logger.Bio.Path.Find.DatabaseManager      = $LEVEL, Screen
@@ -122,6 +230,8 @@ sub _build_logger_config {
 
     log4perl.oneMessagePerAppender                     = 1
   );
+
+  return \$config_string;
 }
 
 #---------------------------------------
@@ -152,35 +262,19 @@ sub BUILD {
   # initialise the logger
   Log::Log4perl->init_once($self->_logger_config);
 
-  $ENV{DBIC_TRACE} = 1 if $self->verbose;
-}
+  $self->log->debug('verbose logging is on');
+  # (should only appear when "-verbose" is used)
 
-#-------------------------------------------------------------------------------
-#- private methods -------------------------------------------------------------
-#-------------------------------------------------------------------------------
+  # if "-verbose" is used multiple times, turn on DBIC query logging too
+  $ENV{DBIC_TRACE} = 1 if $self->verbose > 1;
 
-# format the command parameters. Prepend the name of the script and add a "-"
-# to each option
-sub _log_command {
-  my $self = shift;
+  # check for dependencies between parameters: if "type" is "file", we need to
+  # know what type of IDs we'll find in the file
+  croak q(ERROR: if "type" is "file", you must also specify "file_id_type")
+    if ( $self->type eq 'file' and not $self->file_id_type );
 
-  # these are the command line options that we'll include as part of the
-  # command line
-  my @options = qw( id type filetype file_id_type qc);
-
-  my $command_line = $0;
-  foreach my $opt ( @options ) {
-    $command_line .= " -$opt " . $self->$opt if $self->$opt;
-  }
-
-  $self->log('command_log')->info($command_line);
-}
-
-#-------------------------------------------------------------------------------
-
-sub _tidy_id_and_type {
-  my $self = shift;
-
+  # look at the input parameters and decide whether we're dealing with a single
+  # ID or many, and what the type of the ID(s) is/are
   my ( $ids, $type );
 
   if ( $self->type eq 'file' ) {
@@ -199,7 +293,30 @@ sub _tidy_id_and_type {
     $self->log->debug(  qq(looking for single ID, "$ids", of type "$type") );
   }
 
-  return ( $ids, $type );
+  $self->_ids($ids);
+  $self->_type($type);
+}
+
+#-------------------------------------------------------------------------------
+#- private methods -------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+# format and log the command parameters. Prepend the name of the script and add
+# a "-" to each option
+
+sub _log_command {
+  my $self = shift;
+
+  # these are the command line options that we'll include as part of the
+  # command line
+  my @options = qw( id type filetype file_id_type qc);
+
+  my $command_line = $0;
+  foreach my $opt ( @options ) {
+    $command_line .= " -$opt " . $self->$opt if $self->$opt;
+  }
+
+  $self->log('command_log')->info($command_line);
 }
 
 #-------------------------------------------------------------------------------

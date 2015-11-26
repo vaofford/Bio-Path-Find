@@ -43,6 +43,14 @@ class_type 'Bio::Path::Find::LaneStatusFile';
 class_type 'Path::Class::File';
 class_type 'Path::Class::Dir';
 
+declare_coercion 'FileFromStr',
+  to_type PathClassFile,
+  from    Str, q{ file $_ };
+
+declare_coercion 'DirFromStr',
+  to_type PathClassDir,
+  from    Str, q{ dir $_ };
+
 # (see https://metacpan.org/pod/release/TOBYINK/Type-Tiny-1.000005/lib/Type/Tiny/Manual/Libraries.pod)
 class_type 'Datetime', { class => 'DateTime' };
 

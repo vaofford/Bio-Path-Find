@@ -7,6 +7,11 @@ use Test::Exception;
 use Test::Output;
 use Path::Class;
 
+use Log::Log4perl qw( :easy );
+
+# initialise l4p to avoid warnings
+Log::Log4perl->easy_init( $FATAL );
+
 use Bio::Path::Find::Finder;
 
 # find files in production mode, so that we can check that the log file name is
@@ -26,7 +31,7 @@ SKIP: {
   lives_ok { $f = Bio::Path::Find::Finder->new(environment => 'prod', config_file => 't/data/07_finder/prod.conf') }
     'got a finder in production mode';
 
-  my $lanes = $f->find(
+  my $lanes = $f->find_lanes(
     ids  => [ '10263_4' ],
     type => 'lane'
   );
@@ -34,6 +39,14 @@ SKIP: {
   my @log_lines = $prod_log->slurp( chomp => 1 );
   is scalar @log_lines, 1, 'got a log entry for production mode log';
 }
+
+# get another finder and this time turn on verbose. Check we get debug messages
+# to STDERR
+$params{verbose} = 1;
+$pf = Bio::Path::Find::App::PathFind->new(%params);
+combined_like { $pf->run }
+  qr/verbose logging is on/,
+  'got expected debug messages on STDERR';
 
 done_testing;
 
