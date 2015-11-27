@@ -17,13 +17,9 @@ use Types::Standard qw(
 use Bio::Path::Find::Types qw(
   Environment
   IDType
-  FileType
   FileIDType
-  QCState
   BioPathFindFinder
   PathClassFile
-  PathClassDir
-  DirFromStr
 );
 
 use Bio::Path::Find::Finder;

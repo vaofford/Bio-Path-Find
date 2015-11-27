@@ -9,6 +9,19 @@ use MooseX::StrictConstructor;
 
 use Carp qw( croak );
 
+use Types::Standard qw(
+  ArrayRef
+  Str
+  Bool
+);
+
+use Bio::Path::Find::Types qw(
+  FileType
+  QCState
+  PathClassDir
+  DirFromStr
+);
+
 # the boilerplate functionality for this class comes from the AppRole
 with 'Bio::Path::Find::App::Role::AppRole',
      'MooseX::Log::Log4perl';
