@@ -13,6 +13,7 @@ use Carp qw( carp croak );
 use Path::Class;
 use File::Find::Rule;
 use Try::Tiny;
+use Cwd;
 
 use Bio::Path::Find::LaneStatus;
 
@@ -371,11 +372,13 @@ sub print_paths {
 
 #-------------------------------------------------------------------------------
 
-=head2 make_symlinks($dest, ?$filetype)
+=head2 make_symlinks(?$dest, ?$filetype)
 
-Generate symlinks for files from this lane. Requires one argument, C<$dest>,
-which must be a L<Path::Class::Dir> giving the destination directory for the
-links. An exception is thrown if the directory doesn't exist.
+Generate symlinks for files from this lane.
+
+If C<$dest> is supplied it must be a L<Path::Class::Dir> giving the destination
+directory for the links. An exception is thrown if the directory doesn't exist.
+The default is to create symlinks in the current working directory.
 
 An optional filetype may also be given. This must be one of "C<fastq>",
 "C<bam>", "C<pacbio>" or "C<corrected>" (see L<Bio::Path::Find::Types>, type
@@ -384,9 +387,9 @@ specified type, even if it has already searched for files, allowing the caller
 to override the filetype that was specified when instantiating the
 L<Bio::Path::Find::Lane> object.
 
-If the destination path already exists as a regular file, we issue a warning
-and skip the file. Similarly, if the destination path already exists as a
-symlink, we warn and move on. There is no option to overwrite existing
+If the destination file path already exists as a regular file, we issue a
+warning and skip the file. Similarly, if the destination path already exists as
+a symlink, we warn and move on. There is no option to overwrite existing
 files/links; move them out of the way before trying to create new links.
 
 Throws an exception if we cannot create symlinks, possibly because perl
@@ -397,8 +400,13 @@ Returns the number of successful links created.
 =cut
 
 sub make_symlinks {
-  state $check = compile( Object, PathClassDir, Optional[FileType] );
+  state $check = compile( Object, Optional[PathClassDir], Optional[FileType] );
   my ( $self, $dest, $filetype ) = $check->(@_);
+
+  if ( not defined $dest ) {
+    $self->log->debug('using current directory as destination');
+    $dest = dir getcwd;
+  }
 
   croak "ERROR: destination for symlinks does not exist or is not a directory ($dest)"
     unless -d $dest;

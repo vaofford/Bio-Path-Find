@@ -7,6 +7,8 @@ use Test::Exception;
 use Test::Output;
 use Test::Warn;
 use Path::Class;
+use File::Temp qw( tempdir );
+use Cwd;
 
 use Bio::Path::Find::DatabaseManager;
 
@@ -74,11 +76,13 @@ is $lane->pipeline_status('stored'), 'Done', 'got pipeline status directly from 
 my $symlink_exists = eval { symlink("",""); 1 }; # see perl doc for symlink
 
 SKIP: {
-  skip "can't create symlinks on this platform", 9 unless $symlink_exists;
+  skip "can't create symlinks on this platform", 10 unless $symlink_exists;
 
-  my $symlink_dir = dir 't/data/06_lane/_temp';
-  $symlink_dir->rmtree;
-  $symlink_dir->mkpath;
+  # set up a temp directory as the destination
+  my $temp_dir = File::Temp->newdir;
+  my $symlink_dir = dir $temp_dir;
+  # $symlink_dir->rmtree;
+  # $symlink_dir->mkpath;
 
   # should work
   lives_ok { $lane->make_symlinks($symlink_dir) }
@@ -87,8 +91,8 @@ SKIP: {
   my @files_in_temp_dir = $symlink_dir->children;
   is scalar @files_in_temp_dir, 2, 'found 2 links';
 
-  ok -l 't/data/06_lane/_temp/544477.se.raw.sorted.bam', 'found one expected link';
-  ok -l 't/data/06_lane/_temp/544477.se.markdup.bam', 'found other expected link';
+  ok -l file( $symlink_dir, '544477.se.raw.sorted.bam' ), 'found one expected link';
+  ok -l file( $symlink_dir, '544477.se.markdup.bam' ), 'found other expected link';
 
   # should warn that file already exists
   warnings_like { $lane->make_symlinks($symlink_dir) }
@@ -114,17 +118,28 @@ SKIP: {
     { carped => [ qr/failed to create symlink/, qr/failed to create symlink/ ] },
     'warnings when destination directory not writeable';
 
-  # should fail to find files to link
-  $symlink_dir->rmtree;
-  $symlink_dir->mkpath;
+  # re-make the temp dir
+  $temp_dir = File::Temp->newdir;
+  $symlink_dir = dir $temp_dir;
 
+  # should fail to find files to link
   warning_like { $lane->make_symlinks($symlink_dir, 'corrected') }
     { carped => qr/no files found for linking/ },
     'warning when no files found with specified type';
 
   is $lane->make_symlinks($symlink_dir, 'fastq'), 1, 'created expected one link for fastq';
 
-  $symlink_dir->rmtree;
+  # create links in the cwd
+  $temp_dir = File::Temp->newdir;
+  $symlink_dir = dir $temp_dir;
+  my $orig_cwd = cwd;
+  chdir $symlink_dir;
+
+  lives_ok { $lane->make_symlinks }
+    'no exception when creating symlinks in working directory';
+
+  chdir $orig_cwd;
+
 }
 
 # check the stats for a lane
