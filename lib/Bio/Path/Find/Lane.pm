@@ -12,16 +12,25 @@ use MooseX::StrictConstructor;
 use Carp qw( carp croak );
 use Path::Class;
 use File::Find::Rule;
+use Try::Tiny;
 
 use Bio::Path::Find::LaneStatus;
 
 use Type::Params qw( compile );
-use Types::Standard qw( Object Str Int HashRef ArrayRef );
+use Types::Standard qw(
+  Object
+  Str
+  Int
+  HashRef
+  ArrayRef
+  Optional
+);
 use Bio::Path::Find::Types qw(
   BioPathFindLaneStatus
   BioTrackSchemaResultLatestLane
   PathClassFile
   PathClassDir
+  FileType
 );
 
 with 'MooseX::Log::Log4perl',
@@ -306,7 +315,7 @@ number of files found.
 # TODO complicated in other cases
 
 sub find_files {
-  state $check = compile( Object, Str );
+  state $check = compile( Object, FileType );
   my ( $self, $filetype ) = $check->(@_);
 
   $self->_set_found_file_type($filetype);
@@ -362,42 +371,41 @@ sub print_paths {
 
 #-------------------------------------------------------------------------------
 
-=head2 make_symlink
+=head2 make_symlinks($dest, ?$filetype)
 
-General symlinks for files from this lane. Requires two arguments:
+Generate symlinks for files from this lane. Requires one argument, C<$dest>,
+which must be a L<Path::Class::Dir> giving the destination directory for the
+links. An exception is thrown if the directory doesn't exist.
 
-=over
+An optional filetype may also be given. This must be one of "C<fastq>",
+"C<bam>", "C<pacbio>" or "C<corrected>" (see L<Bio::Path::Find::Types>, type
+C<FileType>). If C<$filetype> is supplied, the lane will look for files of the
+specified type, even if it has already searched for files, allowing the caller
+to override the filetype that was specified when instantiating the
+L<Bio::Path::Find::Lane> object.
 
-=item filetype
+If the destination path already exists as a regular file, we issue a warning
+and skip the file. Similarly, if the destination path already exists as a
+symlink, we warn and move on. There is no option to overwrite existing
+files/links; move them out of the way before trying to create new links.
 
-a regex string for matching file types that should be linked, e.g. '*.fastq.gz'
+Throws an exception if we cannot create symlinks, possibly because perl
+itself can't create links on the current platform.
 
-=item dest
-
-a L<Path::Class::Dir> representing the directory where the symlinks should be
-generated
-
-=back
+Returns the number of successful links created.
 
 =cut
 
-sub make_symlink {
-  state $check = compile(
-    Object,
-    slurpy Dict[
-      filetype => Str,
-      dest     => PathClassDir,
-    ],
-  );
-  my ( $self, $params ) = $check->(@_);
+sub make_symlinks {
+  state $check = compile( Object, PathClassDir, Optional[FileType] );
+  my ( $self, $dest, $filetype ) = $check->(@_);
 
-  croak 'ERROR: destination for symlinks does not exist or is not a directory ('
-        . $params->{dest} . ')'
-    unless -d $params->{dest};
+  croak "ERROR: destination for symlinks does not exist or is not a directory ($dest)"
+    unless -d $dest;
 
-  unless ( $self->has_found_files ) {
-    carp 'WARNING: no files found for linking';
-    return;
+  if ( $filetype ) {
+    $self->log->debug("find files of type '$filetype'");
+    $self->find_files($filetype);
   }
 
   if ( $self->has_no_files ) {
@@ -405,7 +413,37 @@ sub make_symlink {
     return;
   }
 
+  my $num_successful_links = 0;
+  FILE: foreach my $old_file ( $self->all_files ) {
 
+    my $new_file = file($dest, $old_file->basename);
+
+    if ( -f $new_file ) {
+      carp "WARNING: destination file ($new_file) already exists; skipping";
+      next FILE;
+    }
+
+    if ( -l $new_file ) {
+      carp "WARNING: destination file ($new_file) is already a symlink; skipping";
+      next FILE;
+    }
+
+    my $success = 0;
+    try {
+      $success = symlink( $old_file, $new_file );
+      $num_successful_links += $success;
+    } catch {
+      # this should only happen if perl can't create symlinks on the current
+      # platform
+      croak "ERROR: cannot create symlinks: $_";
+    };
+
+    carp "WARNING: failed to create symlink for '$old_file'" unless $success;
+  }
+
+  $self->log->debug("created $num_successful_links links");
+
+  return $num_successful_links;
 }
 
 #-------------------------------------------------------------------------------

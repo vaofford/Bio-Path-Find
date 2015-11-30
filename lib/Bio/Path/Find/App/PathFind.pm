@@ -147,13 +147,12 @@ sub run {
   $self->log->debug( 'found ' . scalar @$lanes . ' lanes' );
 
   if ( $self->symlink ) {
-    $_->symlink($self->symlink) for ( @$lanes );
+    $_->make_symlinks($self->symlink) for ( @$lanes );
   }
   else {
     $_->print_paths for ( @$lanes );
   }
 
-  # TODO implement symlinking
   # TODO handle archiving
 }
 

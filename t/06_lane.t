@@ -5,6 +5,8 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use Test::Output;
+use Test::Warn;
+use Path::Class;
 
 use Bio::Path::Find::DatabaseManager;
 
@@ -65,6 +67,65 @@ t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING
 # status object
 isa_ok $lane->status, 'Bio::Path::Find::LaneStatus', 'lane status object';
 is $lane->pipeline_status('stored'), 'Done', 'got pipeline status directly from the Lane';
+
+# symlinking
+
+# first, see if we can make symlinks in perl on this platform
+my $symlink_exists = eval { symlink("",""); 1 }; # see perl doc for symlink
+
+SKIP: {
+  skip "can't create symlinks on this platform", 9 unless $symlink_exists;
+
+  my $symlink_dir = dir 't/data/06_lane/_temp';
+  $symlink_dir->rmtree;
+  $symlink_dir->mkpath;
+
+  # should work
+  lives_ok { $lane->make_symlinks($symlink_dir) }
+    'no exception when creating symlinks';
+
+  my @files_in_temp_dir = $symlink_dir->children;
+  is scalar @files_in_temp_dir, 2, 'found 2 links';
+
+  ok -l 't/data/06_lane/_temp/544477.se.raw.sorted.bam', 'found one expected link';
+  ok -l 't/data/06_lane/_temp/544477.se.markdup.bam', 'found other expected link';
+
+  # should warn that file already exists
+  warnings_like { $lane->make_symlinks($symlink_dir) }
+    { carped => [ qr/is already a symlink/, qr/is already a symlink/ ] },
+    'warnings when symlinks already exist';
+
+  # replace one of the symlinks by a real file
+  $files_in_temp_dir[0]->remove;
+  $files_in_temp_dir[1]->remove;
+
+  $files_in_temp_dir[0]->touch;
+  warning_like { $lane->make_symlinks($symlink_dir) }
+    { carped => [ qr/already exists/ ] },
+    'warning when destination file already exists';
+
+  $files_in_temp_dir[0]->remove;
+  $files_in_temp_dir[1]->remove;
+
+  # set the permissions on the directory to remove write permission
+  chmod 0500, $symlink_dir;
+
+  warnings_like { $lane->make_symlinks($symlink_dir) }
+    { carped => [ qr/failed to create symlink/, qr/failed to create symlink/ ] },
+    'warnings when destination directory not writeable';
+
+  # should fail to find files to link
+  $symlink_dir->rmtree;
+  $symlink_dir->mkpath;
+
+  warning_like { $lane->make_symlinks($symlink_dir, 'corrected') }
+    { carped => qr/no files found for linking/ },
+    'warning when no files found with specified type';
+
+  is $lane->make_symlinks($symlink_dir, 'fastq'), 1, 'created expected one link for fastq';
+
+  $symlink_dir->rmtree;
+}
 
 # check the stats for a lane
 
