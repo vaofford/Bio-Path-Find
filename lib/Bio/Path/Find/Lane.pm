@@ -212,15 +212,21 @@ sub _build_symlink_path {
 =attr found_file_type
 
 The type of file that was found when running L<find_files>, or C<undef> if
-L<find_files> has not yet been run. This is specified as an argument to
-L<find_files> and cannot be set separately. B<Read only>.
+L<find_files> has not yet been run. This attribute acts as a proxy for checking
+if this C<Lane> has found files yet. If C<found_file_type> is set, i.e. not
+C<undef>, the L<find_files> method has been called. This can be checked using
+the L<has_found_files> predicate.
+
+The type of tile to find is specified as an argument to L<find_files> and
+cannot be set separately. B<Read only>.
 
 =cut
 
 has 'found_file_type' => (
-  is     => 'rw',
-  isa    => Str,
-  writer => '_set_found_file_type',
+  is        => 'rw',
+  isa       => Str,
+  writer    => '_set_found_file_type',
+  predicate => 'has_found_files',
 );
 
 #---------------------------------------
@@ -295,6 +301,10 @@ number of files found.
 
 =cut
 
+# TODO this method might need to be looked at again when we get to the other
+# TODO "*find" scripts, e.g. annotationfind. Passing in the filetype might get
+# TODO complicated in other cases
+
 sub find_files {
   state $check = compile( Object, Str );
   my ( $self, $filetype ) = $check->(@_);
@@ -348,6 +358,54 @@ sub print_paths {
   }
 
   return $rv;
+}
+
+#-------------------------------------------------------------------------------
+
+=head2 make_symlink
+
+General symlinks for files from this lane. Requires two arguments:
+
+=over
+
+=item filetype
+
+a regex string for matching file types that should be linked, e.g. '*.fastq.gz'
+
+=item dest
+
+a L<Path::Class::Dir> representing the directory where the symlinks should be
+generated
+
+=back
+
+=cut
+
+sub make_symlink {
+  state $check = compile(
+    Object,
+    slurpy Dict[
+      filetype => Str,
+      dest     => PathClassDir,
+    ],
+  );
+  my ( $self, $params ) = $check->(@_);
+
+  croak 'ERROR: destination for symlinks does not exist or is not a directory ('
+        . $params->{dest} . ')'
+    unless -d $params->{dest};
+
+  unless ( $self->has_found_files ) {
+    carp 'WARNING: no files found for linking';
+    return;
+  }
+
+  if ( $self->has_no_files ) {
+    carp 'WARNING: no files found for linking';
+    return;
+  }
+
+
 }
 
 #-------------------------------------------------------------------------------
