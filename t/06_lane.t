@@ -83,7 +83,7 @@ SKIP: {
   my $symlink_dir = dir $temp_dir;
 
   # should work
-  lives_ok { $lane->make_symlinks($symlink_dir) }
+  lives_ok { $lane->make_symlinks( dest => $symlink_dir ) }
     'no exception when creating symlinks';
 
   my @files_in_temp_dir = $symlink_dir->children;
@@ -93,7 +93,7 @@ SKIP: {
   ok -l file( $symlink_dir, '544477.se.markdup.bam' ), 'found other expected link';
 
   # should warn that file already exists
-  warnings_like { $lane->make_symlinks($symlink_dir) }
+  warnings_like { $lane->make_symlinks( dest => $symlink_dir ) }
     { carped => [ qr/is already a symlink/, qr/is already a symlink/ ] },
     'warnings when symlinks already exist';
 
@@ -102,7 +102,7 @@ SKIP: {
   $files_in_temp_dir[1]->remove;
 
   $files_in_temp_dir[0]->touch;
-  warning_like { $lane->make_symlinks($symlink_dir) }
+  warning_like { $lane->make_symlinks( dest => $symlink_dir ) }
     { carped => [ qr/already exists/ ] },
     'warning when destination file already exists';
 
@@ -112,7 +112,7 @@ SKIP: {
   # set the permissions on the directory to remove write permission
   chmod 0500, $symlink_dir;
 
-  warnings_like { $lane->make_symlinks($symlink_dir) }
+  warnings_like { $lane->make_symlinks( dest => $symlink_dir ) }
     { carped => [ qr/failed to create symlink/, qr/failed to create symlink/ ] },
     'warnings when destination directory not writeable';
 
@@ -120,12 +120,8 @@ SKIP: {
   $temp_dir = File::Temp->newdir;
   $symlink_dir = dir $temp_dir;
 
-  # # should fail to find files to link
-  # warning_like { $lane->make_symlinks($symlink_dir, 'corrected') }
-  #   { carped => qr/no files found for linking/ },
-  #   'warning when no files found with specified type';
-
-  is $lane->make_symlinks($symlink_dir, 'fastq'), 1, 'created expected one link for fastq';
+  is $lane->make_symlinks( dest => $symlink_dir, filetype => 'fastq' ), 1,
+    'created expected one link for fastq';
 
   # create links in the cwd
   $temp_dir = File::Temp->newdir;
@@ -153,7 +149,10 @@ SKIP: {
     'no exception when making symlink without filetype';
 
   # should be a link to the directory for the lane in the current working directory
-  ok -l dir( $temp_dir, '10018_1#1' ), 'found directory link';
+  my $link = dir( $symlink_dir, '10018_1#1' );
+  ok -l $link, 'found directory link';
+
+  $link->rmtree;
 
   # (it would be nice to be able to verify that the link actually points to the
   # intended directory, but because the link is to a relative path, it's never
@@ -163,18 +162,22 @@ SKIP: {
 
   # first, when linking to a directory
   chdir $orig_cwd;
-  $lane = Bio::Path::Find::Lane->new( row => $lane_row, rename => 1 );
+  $lane = Bio::Path::Find::Lane->new( row => $lane_row );
   $lane->root_dir;
   chdir $symlink_dir;
-  $lane->make_symlinks;
+  $lane->make_symlinks( rename => 1 );
 
-  ok -l dir( $temp_dir, '10018_1_1' ), 'found renamed dir';
+  ok -l dir( $symlink_dir, '10018_1_1' ), 'found renamed dir';
 
   chdir $orig_cwd;
 
   # and then when linking to a file
-  $lane = Bio::Path::Find::Lane->new( row => $lane_row, rename => 1 );
-  $lane->make_symlinks($symlink_dir, 'fastq');
+  $lane = Bio::Path::Find::Lane->new( row => $lane_row );
+  $lane->make_symlinks(
+    dest     => $symlink_dir,
+    rename   => 1,
+    filetype => 'fastq',
+  );
 
   ok -l file( $symlink_dir, '10018_1_1_1.fastq.gz' ), 'found renamed link';
 }

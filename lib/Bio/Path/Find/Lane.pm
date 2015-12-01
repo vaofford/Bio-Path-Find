@@ -24,6 +24,8 @@ use Types::Standard qw(
   Int
   HashRef
   ArrayRef
+  slurpy
+  Dict
   Optional
   Bool
 );
@@ -264,24 +266,6 @@ sub _build_status {
   return Bio::Path::Find::LaneStatus->new( lane => $self );
 }
 
-#---------------------------------------
-
-=attr rename
-
-Specifies whether or not file and directory names should be renamed
-when linking or archiving to convert hashes (C<#>) to underscores
-(C<_>).
-
-Default is not to rename.
-
-=cut
-
-has 'rename' => (
-  is      => 'ro',
-  isa     => Bool,
-  default => 0,
-);
-
 #-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -421,28 +405,36 @@ Returns the number of links created.
 =cut
 
 sub make_symlinks {
-  state $check = compile( Object, Optional[PathClassDir], Optional[FileType] );
-  my ( $self, $dest, $filetype ) = $check->(@_);
+  state $check = compile(
+    Object,
+    slurpy Dict [
+      dest     => Optional[PathClassDir],
+      rename   => Optional[Bool],
+      filetype => Optional[FileType]
+    ],
+  );
+  my ( $self, $params ) = $check->(@_);
 
-  if ( not defined $dest ) {
+  if ( not defined $params->{dest} ) {
     $self->log->debug('using current directory as destination');
-    $dest = dir getcwd;
+    $params->{dest} = dir getcwd;
   }
 
-  croak "ERROR: destination for symlinks does not exist or is not a directory ($dest)"
-    unless -d $dest;
+  croak 'ERROR: destination for symlinks does not exist or is not a directory ('
+        . $params->{dest} . ')'
+    unless -d $params->{dest};
 
-  if ( $filetype ) {
-    $self->log->debug("find files of type '$filetype'");
-    $self->find_files($filetype);
+  if ( $params->{filetype} ) {
+    $self->log->debug('find files of type "' . $params->{filetype} . '"');
+    $self->find_files($params->{filetype});
   }
 
   my $rv = 0;
   if ( $self->has_found_files and $self->has_files ) {
-    $rv = $self->_make_file_symlinks($dest);
+    $rv = $self->_make_file_symlinks($params->{dest}, $params->{rename});
   }
   else {
-    $rv = $self->_make_dir_symlink($dest);
+    $rv = $self->_make_dir_symlink($params->{dest}, $params->{rename});
   }
 
   return $rv;
@@ -455,7 +447,7 @@ sub make_symlinks {
 # make a link to the found files for this lane
 
 sub _make_file_symlinks {
-  my ( $self, $dest ) = @_;
+  my ( $self, $dest, $rename ) = @_;
 
   if ( $self->has_no_files ) {
     carp 'WARNING: no files found for linking';
@@ -463,28 +455,28 @@ sub _make_file_symlinks {
   }
 
   my $num_successful_links = 0;
-  FILE: foreach my $old_file ( $self->all_files ) {
+  FILE: foreach my $src_file ( $self->all_files ) {
 
-    my $basename = $old_file->basename;
+    my $filename = $src_file->basename;
 
     # do we need to rename the link (convert hashes to underscores) ?
-    $basename =~ s/\#/_/g if $self->rename;
+    $filename =~ s/\#/_/g if $rename;
 
-    my $new_file = file($dest, $basename);
+    my $dst_file = file($dest, $filename);
 
-    if ( -f $new_file ) {
-      carp "WARNING: destination file ($new_file) already exists; skipping";
+    if ( -f $dst_file ) {
+      carp "WARNING: destination file ($dst_file) already exists; skipping";
       next FILE;
     }
 
-    if ( -l $new_file ) {
-      carp "WARNING: destination file ($new_file) is already a symlink; skipping";
+    if ( -l $dst_file ) {
+      carp "WARNING: destination file ($dst_file) is already a symlink; skipping";
       next FILE;
     }
 
     my $success = 0;
     try {
-      $success = symlink( $old_file, $new_file );
+      $success = symlink( $src_file, $dst_file );
     } catch {
       # this should only happen if perl can't create symlinks on the current
       # platform
@@ -492,7 +484,7 @@ sub _make_file_symlinks {
     };
     $num_successful_links += $success;
 
-    carp "WARNING: failed to create symlink for '$old_file'" unless $success;
+    carp "WARNING: failed to create symlink for '$src_file'" unless $success;
   }
 
   $self->log->debug("created $num_successful_links links");
@@ -506,32 +498,32 @@ sub _make_file_symlinks {
 # make a link to the link to that directory, but... semantics
 
 sub _make_dir_symlink {
-  my ( $self, $dest ) = @_;
+  my ( $self, $dest, $rename ) = @_;
 
   # symlink_path gives the path to the directory containing the data files for
   # the lane. Here we chop off the final component of that path and use that
   # as the basis for the symlink that we'll create
-  my $basename = $self->symlink_path->dir_list(-1);
+  my $dir_name = $self->symlink_path->dir_list(-1);
 
   # do we need to rename the link (convert hashes to underscores) ?
-  $basename =~ s/\#/_/g if $self->rename;
+  $dir_name =~ s/\#/_/g if $rename;
 
-  my $old_dir = $self->symlink_path;
-  my $new_dir = file($dest, $basename);
+  my $src_dir = $self->symlink_path;
+  my $dst_dir = file($dest, $dir_name);
 
-  if ( -e $new_dir ) {
-    carp "WARNING: destination dir ($new_dir) already exists; skipping";
+  if ( -e $dst_dir ) {
+    carp "WARNING: destination dir ($dst_dir) already exists; skipping";
     return 0
   }
 
-  if ( -l $new_dir ) {
-    carp "WARNING: destination dir ($new_dir) is already a symlink; skipping";
+  if ( -l $dst_dir ) {
+    carp "WARNING: destination dir ($dst_dir) is already a symlink; skipping";
     return 0
   }
 
   my $success = 0;
   try {
-    $success = symlink( $self->symlink_path, $new_dir );
+    $success = symlink( $src_dir, $dst_dir );
   } catch {
     # this should only happen if perl can't create symlinks on the current
     # platform
