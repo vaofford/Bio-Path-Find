@@ -25,6 +25,7 @@ use Types::Standard qw(
   HashRef
   ArrayRef
   Optional
+  Bool
 );
 use Bio::Path::Find::Types qw(
   BioPathFindLaneStatus
@@ -263,6 +264,24 @@ sub _build_status {
   return Bio::Path::Find::LaneStatus->new( lane => $self );
 }
 
+#---------------------------------------
+
+=attr rename
+
+Specifies whether or not file and directory names should be renamed
+when linking or archiving to convert hashes (C<#>) to underscores
+(C<_>).
+
+Default is not to rename.
+
+=cut
+
+has 'rename' => (
+  is      => 'ro',
+  isa     => Bool,
+  default => 0,
+);
+
 #-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -430,6 +449,10 @@ sub make_symlinks {
 }
 
 #-------------------------------------------------------------------------------
+#- private methods -------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+# make a link to the found files for this lane
 
 sub _make_file_symlinks {
   my ( $self, $dest ) = @_;
@@ -442,8 +465,12 @@ sub _make_file_symlinks {
   my $num_successful_links = 0;
   FILE: foreach my $old_file ( $self->all_files ) {
 
-    # TODO take notice of the "-rename" option
-    my $new_file = file($dest, $old_file->basename);
+    my $basename = $old_file->basename;
+
+    # do we need to rename the link (convert hashes to underscores) ?
+    $basename =~ s/\#/_/g if $self->rename;
+
+    my $new_file = file($dest, $basename);
 
     if ( -f $new_file ) {
       carp "WARNING: destination file ($new_file) already exists; skipping";
@@ -475,12 +502,22 @@ sub _make_file_symlinks {
 
 #-------------------------------------------------------------------------------
 
+# make a link to the directory containing the files for this lane. Actually, we
+# make a link to the link to that directory, but... semantics
+
 sub _make_dir_symlink {
   my ( $self, $dest ) = @_;
 
+  # symlink_path gives the path to the directory containing the data files for
+  # the lane. Here we chop off the final component of that path and use that
+  # as the basis for the symlink that we'll create
+  my $basename = $self->symlink_path->dir_list(-1);
+
+  # do we need to rename the link (convert hashes to underscores) ?
+  $basename =~ s/\#/_/g if $self->rename;
+
   my $old_dir = $self->symlink_path;
-  # TODO take notice of the "-rename" option
-  my $new_dir = dir( $dest, $self->symlink_path->dir_list(-1) );
+  my $new_dir = file($dest, $basename);
 
   if ( -e $new_dir ) {
     carp "WARNING: destination dir ($new_dir) already exists; skipping";
@@ -494,7 +531,7 @@ sub _make_dir_symlink {
 
   my $success = 0;
   try {
-    $success = symlink( $old_dir, $new_dir );
+    $success = symlink( $self->symlink_path, $new_dir );
   } catch {
     # this should only happen if perl can't create symlinks on the current
     # platform
@@ -504,8 +541,6 @@ sub _make_dir_symlink {
   return $success
 }
 
-#-------------------------------------------------------------------------------
-#- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
 sub _get_fastqs {

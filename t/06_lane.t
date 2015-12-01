@@ -153,12 +153,30 @@ SKIP: {
     'no exception when making symlink without filetype';
 
   # should be a link to the directory for the lane in the current working directory
-  ok -l dir($temp_dir, '10018_1#1'), 'found directory link';
+  ok -l dir( $temp_dir, '10018_1#1' ), 'found directory link';
 
-  # (it would be nice to be able to verify that the link actually points to
-  # a relative path, it's never going to resolve cleanly.)
+  # (it would be nice to be able to verify that the link actually points to the
+  # intended directory, but because the link is to a relative path, it's never
+  # going to resolve properly.)
+
+  # check renaming (conversion of hashes to underscores in filename)
+
+  # first, when linking to a directory
+  chdir $orig_cwd;
+  $lane = Bio::Path::Find::Lane->new( row => $lane_row, rename => 1 );
+  $lane->root_dir;
+  chdir $symlink_dir;
+  $lane->make_symlinks;
+
+  ok -l dir( $temp_dir, '10018_1_1' ), 'found renamed dir';
 
   chdir $orig_cwd;
+
+  # and then when linking to a file
+  $lane = Bio::Path::Find::Lane->new( row => $lane_row, rename => 1 );
+  $lane->make_symlinks($symlink_dir, 'fastq');
+
+  ok -l file( $symlink_dir, '10018_1_1_1.fastq.gz' ), 'found renamed link';
 }
 
 # check the stats for a lane
