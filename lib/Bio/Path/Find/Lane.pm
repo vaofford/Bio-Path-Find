@@ -377,8 +377,11 @@ sub print_paths {
 Generate symlinks for files from this lane.
 
 If C<$dest> is supplied it must be a L<Path::Class::Dir> giving the destination
-directory for the links. An exception is thrown if the directory doesn't exist.
-The default is to create symlinks in the current working directory.
+directory for the links. An exception is thrown if the destination directory
+doesn't exist.
+
+If C<$dest> is not supplied, we create symlinks in the current working
+directory.
 
 An optional filetype may also be given. This must be one of "C<fastq>",
 "C<bam>", "C<pacbio>" or "C<corrected>" (see L<Bio::Path::Find::Types>, type
@@ -387,15 +390,14 @@ specified type, even if it has already searched for files, allowing the caller
 to override the filetype that was specified when instantiating the
 L<Bio::Path::Find::Lane> object.
 
-If the destination file path already exists as a regular file, we issue a
-warning and skip the file. Similarly, if the destination path already exists as
-a symlink, we warn and move on. There is no option to overwrite existing
-files/links; move them out of the way before trying to create new links.
+If the destination path already exists, either as a link or as a regular file,
+we issue a warning and skip the file. There is no option to overwrite existing
+files/links; move or delete them before trying to create new links.
 
-Throws an exception if we cannot create symlinks, possibly because perl
-itself can't create links on the current platform.
+This method throws an exception if it cannot create symlinks, possibly because
+perl itself can't create links on the current platform.
 
-Returns the number of successful links created.
+Returns the number of links created.
 
 =cut
 
@@ -416,14 +418,31 @@ sub make_symlinks {
     $self->find_files($filetype);
   }
 
+  my $rv = 0;
+  if ( $self->has_found_files and $self->has_files ) {
+    $rv = $self->_make_file_symlinks($dest);
+  }
+  else {
+    $rv = $self->_make_dir_symlink($dest);
+  }
+
+  return $rv;
+}
+
+#-------------------------------------------------------------------------------
+
+sub _make_file_symlinks {
+  my ( $self, $dest ) = @_;
+
   if ( $self->has_no_files ) {
     carp 'WARNING: no files found for linking';
-    return;
+    return 0;
   }
 
   my $num_successful_links = 0;
   FILE: foreach my $old_file ( $self->all_files ) {
 
+    # TODO take notice of the "-rename" option
     my $new_file = file($dest, $old_file->basename);
 
     if ( -f $new_file ) {
@@ -439,12 +458,12 @@ sub make_symlinks {
     my $success = 0;
     try {
       $success = symlink( $old_file, $new_file );
-      $num_successful_links += $success;
     } catch {
       # this should only happen if perl can't create symlinks on the current
       # platform
       croak "ERROR: cannot create symlinks: $_";
     };
+    $num_successful_links += $success;
 
     carp "WARNING: failed to create symlink for '$old_file'" unless $success;
   }
@@ -452,6 +471,37 @@ sub make_symlinks {
   $self->log->debug("created $num_successful_links links");
 
   return $num_successful_links;
+}
+
+#-------------------------------------------------------------------------------
+
+sub _make_dir_symlink {
+  my ( $self, $dest ) = @_;
+
+  my $old_dir = $self->symlink_path;
+  # TODO take notice of the "-rename" option
+  my $new_dir = dir( $dest, $self->symlink_path->dir_list(-1) );
+
+  if ( -e $new_dir ) {
+    carp "WARNING: destination dir ($new_dir) already exists; skipping";
+    return 0
+  }
+
+  if ( -l $new_dir ) {
+    carp "WARNING: destination dir ($new_dir) is already a symlink; skipping";
+    return 0
+  }
+
+  my $success = 0;
+  try {
+    $success = symlink( $old_dir, $new_dir );
+  } catch {
+    # this should only happen if perl can't create symlinks on the current
+    # platform
+    croak "ERROR: cannot create symlinks: $_";
+  };
+
+  return $success
 }
 
 #-------------------------------------------------------------------------------

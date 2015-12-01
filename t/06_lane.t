@@ -81,8 +81,6 @@ SKIP: {
   # set up a temp directory as the destination
   my $temp_dir = File::Temp->newdir;
   my $symlink_dir = dir $temp_dir;
-  # $symlink_dir->rmtree;
-  # $symlink_dir->mkpath;
 
   # should work
   lives_ok { $lane->make_symlinks($symlink_dir) }
@@ -122,10 +120,10 @@ SKIP: {
   $temp_dir = File::Temp->newdir;
   $symlink_dir = dir $temp_dir;
 
-  # should fail to find files to link
-  warning_like { $lane->make_symlinks($symlink_dir, 'corrected') }
-    { carped => qr/no files found for linking/ },
-    'warning when no files found with specified type';
+  # # should fail to find files to link
+  # warning_like { $lane->make_symlinks($symlink_dir, 'corrected') }
+  #   { carped => qr/no files found for linking/ },
+  #   'warning when no files found with specified type';
 
   is $lane->make_symlinks($symlink_dir, 'fastq'), 1, 'created expected one link for fastq';
 
@@ -138,8 +136,29 @@ SKIP: {
   lives_ok { $lane->make_symlinks }
     'no exception when creating symlinks in working directory';
 
+  # create a new lane but don't do "find_files", so that the Lane doesn't have
+  # a filetype specified
+
+  # (need to switch back to the original directory, otherwise we get an exception
+  # from the Lane because it can't see the root directory -- the root dir is a
+  # relative path for the tests, so it's broken if we move to a different dir)
   chdir $orig_cwd;
 
+  $lane = Bio::Path::Find::Lane->new( row => $lane_row );
+
+  $lane->root_dir;    # force the Lane to lazily generate the root_dir attribute...
+  chdir $symlink_dir; # and change back to the temp working directory
+
+  lives_ok { $lane->make_symlinks }
+    'no exception when making symlink without filetype';
+
+  # should be a link to the directory for the lane in the current working directory
+  ok -l dir($temp_dir, '10018_1#1'), 'found directory link';
+
+  # (it would be nice to be able to verify that the link actually points to
+  # a relative path, it's never going to resolve cleanly.)
+
+  chdir $orig_cwd;
 }
 
 # check the stats for a lane
