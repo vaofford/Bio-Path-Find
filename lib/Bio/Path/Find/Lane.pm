@@ -12,16 +12,29 @@ use MooseX::StrictConstructor;
 use Carp qw( carp croak );
 use Path::Class;
 use File::Find::Rule;
+use Try::Tiny;
+use Cwd;
 
 use Bio::Path::Find::LaneStatus;
 
 use Type::Params qw( compile );
-use Types::Standard qw( Object Str Int HashRef ArrayRef );
+use Types::Standard qw(
+  Object
+  Str
+  Int
+  HashRef
+  ArrayRef
+  slurpy
+  Dict
+  Optional
+  Bool
+);
 use Bio::Path::Find::Types qw(
   BioPathFindLaneStatus
   BioTrackSchemaResultLatestLane
   PathClassFile
   PathClassDir
+  FileType
 );
 
 with 'MooseX::Log::Log4perl',
@@ -306,7 +319,7 @@ number of files found.
 # TODO complicated in other cases
 
 sub find_files {
-  state $check = compile( Object, Str );
+  state $check = compile( Object, FileType );
   my ( $self, $filetype ) = $check->(@_);
 
   $self->_set_found_file_type($filetype);
@@ -362,54 +375,164 @@ sub print_paths {
 
 #-------------------------------------------------------------------------------
 
-=head2 make_symlink
+=head2 make_symlinks(?$dest, ?$filetype)
 
-General symlinks for files from this lane. Requires two arguments:
+Generate symlinks for files from this lane.
 
-=over
+If C<$dest> is supplied it must be a L<Path::Class::Dir> giving the destination
+directory for the links. An exception is thrown if the destination directory
+doesn't exist.
 
-=item filetype
+If C<$dest> is not supplied, we create symlinks in the current working
+directory.
 
-a regex string for matching file types that should be linked, e.g. '*.fastq.gz'
+An optional filetype may also be given. This must be one of "C<fastq>",
+"C<bam>", "C<pacbio>" or "C<corrected>" (see L<Bio::Path::Find::Types>, type
+C<FileType>). If C<$filetype> is supplied, the lane will look for files of the
+specified type, even if it has already searched for files, allowing the caller
+to override the filetype that was specified when instantiating the
+L<Bio::Path::Find::Lane> object.
 
-=item dest
+If the destination path already exists, either as a link or as a regular file,
+we issue a warning and skip the file. There is no option to overwrite existing
+files/links; move or delete them before trying to create new links.
 
-a L<Path::Class::Dir> representing the directory where the symlinks should be
-generated
+This method throws an exception if it cannot create symlinks, possibly because
+perl itself can't create links on the current platform.
 
-=back
+Returns the number of links created.
 
 =cut
 
-sub make_symlink {
+sub make_symlinks {
   state $check = compile(
     Object,
-    slurpy Dict[
-      filetype => Str,
-      dest     => PathClassDir,
+    slurpy Dict [
+      dest     => Optional[PathClassDir],
+      rename   => Optional[Bool],
+      filetype => Optional[FileType]
     ],
   );
   my ( $self, $params ) = $check->(@_);
+
+  if ( not defined $params->{dest} ) {
+    $self->log->debug('using current directory as destination');
+    $params->{dest} = dir getcwd;
+  }
 
   croak 'ERROR: destination for symlinks does not exist or is not a directory ('
         . $params->{dest} . ')'
     unless -d $params->{dest};
 
-  unless ( $self->has_found_files ) {
-    carp 'WARNING: no files found for linking';
-    return;
+  if ( $params->{filetype} ) {
+    $self->log->debug('find files of type "' . $params->{filetype} . '"');
+    $self->find_files($params->{filetype});
   }
 
-  if ( $self->has_no_files ) {
-    carp 'WARNING: no files found for linking';
-    return;
+  my $rv = 0;
+  if ( $self->has_found_files and $self->has_files ) {
+    $rv = $self->_make_file_symlinks($params->{dest}, $params->{rename});
+  }
+  else {
+    $rv = $self->_make_dir_symlink($params->{dest}, $params->{rename});
   }
 
-
+  return $rv;
 }
 
 #-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+# make a link to the found files for this lane
+
+sub _make_file_symlinks {
+  my ( $self, $dest, $rename ) = @_;
+
+  if ( $self->has_no_files ) {
+    carp 'WARNING: no files found for linking';
+    return 0;
+  }
+
+  my $num_successful_links = 0;
+  FILE: foreach my $src_file ( $self->all_files ) {
+
+    my $filename = $src_file->basename;
+
+    # do we need to rename the link (convert hashes to underscores) ?
+    $filename =~ s/\#/_/g if $rename;
+
+    my $dst_file = file($dest, $filename);
+
+    if ( -f $dst_file ) {
+      carp "WARNING: destination file ($dst_file) already exists; skipping";
+      next FILE;
+    }
+
+    if ( -l $dst_file ) {
+      carp "WARNING: destination file ($dst_file) is already a symlink; skipping";
+      next FILE;
+    }
+
+    my $success = 0;
+    try {
+      $success = symlink( $src_file, $dst_file );
+    } catch {
+      # this should only happen if perl can't create symlinks on the current
+      # platform
+      croak "ERROR: cannot create symlinks: $_";
+    };
+    $num_successful_links += $success;
+
+    carp "WARNING: failed to create symlink for '$src_file'" unless $success;
+  }
+
+  $self->log->debug("created $num_successful_links links");
+
+  return $num_successful_links;
+}
+
+#-------------------------------------------------------------------------------
+
+# make a link to the directory containing the files for this lane. Actually, we
+# make a link to the link to that directory, but... semantics
+
+sub _make_dir_symlink {
+  my ( $self, $dest, $rename ) = @_;
+
+  # symlink_path gives the path to the directory containing the data files for
+  # the lane. Here we chop off the final component of that path and use that
+  # as the basis for the symlink that we'll create
+  my $dir_name = $self->symlink_path->dir_list(-1);
+
+  # do we need to rename the link (convert hashes to underscores) ?
+  $dir_name =~ s/\#/_/g if $rename;
+
+  my $src_dir = $self->symlink_path;
+  my $dst_dir = file($dest, $dir_name);
+
+  if ( -e $dst_dir ) {
+    carp "WARNING: destination dir ($dst_dir) already exists; skipping";
+    return 0
+  }
+
+  if ( -l $dst_dir ) {
+    carp "WARNING: destination dir ($dst_dir) is already a symlink; skipping";
+    return 0
+  }
+
+  my $success = 0;
+  try {
+    $success = symlink( $src_dir, $dst_dir );
+  } catch {
+    # this should only happen if perl can't create symlinks on the current
+    # platform
+    croak "ERROR: cannot create symlinks: $_";
+  };
+
+  return $success
+}
+
 #-------------------------------------------------------------------------------
 
 sub _get_fastqs {

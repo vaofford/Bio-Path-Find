@@ -5,6 +5,10 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use Test::Output;
+use Test::Warn;
+use Path::Class;
+use File::Temp qw( tempdir );
+use Cwd;
 
 use Bio::Path::Find::DatabaseManager;
 
@@ -65,6 +69,118 @@ t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING
 # status object
 isa_ok $lane->status, 'Bio::Path::Find::LaneStatus', 'lane status object';
 is $lane->pipeline_status('stored'), 'Done', 'got pipeline status directly from the Lane';
+
+# symlinking
+
+# first, see if we can make symlinks in perl on this platform
+my $symlink_exists = eval { symlink("",""); 1 }; # see perl doc for symlink
+
+SKIP: {
+  skip "can't create symlinks on this platform", 10 unless $symlink_exists;
+
+  # set up a temp directory as the destination
+  my $temp_dir = File::Temp->newdir;
+  my $symlink_dir = dir $temp_dir;
+
+  # should work
+  lives_ok { $lane->make_symlinks( dest => $symlink_dir ) }
+    'no exception when creating symlinks';
+
+  my @files_in_temp_dir = $symlink_dir->children;
+  is scalar @files_in_temp_dir, 2, 'found 2 links';
+
+  ok -l file( $symlink_dir, '544477.se.raw.sorted.bam' ), 'found one expected link';
+  ok -l file( $symlink_dir, '544477.se.markdup.bam' ), 'found other expected link';
+
+  # should warn that file already exists
+  warnings_like { $lane->make_symlinks( dest => $symlink_dir ) }
+    { carped => [ qr/is already a symlink/, qr/is already a symlink/ ] },
+    'warnings when symlinks already exist';
+
+  # replace one of the symlinks by a real file
+  $files_in_temp_dir[0]->remove;
+  $files_in_temp_dir[1]->remove;
+
+  $files_in_temp_dir[0]->touch;
+  warning_like { $lane->make_symlinks( dest => $symlink_dir ) }
+    { carped => [ qr/already exists/ ] },
+    'warning when destination file already exists';
+
+  $files_in_temp_dir[0]->remove;
+  $files_in_temp_dir[1]->remove;
+
+  # set the permissions on the directory to remove write permission
+  chmod 0500, $symlink_dir;
+
+  warnings_like { $lane->make_symlinks( dest => $symlink_dir ) }
+    { carped => [ qr/failed to create symlink/, qr/failed to create symlink/ ] },
+    'warnings when destination directory not writeable';
+
+  # re-make the temp dir
+  $temp_dir = File::Temp->newdir;
+  $symlink_dir = dir $temp_dir;
+
+  is $lane->make_symlinks( dest => $symlink_dir, filetype => 'fastq' ), 1,
+    'created expected one link for fastq';
+
+  # create links in the cwd
+  $temp_dir = File::Temp->newdir;
+  $symlink_dir = dir $temp_dir;
+  my $orig_cwd = cwd;
+  chdir $symlink_dir;
+
+  lives_ok { $lane->make_symlinks }
+    'no exception when creating symlinks in working directory';
+
+  # create a new lane but don't do "find_files", so that the Lane doesn't have
+  # a filetype specified
+
+  # (need to switch back to the original directory, otherwise we get an exception
+  # from the Lane because it can't see the root directory -- the root dir is a
+  # relative path for the tests, so it's broken if we move to a different dir)
+  chdir $orig_cwd;
+
+  $lane = Bio::Path::Find::Lane->new( row => $lane_row );
+
+  $lane->root_dir;    # force the Lane to lazily generate the root_dir attribute...
+  chdir $symlink_dir; # and change back to the temp working directory
+
+  lives_ok { $lane->make_symlinks }
+    'no exception when making symlink without filetype';
+
+  # should be a link to the directory for the lane in the current working directory
+  my $link = dir( $symlink_dir, '10018_1#1' );
+  ok -l $link, 'found directory link';
+
+  $link->rmtree;
+
+  # (it would be nice to be able to verify that the link actually points to the
+  # intended directory, but because the link is to a relative path, it's never
+  # going to resolve properly.)
+
+  # check renaming (conversion of hashes to underscores in filename)
+
+  # first, when linking to a directory
+  chdir $orig_cwd;
+  $lane = Bio::Path::Find::Lane->new( row => $lane_row );
+  $lane->root_dir;
+  chdir $symlink_dir;
+  $lane->make_symlinks( rename => 1 );
+
+  ok -l dir( $symlink_dir, '10018_1_1' ), 'found renamed dir';
+
+  chdir $orig_cwd;
+
+  # and then when linking to a file
+  $lane = Bio::Path::Find::Lane->new( row => $lane_row );
+  $lane->make_symlinks(
+    dest     => $symlink_dir,
+    rename   => 1,
+    filetype => 'fastq',
+  );
+
+  ok -l file( $symlink_dir, '10018_1_1_1.fastq.gz' ), 'found renamed link';
+}
 
 # check the stats for a lane
 
