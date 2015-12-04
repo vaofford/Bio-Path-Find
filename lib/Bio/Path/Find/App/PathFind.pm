@@ -240,7 +240,6 @@ sub _collect_filenames {
 
   my @filenames;
   my $next_update = 0;
-  # foreach my $lane ( @$lanes ) {
   for ( my $i = 0; $i < $max; $i++ ) {
     my $lane = $lanes->[$i];
 
@@ -323,26 +322,25 @@ sub _build_archive {
 sub _compress_data {
   my ( $self, $data ) = @_;
 
-  my $len        = length $data;
-  my $chunk_size = int( $len / 100 );
+  my $max        = length $data;
+  my $chunk_size = int( $max / 100 );
 
   # set up the progress bar
   my $progress_bar = Term::ProgressBar->new( {
     name   => 'gzipping',
-    count  => $len,
+    count  => $max,
     remove => 1,
     silent => $self->no_progress_bars,
   } );
   $progress_bar->minor(0); # ditch the "completion time estimator" character
 
   my $compressed_data;
-  my $offset = 0;
+  my $offset      = 0;
   my $next_update = 0;
-
-  # write the data in chunks
-  my $remaining = $len;
-  my $z = IO::Compress::Gzip->new( \$compressed_data );
+  my $remaining   = $max;
+  my $z           = IO::Compress::Gzip->new( \$compressed_data );
   while ( $remaining > 0 ) {
+    # write the data in chunks
     my $chunk = ( $chunk_size > $remaining )
               ? substr $data, $offset
               : substr $data, $offset, $chunk_size;
@@ -358,8 +356,8 @@ sub _compress_data {
   $z->close;
 
   # tidy up; push the progress bar to 100% so that it will actually be removed
-  $progress_bar->update($len)
-    if ( defined $next_update and $len >= $next_update );
+  $progress_bar->update($max)
+    if ( defined $next_update and $max >= $next_update );
 
   return $compressed_data;
 }
@@ -371,12 +369,12 @@ sub _compress_data {
 sub _write_data {
   my ( $self, $data, $filename ) = @_;
 
-  my $len = length $data;
-  my $chunk_size   = int( $len / 100 );
+  my $max        = length $data;
+  my $chunk_size = int( $max / 100 );
 
   my $progress_bar = Term::ProgressBar->new( {
     name   => 'writing',
-    count  => $len,
+    count  => $max,
     remove => 1,
     silent => $self->no_progress_bars,
   } );
@@ -388,20 +386,21 @@ sub _write_data {
   binmode FILE;
 
   my $written;
-  my $offset = 0;
+  my $offset      = 0;
   my $next_update = 0;
-  while ( $len > 0 ) {
+  my $remaining   = $max;
+  while ( $remaining > 0 ) {
     $written = syswrite FILE, $data, $chunk_size, $offset;
-    $offset += $written;
-    $len    -= $written;
+    $offset    += $written;
+    $remaining -= $written;
     $next_update = $progress_bar->update($offset)
       if ( defined $next_update and $offset >= $next_update );
   }
 
   close FILE;
 
-  $progress_bar->update($len)
-    if ( defined $next_update and $len >= $next_update );
+  $progress_bar->update($max)
+    if ( defined $next_update and $max >= $next_update );
 }
 
 #-------------------------------------------------------------------------------
