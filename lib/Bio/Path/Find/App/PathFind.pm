@@ -15,6 +15,8 @@ use Path::Class;
 use Term::ProgressBar;
 use Try::Tiny;
 use IO::Compress::Gzip;
+use File::Temp;
+use Text::CSV_XS;
 
 use Types::Standard qw(
   ArrayRef
@@ -203,7 +205,15 @@ sub _make_archive {
   say "Archiving lane data to '$tar_filename'";
 
   # collect the list of files to archive
-  my $filenames = $self->_collect_filenames($lanes);
+  my ( $filenames, $stats ) = $self->_collect_filenames($lanes);
+
+  # write a CSV file with the stats and add it to the list of files that
+  # will go into the archive
+  my $temp_dir = File::Temp->newdir;
+  my $stats_file = file( $temp_dir, 'stats.csv' );
+  $self->_write_stats_csv($stats, $stats_file);
+
+  push @$filenames, $stats_file;
 
   # build the tar archive
   my $tar = $self->_build_archive($filenames);
@@ -238,6 +248,10 @@ sub _collect_filenames {
   } );
   $progress_bar->minor(0); # ditch the "completion time estimator" character
 
+  # collect the lane stats as we go along. Store the headers for the stats
+  # report as the first row
+  my @stats = ( $lanes->[0]->stats_headers );
+
   my @filenames;
   my $next_update = 0;
   for ( my $i = 0; $i < $max; $i++ ) {
@@ -253,6 +267,9 @@ sub _collect_filenames {
       push @filenames, $filename;
     }
 
+    # store the stats for this lane
+    push @stats, $lane->stats;
+
     $next_update = $progress_bar->update($i);
   }
 
@@ -263,7 +280,7 @@ sub _collect_filenames {
   $progress_bar->update($next_update)
     if ( defined $next_update and $max >= $next_update );
 
-  return \@filenames;
+  return ( \@filenames, \@stats );
 }
 
 #-------------------------------------------------------------------------------
@@ -364,7 +381,9 @@ sub _compress_data {
 
 #-------------------------------------------------------------------------------
 
-# writes the supplied data to the supplied filename
+# writes the supplied data to the specified file. This method doesn't care what
+# form the data take, it just dumps the raw data to file, showing a progress
+# bar if required.
 
 sub _write_data {
   my ( $self, $data, $filename ) = @_;
@@ -401,6 +420,31 @@ sub _write_data {
 
   $progress_bar->update($max)
     if ( defined $next_update and $max >= $next_update );
+}
+
+#-------------------------------------------------------------------------------
+
+# writes the supplied lane statistics in CSV format to the specified file
+
+sub _write_stats_csv {
+  my ( $self, $stats, $filename ) = @_;
+
+  croak 'ERROR: must supply a filename for the stats report'
+    unless defined $filename;
+
+  my $fh = FileHandle->new;
+
+  # see if the supplied filename exists and complain if it does
+  croak 'ERROR: stats CSV file already exists; not overwriting existing file'
+    if -e $filename;
+
+  $fh->open( $filename, '>' );
+
+  my $csv = Text::CSV_XS->new;
+  $csv->eol("\n");
+  $csv->print($fh, $_) for @$stats;
+
+  $fh->close;
 }
 
 #-------------------------------------------------------------------------------
