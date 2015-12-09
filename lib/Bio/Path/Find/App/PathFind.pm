@@ -10,13 +10,14 @@ use namespace::autoclean;
 use MooseX::StrictConstructor;
 
 use Carp qw( carp croak );
-use Archive::Tar;
 use Path::Class;
 use Term::ProgressBar;
 use Try::Tiny;
 use IO::Compress::Gzip;
 use File::Temp;
 use Text::CSV_XS;
+use Archive::Tar;
+use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
 
 use Types::Standard qw(
   ArrayRef
@@ -40,26 +41,23 @@ with 'Bio::Path::Find::App::Role::AppRole',
   Find information about sequencing files.
 
   Required:
-    -i,  --id        ID to find, or name of file containing IDs to find
-    -t,  --type      type of ID(s); lane|sample|library|study|species|file
+    -i,  --id <ID>                  ID to find, or name of file containing IDs to find
+    -t,  --type <type>              type of ID(s); lane|sample|library|study|species|file
 
-  Required if type is "file":
-    -ft, --file_id_type
-                     type of IDs in file input file; lane|sample
+    -ft, --file_id_type <filetype>  type of IDs in file input file; lane|sample
+                                    Required if type is "file"
+  Filters:
+    -ft, --filetype <filetype>      type of file to return; fastq|bam|pacbio|corrected
+    -q,  --qc <status>              filter on QC status; passed|failed|pending
 
-  Optional:
-    -ft, --filetype  type of file to return; fastq|bam|pacbio|corrected
-    -q,  --qc        filter on QC status; passed|failed|pending
-    -s,  --stats <output file>
-                     create a file containing statistics for found data
-    -l,  --symlink <destination directory>
-                     create symbolic links to data files in the destination dir
-    -a,  --archive <tar file>
-                     create an archive of data files
-    -r,  --rename    convert hash (#) to underscore (_) in output filenames
-    -n,  --no-progress-bars
-                     don't show progress bars when archiving
-    -h,  -?          print this message
+  Output:
+    -s,  --stats <output file>      create a file containing statistics for found data
+    -l,  --symlink [<dest dir>]     create symbolic links to data files in the destination dir
+    -a,  --archive [<archive name>] create an archive of found files
+    -z   --zip                      create zip archives (default is to create tar archives)
+    -r,  --rename                   convert hash (#) to underscore (_) in output filenames
+    -n,  --no-progress-bars         don't show progress bars when archiving
+    -h,  -?                         print this message
 
 =cut
 
@@ -129,6 +127,14 @@ has 'archive' => (
   traits        => ['Getopt'],
 );
 
+has 'zip' => (
+  documentation => 'archive data in ZIP format',
+  is            => 'ro',
+  isa           => Bool,
+  cmd_aliases   => 'z',
+  traits        => ['Getopt'],
+);
+
 #-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -188,21 +194,14 @@ sub run {
 sub _make_archive {
   my ( $self, $lanes ) = @_;
 
-  my $tar_filename;
-
-  # decide on the name of the tar archive
-  if ( not is_Bool($self->archive) ) {
-    $self->log->debug('archive attribute is a PathClassFile; using it as a filename');
-    $tar_filename = $self->archive;
-  }
-  else {
-    $self->log->debug('archive attribute is a boolean; building a filename');
-    # we'll ALWAYS make a sensible name for the archive itself
-    ( my $renamed_id = $self->id ) =~ s/\#/_/g;
-    $tar_filename = "pathfind_$renamed_id.tar.gz";
+  if ( scalar @$lanes < 1 ) {
+    say 'Found no data to archive.';
+    exit;
   }
 
-  say "Archiving lane data to '$tar_filename'";
+  my $archive_filename = $self->_build_filename;
+
+  say "Archiving lane data to '$archive_filename'";
 
   # collect the list of files to archive
   my ( $filenames, $stats ) = $self->_collect_filenames($lanes);
@@ -215,21 +214,61 @@ sub _make_archive {
 
   push @$filenames, $stats_file;
 
-  # build the tar archive
-  my $tar = $self->_build_archive($filenames);
+  #---------------------------------------
 
-  # we could write the archive in a single call, like this:
-  #   $tar->write( $tar_filename, COMPRESS_GZIP );
-  # but it's nicer to have a progress bar. Since gzipping and writing can be
-  # performed as separate operations, we'll do progress bars for both of them
+  # zip or tar ?
+  if ( $self->zip ) {
+    # build the zip archive in memory
+    my $zip = $self->_build_zip_archive($filenames);
 
-  # gzip compress the archive
-  my $compressed_tar = $self->_compress_data( $tar->write );
+    # write it to file
+    unless ( $zip->writeToFileNamed($archive_filename) == AZ_OK ) {
+      croak "ERROR: couldn't write zip file ($archive_filename)";
+    }
+  }
+  else {
+    # build the tar archive in memory
+    my $tar = $self->_build_tar_archive($filenames);
 
-  # and write it out, gzip compressed
-  $self->_write_data( $compressed_tar, $tar_filename );
+    # we could write the archive in a single call, like this:
+    #   $tar->write( $tar_filename, COMPRESS_GZIP );
+    # but it's nicer to have a progress bar. Since gzipping and writing can be
+    # performed as separate operations, we'll do progress bars for both of them
+
+    # gzip compress the archive
+    my $compressed_tar = $self->_compress_data( $tar->write );
+
+    # and write it out, gzip compressed
+    $self->_write_data( $compressed_tar, $archive_filename );
+  }
+
+  #---------------------------------------
 
   say "added $_" for @$filenames;
+}
+
+#-------------------------------------------------------------------------------
+
+sub _build_filename {
+  my $self = shift;
+
+  my $filename;
+
+  # decide on the name of the tar archive
+  if ( not is_Bool($self->archive) ) {
+    $self->log->debug('archive attribute is a PathClassFile; using it as a filename');
+    $filename = $self->archive;
+  }
+  else {
+    $self->log->debug('archive attribute is a boolean; building a filename');
+    # we'll ALWAYS make a sensible name for the archive itself
+    ( my $renamed_id = $self->id ) =~ s/\#/_/g;
+    $filename = $self->zip
+              ? "pathfind_$renamed_id.zip"
+              : "pathfind_$renamed_id.tar.gz";
+  }
+
+  return $filename;
 }
 
 #-------------------------------------------------------------------------------
@@ -287,49 +326,95 @@ sub _collect_filenames {
 
 # creates a tar archive containing the specified files
 
-sub _build_archive {
+sub _build_tar_archive {
   my ( $self, $filenames ) = @_;
 
   my $tar = Archive::Tar->new;
 
-  # doesn't look like we can add files individual, as we'd need to if we wanted
-  # to show a progress bar...
+  # doesn't look like we can add files individually, as we'd need to if we
+  # wanted to show a progress bar...
   $tar->add_files(@$filenames);
 
   # the files are added with their full paths. We want them to be relative,
   # so we'll go through the archive and rename them all. If the "-rename"
   # option is specified, we'll also rename the individual files to convert
   # hashes to underscores
-  foreach my $old_filename ( @$filenames ) {
+  foreach my $orig_filename ( @$filenames ) {
 
-    my $new_basename = $old_filename->basename;
+    my $tar_filename = $self->_rename_file($orig_filename);
 
-    # honour the "-rename" option
-    $new_basename =~ s/\#/_/g if $self->rename;
+    # filenames in the archive itself are relative to the root directory, i.e.
+    # they lack a leading slash. Trim off that slash before trying to rename
+    # files in the archive, otherwise they're simply not found
+    $orig_filename =~ s|^/||;
 
-    # add on the folder to get the relative path for the file in the
-    # archive
-    ( my $folder_name = $self->id ) =~ s/\#/_/g;
-
-    my $new_filename = file( $folder_name, $new_basename );
-
-    # filenames in an archive are specified as Unix paths (see
-    # https://metacpan.org/pod/Archive::Tar#tar-rename-file-new_name)
-    $old_filename = file( $old_filename )->as_foreign('Unix');
-    $new_filename = file( $new_filename )->as_foreign('Unix');
-
-    # filenames in the archive itself are relative to the root directory,
-    # i.e. they lack a leading slash. Trim off that slash before trying to
-    # rename files in the archive, otherwise they're simply not found
-    $old_filename =~ s|^/||;
-
-    $self->log->debug( "renaming |$old_filename| to |$new_filename|" );
-
-    $tar->rename( $old_filename, $new_filename )
-      or carp "WARNING: couldn't rename '$old_filename' in archive";
+    $tar->rename( $orig_filename, $tar_filename )
+      or carp "WARNING: couldn't rename '$orig_filename' in archive";
   }
 
   return $tar;
+}
+
+#-------------------------------------------------------------------------------
+
+# creates a ZIP archive containing the specified files
+
+sub _build_zip_archive {
+  my ( $self, $filenames ) = @_;
+
+  my $zip = Archive::Zip->new;
+
+  my $max = scalar @$filenames;
+  my $next_update = 0;
+  my $progress_bar = Term::ProgressBar->new( {
+    name   => 'adding files',
+    count  => $max,
+    remove => 1,
+    silent => $self->no_progress_bars,
+  } );
+  $progress_bar->minor(0);
+
+  for ( my $i = 0; $i < scalar @$filenames; $i++ ) {
+    my $orig_filename = $filenames->[$i];
+    my $zip_filename  = $self->_rename_file($orig_filename);
+
+    # to-string the filenames, to avoid the Path::Class::File object going into
+    # the zip archive
+    $zip->addFile("$orig_filename", "$zip_filename");
+
+    $next_update = $progress_bar->update($i);
+  }
+
+  $progress_bar->update($next_update)
+    if ( defined $next_update and $max >= $next_update );
+
+  return $zip;
+}
+
+#-------------------------------------------------------------------------------
+
+sub _rename_file {
+  my ( $self, $old_filename ) = @_;
+
+  my $new_basename = $old_filename->basename;
+
+  # honour the "-rename" option
+  $new_basename =~ s/\#/_/g if $self->rename;
+
+  # add on the folder to get the relative path for the file in the
+  # archive
+  ( my $folder_name = $self->id ) =~ s/\#/_/g;
+
+  my $new_filename = file( $folder_name, $new_basename );
+
+  # filenames in an archive are specified as Unix paths (see
+  # https://metacpan.org/pod/Archive::Tar#tar-rename-file-new_name)
+  $old_filename = file( $old_filename )->as_foreign('Unix');
+  $new_filename = file( $new_filename )->as_foreign('Unix');
+
+  $self->log->debug( "renaming |$old_filename| to |$new_filename|" );
+
+  return $new_filename;
 }
 
 #-------------------------------------------------------------------------------
