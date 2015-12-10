@@ -230,8 +230,6 @@ sub run {
 
   # set up the finder
 
-  $DB::single = 1;
-
   # build the parameters for the finder. Omit undefined options or Moose spits
   # the dummy (by design)
   my %finder_params = (
@@ -252,8 +250,6 @@ sub run {
   }
 
   # do something with the found lanes
-  $DB::single = 1;
-
   if ( $self->symlink ) {
     $self->_make_symlinks($lanes);
   }
@@ -458,9 +454,23 @@ sub _build_tar_archive {
 
   my $tar = Archive::Tar->new;
 
-  # doesn't look like we can add files individually, as we'd need to if we
-  # wanted to show a progress bar...
-  $tar->add_files(@$filenames);
+  my $max = scalar @$filenames;
+  my $progress_bar = Term::ProgressBar->new( {
+    name   => 'adding files',
+    count  => $max,
+    remove => 1,
+    ETA    => 'linear',
+    silent => $self->no_progress_bars,
+  } );
+  $progress_bar->minor(0); # ditch the "completion time estimator" character
+
+  my $next_update = 0;
+  for ( my $i = 0; $i < scalar @$filenames; $i++ ) {
+    $tar->add_files($filenames->[$i]);
+    $next_update = $progress_bar->update($i);
+  }
+  $progress_bar->update($max)
+    if ( defined $next_update and $max >= $next_update );
 
   # the files are added with their full paths. We want them to be relative,
   # so we'll go through the archive and rename them all. If the "-rename"
@@ -472,11 +482,13 @@ sub _build_tar_archive {
 
     # filenames in the archive itself are relative to the root directory, i.e.
     # they lack a leading slash. Trim off that slash before trying to rename
-    # files in the archive, otherwise they're simply not found
-    $orig_filename =~ s|^/||;
+    # files in the archive, otherwise they're simply not found. Take a copy
+    # of the original filename before we trim it, to avoid stomping on the
+    # original
+    ( my $trimmed_filename = $orig_filename ) =~ s|^/||;
 
-    $tar->rename( $orig_filename, $tar_filename )
-      or carp "WARNING: couldn't rename '$orig_filename' in archive";
+    $tar->rename( $trimmed_filename, $tar_filename )
+      or carp "WARNING: couldn't rename '$trimmed_filename' in archive";
   }
 
   return $tar;
