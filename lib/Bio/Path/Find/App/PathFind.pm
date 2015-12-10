@@ -8,6 +8,7 @@ use v5.10; # for "say"
 use Moose;
 use namespace::autoclean;
 use MooseX::StrictConstructor;
+use Moose::Util::TypeConstraints;
 
 use Carp qw( carp croak );
 use Path::Class;
@@ -18,6 +19,7 @@ use File::Temp;
 use Text::CSV_XS;
 use Archive::Tar;
 use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
+use Cwd;
 
 use Types::Standard qw(
   ArrayRef
@@ -81,20 +83,93 @@ has 'qc' => (
   traits        => ['Getopt'],
 );
 
-# TODO implement these
+#---------------------------------------
 
+# this is a bit hairy. The symlink (and later, archive) attribute needs to
+# accept either a boolean (if the flag is set on the command line but has
+# no argument) or a string (if the flag is set and a value is given). This
+# configuration doesn't seem to be possible using a combination of
+# MooseX::Getopt and Type::Tiny, hence this ugly work-around, using
+# Moose::Util::TypeConstraints instead of Type::Tiny.
+
+# first, set up a boolean-or-string type and register it with MooseX::Getopt as
+# accepting an optional string argument
+subtype 'BoolOrStr',
+  as 'Str';
+
+MooseX::Getopt::OptionTypeMap->add_option_type_to_map( 'BoolOrStr' => ':s' );
+
+# next, set up a trigger that checks for the value of the "symlink"
+# command-line argument nd tries to decide if it's a boolean or a string,
+# explicitly treating "defined but not set" as true
 has 'symlink' => (
   documentation => 'create symlinks for data files in the specified directory',
   is            => 'rw',
-  isa           => PathClassDir->plus_coercions(DirFromStr), # (coerce from strings to Path::Class::Dir objects)
+  isa           => 'BoolOrStr',
   cmd_aliases   => 'l',
   traits        => ['Getopt'],
-  trigger       => sub {
-    my ( $self, $new_dir, $old_dir ) = @_;
-    # throw an exception unless the specified directory is sensible
-    croak 'ERROR: no such directory, ' . $new_dir unless -d $new_dir;
-  },
+  trigger       => \&_check_for_symlink_value,
 );
+
+sub _check_for_symlink_value {
+  my ( $self, $new_dir, $old_dir ) = @_;
+  if ( defined $new_dir and
+       $new_dir ne ''   and
+       not is_Bool($new_dir) ) {
+    $self->_symlink_dir( dir $new_dir);
+  }
+  elsif ( defined $new_dir
+    and $new_dir eq '' ) {
+    $self->symlink(1);
+  }
+}
+
+# finally, set up a private attribute to store the (optional) value of the
+# "symlink" attribute. When using all of this we can check for "symlink" being
+# true or false, and, if it's true, check "_symlink_dir" for a value
+has '_symlink_dir' => (
+  is  => 'rw',
+  isa => PathClassDir->plus_coercions(DirFromStr),
+);
+
+# what a mess...
+
+#---------------------------------------
+
+# set up "archive" like we set up "symlink". No need to register a new
+# subtype again though
+
+has 'archive' => (
+  documentation => 'filename for archive',
+  is            => 'rw',
+  isa           => 'BoolOrStr',
+  cmd_aliases   => 'a',
+  traits        => ['Getopt'],
+  trigger       => \&_check_for_archive_value,
+);
+
+sub _check_for_archive_value {
+  my ( $self, $new_dir, $old_dir ) = @_;
+  if ( defined $new_dir and
+       $new_dir ne ''   and
+       not is_Bool($new_dir) ) {
+    $self->_archive_dir( dir $new_dir);
+  }
+  elsif ( defined $new_dir
+    and $new_dir eq '' ) {
+    $self->archive(1);
+  }
+}
+
+has '_archive_dir' => (
+  is  => 'rw',
+  isa => PathClassDir->plus_coercions(DirFromStr),
+);
+
+#---------------------------------------
+
+# TODO implement this
+
 has 'stats' => (
   documentation => 'filename for statistics output',
   is            => 'rw',
@@ -112,20 +187,20 @@ has 'rename' => (
 );
 
 has 'no_progress_bars' => (
-  documentation => "don't show progress bars when archiving files",
+  documentation => "don't show progress bars",
   is            => 'ro',
   isa           => Bool,
   cmd_aliases   => 'n',
   traits        => ['Getopt'],
+  trigger       => \&_set_progress_bar_flag,
 );
 
-has 'archive' => (
-  documentation => 'filename for archive',
-  is            => 'rw',
-  isa           => Bool|Str,
-  cmd_aliases   => 'a',
-  traits        => ['Getopt'],
-);
+# set a flag on the config object to show whether or not interested objects
+# should show progress bars when doing work
+sub _set_progress_bar_flag {
+  my ( $self, $flag, $old_flag ) = @_;
+  $self->config->{no_progress_bars} = $flag;
+}
 
 has 'zip' => (
   documentation => 'archive data in ZIP format',
@@ -155,8 +230,10 @@ sub run {
 
   # set up the finder
 
+  $DB::single = 1;
+
   # build the parameters for the finder. Omit undefined options or Moose spits
-  # the dummy
+  # the dummy (by design)
   my %finder_params = (
     ids  => $self->_ids,
     type => $self->_type,
@@ -167,17 +244,24 @@ sub run {
   # find lanes
   my $lanes = $self->_finder->find_lanes(%finder_params);
 
-  #---------------------------------------
-
   $self->log->debug( 'found ' . scalar @$lanes . ' lanes' );
 
+  if ( scalar @$lanes < 1 ) {
+    say 'No data found.';
+    exit;
+  }
+
+  # do something with the found lanes
+  $DB::single = 1;
+
   if ( $self->symlink ) {
-    foreach my $lane ( @$lanes ) {
-      $lane->make_symlinks( dest => $self->symlink, rename => $self->rename );
-    }
+    $self->_make_symlinks($lanes);
   }
   elsif ( $self->archive ) {
     $self->_make_archive($lanes);
+  }
+  elsif ( $self->stats ) {
+    # $self->_make_stats($lanes);
   }
   else {
     $_->print_paths for ( @$lanes );
@@ -189,17 +273,77 @@ sub run {
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# make a gzip-compressed tar archive of the data files for the found lanes
+# make symlinks for found lanes
+
+sub _make_symlinks {
+  my ( $self, $lanes ) = @_;
+
+  my $dest;
+
+  if ( $self->_symlink_dir ) {
+    $self->log->debug('symlink attribute specifies a dir name');
+    $dest = $self->_symlink_dir;
+  }
+  else {
+    $self->log->debug('symlink attribute is a boolean; building a dir name');
+    ( my $renamed_id = $self->id ) =~ s/\#/_/g;
+    $dest = dir( getcwd(), "pathfind_$renamed_id" );
+  }
+
+  $dest->mkpath unless -d $dest;
+
+  croak "ERROR: no such directory ($dest)" unless -d $dest;
+
+  say "Creating links in '$dest'";
+
+  my $max = scalar @$lanes;
+  my $progress_bar = Term::ProgressBar->new( {
+    name   => 'linking',
+    count  => $max,
+    remove => 1,
+    silent => $self->no_progress_bars,
+  } );
+  $progress_bar->minor(0); # ditch the "completion time estimator" character
+
+  my $next_update = 0;
+  for ( my $i = 0; $i < scalar @$lanes; $i++ ) {
+    my $lane = $lanes->[$i];
+
+    $lane->make_symlinks( dest => $dest, rename => $self->rename );
+
+    $next_update = $progress_bar->update($i);
+  }
+
+  # we need to make sure that $next_update is defined, because if we run with
+  # "silent => 0", i.e. if we don't want to show any progress bars, calls to
+  # $progress_bar->update don't return a value, so we end up with pages of
+  # uninitialized value warnings
+  $progress_bar->update($max)
+    if ( defined $next_update and $max >= $next_update );
+}
+
+#-------------------------------------------------------------------------------
+
+# make an archive of the data files for the found lanes, either tar or zip,
+# depending on the "zip" attribute
 
 sub _make_archive {
   my ( $self, $lanes ) = @_;
 
-  if ( scalar @$lanes < 1 ) {
-    say 'Found no data to archive.';
-    exit;
-  }
+  my $archive_filename;
 
-  my $archive_filename = $self->_build_filename;
+  if ( $self->_archive_dir ) {
+    $self->log->debug('_archive_dir attribute is set; using it as a filename');
+    $archive_filename = $self->_archive_dir;
+  }
+  else {
+    $self->log->debug('_archive_dir attribute is not set; building a filename');
+    # we'll ALWAYS make a sensible name for the archive itself
+    ( my $renamed_id = $self->id ) =~ s/\#/_/g;
+    $archive_filename = $self->zip
+                      ? "pathfind_$renamed_id.zip"
+                      : "pathfind_$renamed_id.tar.gz";
+  }
 
   say "Archiving lane data to '$archive_filename'";
 
@@ -249,30 +393,6 @@ sub _make_archive {
 
 #-------------------------------------------------------------------------------
 
-sub _build_filename {
-  my $self = shift;
-
-  my $filename;
-
-  # decide on the name of the tar archive
-  if ( not is_Bool($self->archive) ) {
-    $self->log->debug('archive attribute is a PathClassFile; using it as a filename');
-    $filename = $self->archive;
-  }
-  else {
-    $self->log->debug('archive attribute is a boolean; building a filename');
-    # we'll ALWAYS make a sensible name for the archive itself
-    ( my $renamed_id = $self->id ) =~ s/\#/_/g;
-    $filename = $self->zip
-              ? "pathfind_$renamed_id.zip"
-              : "pathfind_$renamed_id.tar.gz";
-  }
-
-  return $filename;
-}
-
-#-------------------------------------------------------------------------------
-
 # retrieves the list of filenames associated with the supplied lanes
 
 sub _collect_filenames {
@@ -316,7 +436,7 @@ sub _collect_filenames {
   # "silent => 0", i.e. if we don't want to show any progress bars, calls to
   # $progress_bar->update don't return a value, so we end up with pages of
   # uninitialized value warnings
-  $progress_bar->update($next_update)
+  $progress_bar->update($max)
     if ( defined $next_update and $max >= $next_update );
 
   return ( \@filenames, \@stats );
