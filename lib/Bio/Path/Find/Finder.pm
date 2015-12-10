@@ -13,6 +13,7 @@ use Carp qw( croak carp );
 use Path::Class;
 use File::Basename;
 use Try::Tiny;
+use Term::ProgressBar;
 
 use Type::Params qw( compile );
 use Types::Standard qw(
@@ -214,19 +215,34 @@ sub find_lanes {
 sub _find_lanes {
   my ( $self, $ids, $type ) = @_;
 
-  # somewhere to store all of the Bio::Path::Find::Lane objects that we're
-  # going to build
-  my @lanes;
+  my @db_names = $self->_db_manager->database_names;
+
+  # set up the progress bar. Check the config for a flag telling us whether we
+  # should actually *show* it. If "silent" is set to true, the progress bar
+  # object won't actually show anything in the terminal
+  my $max = scalar( @db_names ) * scalar( @$ids );
+  my $progress_bar = Term::ProgressBar->new( {
+    name   => 'finding lanes',
+    count  => $max,
+    remove => 1,
+    silent => $self->config->{no_progress_bars},
+  } );
+  $progress_bar->minor(0); # ditch the "completion time estimator" character
 
   # walk over the list of available databases and, for each ID, search for
   # lanes matching the specified ID
-  DB: foreach my $db_name ( $self->_db_manager->database_names ) {
+  my @lanes;
+  my $next_update = 0;
+  my $i = 0;
+  DB: foreach my $db_name ( @db_names ) {
     $self->log->debug(qq(searching "$db_name"));
 
     my $database = $self->_db_manager->get_database($db_name);
 
     ID: foreach my $id ( @$ids ) {
       $self->log->debug( qq(looking for ID "$id") );
+
+      $next_update = $progress_bar->update($i++);
 
       my $rs = $database->schema->get_lanes_by_id($id, $type);
       next ID unless $rs; # no matching lanes
@@ -256,6 +272,9 @@ sub _find_lanes {
     }
 
   }
+
+  $progress_bar->update($max)
+    if ( defined $next_update and $max >= $next_update );
 
   return \@lanes;
 }

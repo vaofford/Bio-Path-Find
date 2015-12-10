@@ -81,13 +81,21 @@ $lanes = $f->find_lanes(
 
 is scalar @$lanes, 76, 'found 76 failed lanes with ID 10263_4';
 
-# look for lanes from a given study
-$lanes = $f->find_lanes(
-  ids  => [ 607 ],
-  type => 'study',
-);
+# look for lanes from a given study and check there's no progress bar
+stdout_unlike { $lanes = $f->find_lanes( ids  => [ 607 ], type => 'study' ) }
+  qr/finding lanes:/,
+  'no progress bar shown when no_progress_bar set true in config';
 
 is scalar @$lanes, 50, 'found 50 lanes in study 607';
+
+# check we can turn on progress bars
+$f->config->{no_progress_bars} = 0;
+
+stdout_unlike { $lanes = $f->find_lanes( ids  => [ 607 ], type => 'study' ) }
+  qr/finding lanes:/,
+  'progress bar shown when finding lanes';
+
+is scalar @$lanes, 50, 'still 50 lanes in study 607';
 
 done_testing;
 
