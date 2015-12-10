@@ -225,6 +225,7 @@ sub _find_lanes {
     name   => 'finding lanes',
     count  => $max,
     remove => 1,
+    ETA    => 'linear',
     silent => $self->config->{no_progress_bars},
   } );
   $progress_bar->minor(0); # ditch the "completion time estimator" character

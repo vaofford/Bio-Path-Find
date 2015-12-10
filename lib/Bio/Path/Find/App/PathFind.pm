@@ -290,9 +290,14 @@ sub _make_symlinks {
     $dest = dir( getcwd(), "pathfind_$renamed_id" );
   }
 
-  $dest->mkpath unless -d $dest;
+  try {
+    $dest->mkpath unless -d $dest;
+  } catch {
+    croak "ERROR: couldn't make link directory ($dest)";
+  };
 
-  croak "ERROR: no such directory ($dest)" unless -d $dest;
+  # should be redundant, but...
+  croak "ERROR: not a directory ($dest)" unless -d $dest;
 
   say "Creating links in '$dest'";
 
@@ -301,6 +306,7 @@ sub _make_symlinks {
     name   => 'linking',
     count  => $max,
     remove => 1,
+    ETA    => 'linear',
     silent => $self->no_progress_bars,
   } );
   $progress_bar->minor(0); # ditch the "completion time estimator" character
@@ -403,6 +409,7 @@ sub _collect_filenames {
     name   => 'finding files',
     count  => $max,
     remove => 1,
+    ETA    => 'linear',
     silent => $self->no_progress_bars,
   } );
   $progress_bar->minor(0); # ditch the "completion time estimator" character
@@ -490,6 +497,7 @@ sub _build_zip_archive {
     name   => 'adding files',
     count  => $max,
     remove => 1,
+    ETA    => 'linear',
     silent => $self->no_progress_bars,
   } );
   $progress_bar->minor(0);
@@ -552,6 +560,7 @@ sub _compress_data {
     name   => 'gzipping',
     count  => $max,
     remove => 1,
+    ETA    => 'linear',
     silent => $self->no_progress_bars,
   } );
   $progress_bar->minor(0); # ditch the "completion time estimator" character
@@ -600,6 +609,7 @@ sub _write_data {
     name   => 'writing',
     count  => $max,
     remove => 1,
+    ETA    => 'linear',
     silent => $self->no_progress_bars,
   } );
   $progress_bar->minor(0);
