@@ -57,6 +57,12 @@ ok -f $test_log, 'test log found';
 my @log_lines = $test_log->slurp( chomp => 1 );
 is scalar @log_lines, 1, 'got one log entry';
 
+# check that the renamed ID is generated correctly
+$params{id} = '10018_1#1';
+$tf = Bio::Path::Find::App::TestFind->new(%params);
+
+is $tf->_renamed_id, '10018_1_1', 'renamed ID correctly generated';
+
 # more complicated - get samples for lane IDs in a file
 %params = (
   environment  => 'test',

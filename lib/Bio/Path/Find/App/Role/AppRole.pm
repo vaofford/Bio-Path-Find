@@ -49,6 +49,11 @@ has 'id' => (
   cmd_aliases   => 'i',
   required      => 1,
   traits        => ['Getopt'],
+  trigger       => sub {
+    my ( $self, $id ) = @_;
+    ( my $renamed_id = $id ) =~ s/\#/_/g;
+    $self->_renamed_id( $renamed_id );
+  },
 );
 
 has 'type' => (
@@ -194,6 +199,16 @@ sub _build_finder {
     environment => $self->environment,
   );
 }
+
+#---------------------------------------
+
+# a slot to store the ID, but with hashes converted to underscores. Written by
+# a trigger on the "id" attribute
+
+has '_renamed_id' => (
+  is => 'rw',
+  isa => Str,
+);
 
 #-------------------------------------------------------------------------------
 #- construction ----------------------------------------------------------------
