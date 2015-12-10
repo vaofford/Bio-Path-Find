@@ -91,7 +91,7 @@ is scalar @$lanes, 50, 'found 50 lanes in study 607';
 # check we can turn on progress bars
 $f->config->{no_progress_bars} = 0;
 
-stdout_unlike { $lanes = $f->find_lanes( ids  => [ 607 ], type => 'study' ) }
+stderr_like { $lanes = $f->find_lanes( ids  => [ 607 ], type => 'study' ) }
   qr/finding lanes:/,
   'progress bar shown when finding lanes';
 
