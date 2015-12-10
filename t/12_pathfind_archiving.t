@@ -79,7 +79,7 @@ for ( my $i = 0; $i < scalar @expected_filenames; $i++ ) {
 
 # check against filenames from the app
 my ( $got_filenames, $got_stats );
-stdout_unlike { ( $got_filenames, $got_stats ) = $pf->_collect_filenames($lanes) }
+stderr_unlike { ( $got_filenames, $got_stats ) = $pf->_collect_filenames($lanes) }
   qr/finding files:\s+\d+\%/,
   'no progress bar for _collect_filenames when "no_progress_bars" true';
 
@@ -361,11 +361,7 @@ ok $exception_thrown, 'exception with write failure';
 
 #-------------------------------------------------------------------------------
 
-$DB::single = 1;
-
 done_testing;
 
 chdir $orig_cwd;
-
-exit;
 
