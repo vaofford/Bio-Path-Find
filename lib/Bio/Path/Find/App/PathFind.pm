@@ -12,7 +12,6 @@ use Moose::Util::TypeConstraints;
 
 use Carp qw( carp croak );
 use Path::Class;
-use Term::ProgressBar;
 use Try::Tiny;
 use IO::Compress::Gzip;
 use File::Temp;
@@ -20,6 +19,8 @@ use Text::CSV_XS;
 use Archive::Tar;
 use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
 use Cwd;
+
+use Bio::Path::Find::ProgressBar;
 
 use Types::Standard qw(
   ArrayRef
@@ -155,8 +156,7 @@ sub _check_for_archive_value {
        not is_Bool($new_dir) ) {
     $self->_archive_dir( dir $new_dir);
   }
-  elsif ( defined $new_dir
-    and $new_dir eq '' ) {
+  elsif ( defined $new_dir and $new_dir eq '' ) {
     $self->archive(1);
   }
 }
@@ -168,15 +168,35 @@ has '_archive_dir' => (
 
 #---------------------------------------
 
-# TODO implement this
+# set up "stats" like we set up "symlink"
 
 has 'stats' => (
-  documentation => 'filename for statistics output',
+  documentation => 'filename for statistics CSV output',
   is            => 'rw',
-  isa           => Str,
+  isa           => 'BoolOrStr',
   cmd_aliases   => 's',
   traits        => ['Getopt'],
+  trigger       => \&_check_for_stats_value,
 );
+
+sub _check_for_stats_value {
+  my ( $self, $new_file, $old_file ) = @_;
+  if ( defined $new_file and
+       $new_file ne ''   and
+       not is_Bool($new_file) ) {
+    $self->_stats_file( file $new_file );
+  }
+  elsif ( defined $new_file and $new_file eq '' ) {
+    $self->stats(1);
+  }
+}
+
+has '_stats_file' => (
+  is  => 'rw',
+  isa => PathClassFile->plus_coercions(FileFromStr),
+);
+
+#---------------------------------------
 
 has 'rename' => (
   documentation => 'replace hash (#) with underscore (_) in filenames',
@@ -192,15 +212,13 @@ has 'no_progress_bars' => (
   isa           => Bool,
   cmd_aliases   => 'n',
   traits        => ['Getopt'],
-  trigger       => \&_set_progress_bar_flag,
+  trigger       => sub {
+    my ( $self, $flag ) = @_;
+    # set a flag on the config object to tell interested objects whether they
+    # should show progress bars when doing work
+    $self->config->{no_progress_bars} = $flag;
+  },
 );
-
-# set a flag on the config object to show whether or not interested objects
-# should show progress bars when doing work
-sub _set_progress_bar_flag {
-  my ( $self, $flag, $old_flag ) = @_;
-  $self->config->{no_progress_bars} = $flag;
-}
 
 has 'zip' => (
   documentation => 'archive data in ZIP format',
@@ -245,7 +263,7 @@ sub run {
   $self->log->debug( 'found ' . scalar @$lanes . ' lanes' );
 
   if ( scalar @$lanes < 1 ) {
-    say 'No data found.';
+    say STDERR 'No data found.';
     exit;
   }
 
@@ -257,7 +275,7 @@ sub run {
     $self->_make_archive($lanes);
   }
   elsif ( $self->stats ) {
-    # $self->_make_stats($lanes);
+    $self->_make_stats($lanes);
   }
   else {
     $_->print_paths for ( @$lanes );
@@ -282,8 +300,7 @@ sub _make_symlinks {
   }
   else {
     $self->log->debug('symlink attribute is a boolean; building a dir name');
-    ( my $renamed_id = $self->id ) =~ s/\#/_/g;
-    $dest = dir( getcwd(), "pathfind_$renamed_id" );
+    $dest = dir( getcwd(), 'pathfind_' . $self->_renamed_id );
   }
 
   try {
@@ -295,33 +312,21 @@ sub _make_symlinks {
   # should be redundant, but...
   croak "ERROR: not a directory ($dest)" unless -d $dest;
 
-  say "Creating links in '$dest'";
+  say STDERR "Creating links in '$dest'";
 
-  my $max = scalar @$lanes;
-  my $progress_bar = Term::ProgressBar->new( {
+  my $progress_bar = Bio::Path::Find::ProgressBar->new(
     name   => 'linking',
-    count  => $max,
-    remove => 1,
-    ETA    => 'linear',
+    count  => scalar @$lanes,
     silent => $self->no_progress_bars,
-  } );
-  $progress_bar->minor(0); # ditch the "completion time estimator" character
+  );
 
-  my $next_update = 0;
-  for ( my $i = 0; $i < scalar @$lanes; $i++ ) {
-    my $lane = $lanes->[$i];
-
+  my $i = 0;
+  foreach my $lane ( @$lanes ) {
     $lane->make_symlinks( dest => $dest, rename => $self->rename );
-
-    $next_update = $progress_bar->update($i);
+    $progress_bar->update($i++);
   }
 
-  # we need to make sure that $next_update is defined, because if we run with
-  # "silent => 0", i.e. if we don't want to show any progress bars, calls to
-  # $progress_bar->update don't return a value, so we end up with pages of
-  # uninitialized value warnings
-  $progress_bar->update($max)
-    if ( defined $next_update and $max >= $next_update );
+  $progress_bar->finished;
 }
 
 #-------------------------------------------------------------------------------
@@ -341,13 +346,10 @@ sub _make_archive {
   else {
     $self->log->debug('_archive_dir attribute is not set; building a filename');
     # we'll ALWAYS make a sensible name for the archive itself
-    ( my $renamed_id = $self->id ) =~ s/\#/_/g;
-    $archive_filename = $self->zip
-                      ? "pathfind_$renamed_id.zip"
-                      : "pathfind_$renamed_id.tar.gz";
+    $archive_filename = 'pathfind_' . $self->_renamed_id . ( $self->zip ? '.zip' : '.tar.gz' );
   }
 
-  say "Archiving lane data to '$archive_filename'";
+  say STDERR "Archiving lane data to '$archive_filename'";
 
   # collect the list of files to archive
   my ( $filenames, $stats ) = $self->_collect_filenames($lanes);
@@ -367,10 +369,15 @@ sub _make_archive {
     # build the zip archive in memory
     my $zip = $self->_build_zip_archive($filenames);
 
+    print STDERR 'Writing zip file... ';
+
     # write it to file
     unless ( $zip->writeToFileNamed($archive_filename) == AZ_OK ) {
+      print STDERR "failed\n";
       croak "ERROR: couldn't write zip file ($archive_filename)";
     }
+
+    print STDERR "done\n";
   }
   else {
     # build the tar archive in memory
@@ -381,8 +388,15 @@ sub _make_archive {
     # but it's nicer to have a progress bar. Since gzipping and writing can be
     # performed as separate operations, we'll do progress bars for both of them
 
+    # get the contents of the tar file. This is a little slow but we can't
+    # break it down and use a progress bar, so at least tell the user what's
+    # going on
+    print STDERR 'Writing tar file... ';
+    my $tar_contents = $tar->write;
+    print STDERR "done\n";
+
     # gzip compress the archive
-    my $compressed_tar = $self->_compress_data( $tar->write );
+    my $compressed_tar = $self->_compress_data($tar_contents);
 
     # and write it out, gzip compressed
     $self->_write_data( $compressed_tar, $archive_filename );
@@ -390,7 +404,8 @@ sub _make_archive {
 
   #---------------------------------------
 
-  say "added $_" for @$filenames;
+  # list the contents of the archive
+  say $_ for @$filenames;
 }
 
 #-------------------------------------------------------------------------------
@@ -400,24 +415,19 @@ sub _make_archive {
 sub _collect_filenames {
   my ( $self, $lanes ) = @_;
 
-  my $max = scalar @$lanes;
-  my $progress_bar = Term::ProgressBar->new( {
+  my $progress_bar = Bio::Path::Find::ProgressBar->new(
     name   => 'finding files',
-    count  => $max,
-    remove => 1,
-    ETA    => 'linear',
+    count  => scalar @$lanes,
     silent => $self->no_progress_bars,
-  } );
-  $progress_bar->minor(0); # ditch the "completion time estimator" character
+  );
 
   # collect the lane stats as we go along. Store the headers for the stats
   # report as the first row
   my @stats = ( $lanes->[0]->stats_headers );
 
   my @filenames;
-  my $next_update = 0;
-  for ( my $i = 0; $i < $max; $i++ ) {
-    my $lane = $lanes->[$i];
+  my $i = 0;
+  foreach my $lane ( @$lanes ) {
 
     # if the Finder was set up to look for a specific filetype, we don't need
     # to do a find here. If it was not given a filetype, it won't have looked
@@ -432,15 +442,10 @@ sub _collect_filenames {
     # store the stats for this lane
     push @stats, $lane->stats;
 
-    $next_update = $progress_bar->update($i);
+    $progress_bar->update($i++);
   }
 
-  # we need to make sure that $next_update is defined, because if we run with
-  # "silent => 0", i.e. if we don't want to show any progress bars, calls to
-  # $progress_bar->update don't return a value, so we end up with pages of
-  # uninitialized value warnings
-  $progress_bar->update($max)
-    if ( defined $next_update and $max >= $next_update );
+  $progress_bar->finished;
 
   return ( \@filenames, \@stats );
 }
@@ -454,23 +459,18 @@ sub _build_tar_archive {
 
   my $tar = Archive::Tar->new;
 
-  my $max = scalar @$filenames;
-  my $progress_bar = Term::ProgressBar->new( {
+  my $progress_bar = Bio::Path::Find::ProgressBar->new(
     name   => 'adding files',
-    count  => $max,
-    remove => 1,
-    ETA    => 'linear',
+    count  => scalar @$filenames,
     silent => $self->no_progress_bars,
-  } );
-  $progress_bar->minor(0); # ditch the "completion time estimator" character
+  );
 
-  my $next_update = 0;
-  for ( my $i = 0; $i < scalar @$filenames; $i++ ) {
-    $tar->add_files($filenames->[$i]);
-    $next_update = $progress_bar->update($i);
+  my $i = 0;
+  foreach my $filename ( @$filenames ) {
+    $tar->add_files($filename);
+    $progress_bar->update($i++);
   }
-  $progress_bar->update($max)
-    if ( defined $next_update and $max >= $next_update );
+  $progress_bar->finished;
 
   # the files are added with their full paths. We want them to be relative,
   # so we'll go through the archive and rename them all. If the "-rename"
@@ -503,35 +503,34 @@ sub _build_zip_archive {
 
   my $zip = Archive::Zip->new;
 
-  my $max = scalar @$filenames;
-  my $next_update = 0;
-  my $progress_bar = Term::ProgressBar->new( {
+  my $progress_bar = Bio::Path::Find::ProgressBar->new(
     name   => 'adding files',
-    count  => $max,
-    remove => 1,
-    ETA    => 'linear',
+    count  => scalar @$filenames,
     silent => $self->no_progress_bars,
-  } );
-  $progress_bar->minor(0);
+  );
 
-  for ( my $i = 0; $i < scalar @$filenames; $i++ ) {
-    my $orig_filename = $filenames->[$i];
+  my $i = 0;
+  foreach my $orig_filename ( @$filenames ) {
     my $zip_filename  = $self->_rename_file($orig_filename);
 
-    # to-string the filenames, to avoid the Path::Class::File object going into
-    # the zip archive
-    $zip->addFile("$orig_filename", "$zip_filename");
+    # this might not be strictly necessary, but there were some strange things
+    # going on while testing this operation: stringify the filenames, to avoid
+    # the Path::Class::File object going into the zip archive
+    $zip->addFile($orig_filename->stringify, $zip_filename->stringify);
 
-    $next_update = $progress_bar->update($i);
+    $progress_bar->update($i++);
   }
 
-  $progress_bar->update($next_update)
-    if ( defined $next_update and $max >= $next_update );
+  $progress_bar->finished;
 
   return $zip;
 }
 
 #-------------------------------------------------------------------------------
+
+# generates a new filename by converting hashes to underscores in the supplied
+# filename. Also converts the filename to unix format, for use with tar and
+# zip
 
 sub _rename_file {
   my ( $self, $old_filename ) = @_;
@@ -568,14 +567,11 @@ sub _compress_data {
   my $chunk_size = int( $max / 100 );
 
   # set up the progress bar
-  my $progress_bar = Term::ProgressBar->new( {
+  my $progress_bar = Bio::Path::Find::ProgressBar->new(
     name   => 'gzipping',
     count  => $max,
-    remove => 1,
-    ETA    => 'linear',
     silent => $self->no_progress_bars,
-  } );
-  $progress_bar->minor(0); # ditch the "completion time estimator" character
+  );
 
   my $compressed_data;
   my $offset      = 0;
@@ -592,15 +588,13 @@ sub _compress_data {
 
     $offset    += $chunk_size;
     $remaining -= $chunk_size;
-    $next_update = $progress_bar->update($offset)
-      if ( defined $next_update and $offset >= $next_update );
+    $progress_bar->update($offset);
   }
 
   $z->close;
 
   # tidy up; push the progress bar to 100% so that it will actually be removed
-  $progress_bar->update($max)
-    if ( defined $next_update and $max >= $next_update );
+  $progress_bar->finished;
 
   return $compressed_data;
 }
@@ -617,14 +611,11 @@ sub _write_data {
   my $max        = length $data;
   my $chunk_size = int( $max / 100 );
 
-  my $progress_bar = Term::ProgressBar->new( {
+  my $progress_bar = Bio::Path::Find::ProgressBar->new(
     name   => 'writing',
     count  => $max,
-    remove => 1,
-    ETA    => 'linear',
     silent => $self->no_progress_bars,
-  } );
-  $progress_bar->minor(0);
+  );
 
   open ( FILE, '>', $filename )
     or croak "ERROR: couldn't write output file ($filename): $!";
@@ -639,14 +630,50 @@ sub _write_data {
     $written = syswrite FILE, $data, $chunk_size, $offset;
     $offset    += $written;
     $remaining -= $written;
-    $next_update = $progress_bar->update($offset)
-      if ( defined $next_update and $offset >= $next_update );
+    $progress_bar->update($offset);
   }
 
   close FILE;
 
-  $progress_bar->update($max)
-    if ( defined $next_update and $max >= $next_update );
+  $progress_bar->finished;
+}
+
+#-------------------------------------------------------------------------------
+
+sub _make_stats {
+  my ( $self, $lanes ) = @_;
+
+  my $filename;
+
+  # get or build the filename for the output file
+  if ( $self->_stats_file ) {
+    $self->log->debug('stats attribute specifies a filename');
+    $filename = $self->_stats_file;
+  }
+  else {
+    $self->log->debug('stats attribute is a boolean; building a filename');
+    $filename = dir( getcwd(), 'pathfind_' . $self->_renamed_id . '.csv' );
+  }
+
+  # collect the stats for the supplied lanes
+  my @stats = (
+    $lanes->[0]->stats_headers,
+  );
+
+  my $pb = Bio::Path::Find::ProgressBar->new(
+    name   => 'finding stats',
+    count  => scalar @$lanes,
+    silent => $self->no_progress_bars,
+  );
+
+  for ( my $i = 0; $i < scalar @$lanes; $i++ ) {
+    push @stats, $lanes->[$i]->stats;
+    $pb->update($i);
+  }
+
+  $pb->finished;
+
+  $self->_write_stats_csv(\@stats, $filename);
 }
 
 #-------------------------------------------------------------------------------

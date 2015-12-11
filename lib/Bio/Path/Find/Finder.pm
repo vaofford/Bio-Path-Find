@@ -13,7 +13,6 @@ use Carp qw( croak carp );
 use Path::Class;
 use File::Basename;
 use Try::Tiny;
-use Term::ProgressBar;
 
 use Type::Params qw( compile );
 use Types::Standard qw(
@@ -38,6 +37,7 @@ use Bio::Path::Find::Types qw(
 use Bio::Path::Find::DatabaseManager;
 use Bio::Path::Find::Lane;
 use Bio::Path::Find::Sorter;
+use Bio::Path::Find::ProgressBar;
 
 with 'Bio::Path::Find::Role::HasEnvironment',
      'Bio::Path::Find::Role::HasConfig',
@@ -217,23 +217,17 @@ sub _find_lanes {
 
   my @db_names = $self->_db_manager->database_names;
 
-  # set up the progress bar. Check the config for a flag telling us whether we
-  # should actually *show* it. If "silent" is set to true, the progress bar
-  # object won't actually show anything in the terminal
+  # set up the progress bar
   my $max = scalar( @db_names ) * scalar( @$ids );
-  my $progress_bar = Term::ProgressBar->new( {
+  my $progress_bar = Bio::Path::Find::ProgressBar->new(
     name   => 'finding lanes',
     count  => $max,
-    remove => 1,
-    ETA    => 'linear',
     silent => $self->config->{no_progress_bars},
-  } );
-  $progress_bar->minor(0); # ditch the "completion time estimator" character
+  );
 
   # walk over the list of available databases and, for each ID, search for
   # lanes matching the specified ID
   my @lanes;
-  my $next_update = 0;
   my $i = 0;
   DB: foreach my $db_name ( @db_names ) {
     $self->log->debug(qq(searching "$db_name"));
@@ -243,7 +237,7 @@ sub _find_lanes {
     ID: foreach my $id ( @$ids ) {
       $self->log->debug( qq(looking for ID "$id") );
 
-      $next_update = $progress_bar->update($i++);
+      $progress_bar->update($i++);
 
       my $rs = $database->schema->get_lanes_by_id($id, $type);
       next ID unless $rs; # no matching lanes
@@ -274,8 +268,7 @@ sub _find_lanes {
 
   }
 
-  $progress_bar->update($max)
-    if ( defined $next_update and $max >= $next_update );
+  $progress_bar->finished;
 
   return \@lanes;
 }
