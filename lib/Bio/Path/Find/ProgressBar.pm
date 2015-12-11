@@ -82,12 +82,14 @@ has 'count' => (
 Boolean specifying whether the progress bar should be removed from the terminal
 when complete.
 
+Default: true.
+
 =cut
 
 has 'remove' => (
   is      => 'ro',
   isa     => Bool,
-  default => 0,
+  default => 1,
 );
 
 =attr
@@ -97,6 +99,8 @@ The usage of this flag differs from its usage in the underlying
 L<Term::ProgressBar>, in that here we only need a boolean, rather than C<undef>
 or C<linear>. If C<ETA> is set to true, we specify C<linear> to the underlying
 progress bar object.
+
+Default: true.
 
 =cut
 
@@ -114,6 +118,8 @@ no need to treat updating or completion differently, as would be the case if
 accessing the progress bar object directly; when C<silent> is set true, calls
 to L<Term::ProgressBar::update|update> don't return anything. That wrinkle is
 smoothed out here...
+
+Default: false.
 
 =cut
 
@@ -137,13 +143,18 @@ has '_pb' => (
 sub _build_pb {
   my $self = shift;
 
-  return Term::ProgressBar->new( {
+  my $pb = Term::ProgressBar->new( {
     name   => $self->name,
     count  => $self->max,
     remove => $self->remove,
     ETA    => $self->ETA ? 'linear' : undef,
     silent => $self->silent,
   } );
+
+  # ditch the "completion time estimator" character
+  $pb->minor(0);
+
+  return $pb;
 }
 
 #---------------------------------------
