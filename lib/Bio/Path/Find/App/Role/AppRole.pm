@@ -24,8 +24,9 @@ use Bio::Path::Find::Types qw(
 );
 
 use Bio::Path::Find::Finder;
+use Bio::Path::Find::Exception;
 
-with 'MooseX::Getopt::Usage',
+with 'MooseX::Getopt::Dashes',
      'MooseX::Log::Log4perl',
      'Bio::Path::Find::Role::HasConfig',
      'Bio::Path::Find::Role::HasEnvironment';
@@ -78,9 +79,23 @@ has 'csv_separator' => (
   documentation => 'the separator used when writing CSV files (default ",")',
   is            => 'rw',
   isa           => Str,
-  cmd_aliases   => 'sep',
+  cmd_aliases   => 'c',
   traits        => ['Getopt'],
   default       => ',',
+);
+
+has 'no_progress_bars' => (
+  documentation => "don't show progress bars",
+  is            => 'ro',
+  isa           => Bool,
+  cmd_aliases   => 'n',
+  traits        => ['Getopt'],
+  trigger       => sub {
+    my ( $self, $flag ) = @_;
+    # set a flag on the config object to tell interested objects whether they
+    # should show progress bars when doing work
+    $self->config->{no_progress_bars} = $flag;
+  },
 );
 
 has 'verbose' => (

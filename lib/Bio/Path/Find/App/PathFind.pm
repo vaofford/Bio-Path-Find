@@ -47,14 +47,15 @@ with 'Bio::Path::Find::App::Role::AppRole',
     -i,  --id <ID>                  ID to find, or name of file containing IDs to find
     -t,  --type <type>              type of ID(s); lane|sample|library|study|species|file
 
-    -ft, --file_id_type <filetype>  type of IDs in file input file; lane|sample
+    -ft, --file-id-type <filetype>  type of IDs in file input file; lane|sample
                                     Required if type is "file"
   Filters:
     -ft, --filetype <filetype>      type of file to return; fastq|bam|pacbio|corrected
     -q,  --qc <status>              filter on QC status; passed|failed|pending
 
   Output:
-    -s,  --stats <output file>      create a file containing statistics for found data
+    -s,  --stats <output file>      create a CSV file containing statistics for found data
+    -c,  --csv-separator <sep>      separator for stats CSV file; default ","
     -l,  --symlink [<dest dir>]     create symbolic links to data files in the destination dir
     -a,  --archive [<archive name>] create an archive of found files
     -z   --zip                      create zip archives (default is to create tar archives)
@@ -204,20 +205,6 @@ has 'rename' => (
   isa           => Bool,
   cmd_aliases   => 'r',
   traits        => ['Getopt'],
-);
-
-has 'no_progress_bars' => (
-  documentation => "don't show progress bars",
-  is            => 'ro',
-  isa           => Bool,
-  cmd_aliases   => 'n',
-  traits        => ['Getopt'],
-  trigger       => sub {
-    my ( $self, $flag ) = @_;
-    # set a flag on the config object to tell interested objects whether they
-    # should show progress bars when doing work
-    $self->config->{no_progress_bars} = $flag;
-  },
 );
 
 has 'zip' => (
