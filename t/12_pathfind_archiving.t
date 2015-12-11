@@ -285,9 +285,10 @@ $pf = Bio::Path::Find::App::PathFind->new(%params);
 
 $lanes = $f->find_lanes( ids => [ '10018_1#1' ], type => 'lane', filetype => 'fastq' );
 
-stdout_like { $pf->_make_archive($lanes) }
-  qr/Archiving lane data to 'pathfind_10018_1_1.tar.gz'/,
-  'stdout shows correct filename for tar archive';
+output_like { $pf->_make_archive($lanes) }
+  qr/prokaryotes/,                                   # STDOUT
+  qr/pathfind_10018_1_1.tar.gz.*?Writing tar file/s, # STDERR
+  'stdout shows correct contents, stderr shows correct filename for tar archive';
 
 $archive = file( $temp_dir, 'pathfind_10018_1_1.tar.gz' );
 
@@ -308,9 +309,8 @@ $pf = Bio::Path::Find::App::PathFind->new(%params);
 
 my $exception_thrown = 0;
 try {
-  output_like { $pf->_make_archive($lanes) }
-    qr|Archive lane data to '/non-existent-dir|, # STDOUT
-    qr/ERROR: couldn't write output file/,       # STDERR
+  stderr_like { $pf->_make_archive($lanes) }
+    qr/non-existent-dir.*?ERROR: couldn't write output file/,
     'exception when writing tar to expected (broken) location';
 } catch {
   $exception_thrown = 1;
@@ -327,9 +327,10 @@ $params{zip} = 1;
 
 $pf = Bio::Path::Find::App::PathFind->new(%params);
 
-stdout_like { $pf->_make_archive($lanes) }
-  qr/Archiving lane data to 'pathfind_10018_1_1.zip'/,
-  'stdout shows correct filename for zip archive';
+output_like { $pf->_make_archive($lanes) }
+  qr/prokaryotes/,                                # STDOUT
+  qr/pathfind_10018_1_1.zip.*?Writing zip file/s, # STDERR
+  'stdout shows correct contents, stderr shows correct filename for zip archive';
 
 $archive = file( $temp_dir, 'pathfind_10018_1_1.zip' );
 
@@ -349,9 +350,8 @@ $pf = Bio::Path::Find::App::PathFind->new(%params);
 
 $exception_thrown = 0;
 try {
-  output_like { $pf->_make_archive($lanes) }
-    qr|Archive lane data to '/non-existent-dir|, # STDOUT
-    qr|Can't open /non-existent-dir/test.zip|,   # STDERR
+  stderr_like { $pf->_make_archive($lanes) }
+    qr|non-existent-dir.*?Can't open /non-existent-dir/test.zip|,
     'exception when writing zip to expected (broken) location';
 } catch {
   $exception_thrown = 1;

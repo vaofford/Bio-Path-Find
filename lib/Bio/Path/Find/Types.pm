@@ -25,6 +25,7 @@ use Type::Library -base, -declare => qw(
   QCState
   FileType
   Environment
+  TermProgressBar
 );
 
 use Type::Utils -all;
@@ -42,6 +43,7 @@ class_type 'Bio::Path::Find::LaneStatus';
 class_type 'Bio::Path::Find::LaneStatusFile';
 class_type 'Path::Class::File';
 class_type 'Path::Class::Dir';
+class_type 'Term::ProgressBar';
 
 declare_coercion 'FileFromStr',
   to_type PathClassFile,

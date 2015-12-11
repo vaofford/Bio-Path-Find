@@ -6,6 +6,7 @@ package Bio::Path::Find::App::Role::AppRole;
 use Moose::Role;
 
 use Path::Class;
+use Text::CSV_XS;
 use Carp qw( croak );
 
 use Types::Standard qw(
@@ -49,6 +50,11 @@ has 'id' => (
   cmd_aliases   => 'i',
   required      => 1,
   traits        => ['Getopt'],
+  trigger       => sub {
+    my ( $self, $id ) = @_;
+    ( my $renamed_id = $id ) =~ s/\#/_/g;
+    $self->_renamed_id( $renamed_id );
+  },
 );
 
 has 'type' => (
@@ -66,6 +72,15 @@ has 'file_id_type' => (
   isa           => FileIDType,
   cmd_aliases   => 'ft',
   traits        => ['Getopt'],
+);
+
+has 'csv_separator' => (
+  documentation => 'the separator used when writing CSV files (default ",")',
+  is            => 'rw',
+  isa           => Str,
+  cmd_aliases   => 'sep',
+  traits        => ['Getopt'],
+  default       => ',',
 );
 
 has 'verbose' => (
@@ -195,6 +210,16 @@ sub _build_finder {
   );
 }
 
+#---------------------------------------
+
+# a slot to store the ID, but with hashes converted to underscores. Written by
+# a trigger on the "id" attribute
+
+has '_renamed_id' => (
+  is => 'rw',
+  isa => Str,
+);
+
 #-------------------------------------------------------------------------------
 #- construction ----------------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -244,7 +269,7 @@ sub BUILD {
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# log the command line to file
+# logs the command line to file
 
 sub _log_command {
   my $self = shift;
@@ -255,6 +280,9 @@ sub _log_command {
 }
 
 #-------------------------------------------------------------------------------
+
+# reads a list of IDs from the supplied filename. Treats lines beginning with
+# hash (#) as comments and ignores them
 
 sub _load_ids_from_file {
   my ( $self, $filename ) = @_;
@@ -269,6 +297,35 @@ sub _load_ids_from_file {
   croak "ERROR: no IDs found in file ($filename)" unless scalar @ids;
 
   return \@ids;
+}
+
+#-------------------------------------------------------------------------------
+
+# writes the supplied array of arrays in CSV format to the specified file.
+# Uses the separator specified by the "csv_separator" attribute
+
+sub _write_stats_csv {
+  my ( $self, $stats, $filename ) = @_;
+
+  return unless ( defined $stats and scalar @$stats );
+
+  croak 'ERROR: must supply a filename for the stats report'
+    unless defined $filename;
+
+  my $fh = FileHandle->new;
+
+  # see if the supplied filename exists and complain if it does
+  croak 'ERROR: stats CSV file already exists; not overwriting existing file'
+    if -e $filename;
+
+  $fh->open( $filename, '>' );
+
+  my $csv = Text::CSV_XS->new;
+  $csv->eol("\n");
+  $csv->sep( $self->csv_separator );
+  $csv->print($fh, $_) for @$stats;
+
+  $fh->close;
 }
 
 #-------------------------------------------------------------------------------
