@@ -652,7 +652,7 @@ sub _make_stats {
   }
   else {
     $self->log->debug('stats attribute is a boolean; building a filename');
-    $filename = dir( getcwd(), 'pathfind_' . $self->_renamed_id . '.csv' );
+    $filename = dir( getcwd(), $self->_renamed_id . '.pathfind_stats.csv' );
   }
 
   # collect the stats for the supplied lanes
@@ -674,31 +674,6 @@ sub _make_stats {
   $pb->finished;
 
   $self->_write_stats_csv(\@stats, $filename);
-}
-
-#-------------------------------------------------------------------------------
-
-# writes the supplied lane statistics in CSV format to the specified file
-
-sub _write_stats_csv {
-  my ( $self, $stats, $filename ) = @_;
-
-  croak 'ERROR: must supply a filename for the stats report'
-    unless defined $filename;
-
-  my $fh = FileHandle->new;
-
-  # see if the supplied filename exists and complain if it does
-  croak 'ERROR: stats CSV file already exists; not overwriting existing file'
-    if -e $filename;
-
-  $fh->open( $filename, '>' );
-
-  my $csv = Text::CSV_XS->new;
-  $csv->eol("\n");
-  $csv->print($fh, $_) for @$stats;
-
-  $fh->close;
 }
 
 #-------------------------------------------------------------------------------
