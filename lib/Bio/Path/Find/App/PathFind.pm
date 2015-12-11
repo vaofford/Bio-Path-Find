@@ -10,7 +10,7 @@ use namespace::autoclean;
 use MooseX::StrictConstructor;
 use Moose::Util::TypeConstraints;
 
-use Carp qw( carp croak );
+use Carp qw( carp );
 use Path::Class;
 use Try::Tiny;
 use IO::Compress::Gzip;
@@ -20,6 +20,7 @@ use Archive::Tar;
 use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
 use Cwd;
 
+use Bio::Path::Find::Exception;
 use Bio::Path::Find::ProgressBar;
 
 use Types::Standard qw(
@@ -293,11 +294,14 @@ sub _make_symlinks {
   try {
     $dest->mkpath unless -d $dest;
   } catch {
-    croak "ERROR: couldn't make link directory ($dest)";
+    Bio::Path::Find::Exception->throw(
+      msg => "ERROR: couldn't make link directory ($dest)"
+    );
   };
 
   # should be redundant, but...
-  croak "ERROR: not a directory ($dest)" unless -d $dest;
+  Bio::Path::Find::Exception->throw( msg =>  "ERROR: not a directory ($dest)" )
+    unless -d $dest;
 
   say STDERR "Creating links in '$dest'";
 
@@ -361,7 +365,7 @@ sub _make_archive {
     # write it to file
     unless ( $zip->writeToFileNamed($archive_filename) == AZ_OK ) {
       print STDERR "failed\n";
-      croak "ERROR: couldn't write zip file ($archive_filename)";
+      Bio::Path::Find::Exception->throw( msg => "ERROR: couldn't write zip file ($archive_filename)" );
     }
 
     print STDERR "done\n";
@@ -605,7 +609,7 @@ sub _write_data {
   );
 
   open ( FILE, '>', $filename )
-    or croak "ERROR: couldn't write output file ($filename): $!";
+    or Bio::Path::Find::Exception->throw( msg =>  "ERROR: couldn't write output file ($filename): $!" );
 
   binmode FILE;
 

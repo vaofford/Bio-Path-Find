@@ -8,13 +8,14 @@ use namespace::autoclean;
 use MooseX::StrictConstructor;
 
 use Types::Standard qw( Str ArrayRef HashRef );
-use Carp qw( croak carp );
+use Carp qw( carp );
 use DBI;
 use Data::Dump qw( pp );
 
 use Bio::Path::Find::Types qw( BioPathFindDatabase );
 use Bio::Track::Schema;
 use Bio::Path::Find::Database;
+use Bio::Path::Find::Exception;
 
 with 'Bio::Path::Find::Role::HasEnvironment',
      'Bio::Path::Find::Role::HasConfig',
@@ -62,11 +63,11 @@ sub _build_connection_params {
 
   my $connection = $self->config->{connection_params};
 
-  croak 'ERROR: configuration does not specify any database connection parameters ("connection_params")'
+  Bio::Path::Find::Exception->throw( msg =>  'ERROR: configuration does not specify any database connection parameters ("connection_params")' )
     unless ( defined $connection and ref $connection eq 'HASH' );
 
   foreach ( qw( host user port ) ) {
-    croak "ERROR: configuration does not specify one of the required database connection parameters ($_)"
+    Bio::Path::Find::Exception->throw( msg =>  "ERROR: configuration does not specify one of the required database connection parameters ($_)" )
       unless exists $connection->{$_};
   }
 
@@ -104,7 +105,7 @@ sub _build_data_sources {
               ? ( 'pathogen_test_track' )
               : grep s/^DBI:mysql://, DBI->data_sources('mysql', $self->connection_params);
 
-  croak 'ERROR: failed to retrieve a list of data sources'
+  Bio::Path::Find::Exception->throw( msg =>  'ERROR: failed to retrieve a list of data sources' )
     unless scalar @sources;
 
   $self->log->debug("list of data sources from database:\n", pp(\@sources));
@@ -188,7 +189,7 @@ sub _build_database_names {
 
   my @database_names = ();
   if ( $self->is_in_test_env ) {
-    croak 'ERROR: when in the test environment, the configuration must specify the name of a test database (set "test_db")'
+    Bio::Path::Find::Exception->throw( msg =>  'ERROR: when in the test environment, the configuration must specify the name of a test database (set "test_db")' )
       unless defined $self->config->{test_db};
     push @database_names, $self->config->{test_db};
   }

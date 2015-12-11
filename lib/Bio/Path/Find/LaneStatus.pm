@@ -7,8 +7,6 @@ use Moose;
 use namespace::autoclean;
 use MooseX::StrictConstructor;
 
-use Carp qw( carp croak );
-
 use Bio::Path::Find::LaneStatusFile;
 
 use Types::Standard qw(
@@ -23,6 +21,8 @@ use Bio::Path::Find::Types qw(
   PathClassFile
   Datetime
 );
+
+use Bio::Path::Find::Exception;
 
 #-------------------------------------------------------------------------------
 #- public attributes -----------------------------------------------------------

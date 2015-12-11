@@ -7,7 +7,6 @@ use Moose::Role;
 
 use Path::Class;
 use Text::CSV_XS;
-use Carp qw( croak );
 
 use Types::Standard qw(
   ArrayRef
@@ -253,7 +252,7 @@ sub BUILD {
 
   # check for dependencies between parameters: if "type" is "file", we need to
   # know what type of IDs we'll find in the file
-  croak q(ERROR: if "type" is "file", you must also specify "file_id_type")
+  Bio::Path::Find::Exception->throw( msg => q(ERROR: if "type" is "file", you must also specify "file_id_type") )
     if ( $self->type eq 'file' and not $self->file_id_type );
 
   # look at the input parameters and decide whether we're dealing with a single
@@ -302,14 +301,16 @@ sub _log_command {
 sub _load_ids_from_file {
   my ( $self, $filename ) = @_;
 
-  croak "ERROR: no such file ($filename)" unless -f $filename;
+  Bio::Path::Find::Exception->throw( msg => "ERROR: no such file ($filename)" )
+    unless -f $filename;
 
   # TODO check if this will work with the expected usage. If users are used
   # TODO to putting plex IDs as search terms, stripping lines starting with
   # TODO "#" will break those searches
   my @ids = grep ! m/^#/, $filename->slurp(chomp => 1);
 
-  croak "ERROR: no IDs found in file ($filename)" unless scalar @ids;
+  Bio::Path::Find::Exception->throw( msg => "ERROR: no IDs found in file ($filename)" )
+    unless scalar @ids;
 
   return \@ids;
 }
@@ -324,13 +325,13 @@ sub _write_stats_csv {
 
   return unless ( defined $stats and scalar @$stats );
 
-  croak 'ERROR: must supply a filename for the stats report'
+  Bio::Path::Find::Exception->throw( msg => 'ERROR: must supply a filename for the stats report' )
     unless defined $filename;
 
   my $fh = FileHandle->new;
 
   # see if the supplied filename exists and complain if it does
-  croak 'ERROR: stats CSV file already exists; not overwriting existing file'
+  Bio::Path::Find::Exception->throw( msg => 'ERROR: stats CSV file already exists; not overwriting existing file' )
     if -e $filename;
 
   $fh->open( $filename, '>' );

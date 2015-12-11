@@ -9,13 +9,14 @@ use Moose;
 use namespace::autoclean;
 use MooseX::StrictConstructor;
 
-use Carp qw( carp croak );
+use Carp qw( carp );
 use Path::Class;
 use File::Find::Rule;
 use Try::Tiny;
 use Cwd;
 
 use Bio::Path::Find::LaneStatus;
+use Bio::Path::Find::Exception;
 
 use Type::Params qw( compile );
 use Types::Standard qw(
@@ -172,8 +173,11 @@ sub _build_root_dir {
   # it doesn't, that might indicate a problem with the mountpoint on the
   # machine and it's worth telling the user, so that they don't simply think
   # their IDs etc. don't exist
-  croak "ERROR: can't see the filesystem root ($root_dir). This may indicate a problem with mountpoints"
-    unless -e $root_dir;
+  unless ( -e $root_dir ) {
+    Bio::Path::Find::Exception->throw(
+      msg =>  "ERROR: can't see the filesystem root ($root_dir). This may indicate a problem with mountpoints"
+    );
+  }
 
   return $root_dir;
 }
@@ -420,9 +424,12 @@ sub make_symlinks {
     $params->{dest} = dir getcwd;
   }
 
-  croak 'ERROR: destination for symlinks does not exist or is not a directory ('
-        . $params->{dest} . ')'
-    unless -d $params->{dest};
+  unless ( -d $params->{dest} ) {
+    Bio::Path::Find::Exception->throw(
+      msg =>  'ERROR: destination for symlinks does not exist or is not a directory ('
+              . $params->{dest} . ')'
+    );
+  }
 
   if ( $params->{filetype} ) {
     $self->log->debug('find files of type "' . $params->{filetype} . '"');
@@ -480,7 +487,7 @@ sub _make_file_symlinks {
     } catch {
       # this should only happen if perl can't create symlinks on the current
       # platform
-      croak "ERROR: cannot create symlinks: $_";
+      Bio::Path::Find::Exception->throw( msg =>  "ERROR: cannot create symlinks: $_" );
     };
     $num_successful_links += $success;
 
@@ -527,7 +534,7 @@ sub _make_dir_symlink {
   } catch {
     # this should only happen if perl can't create symlinks on the current
     # platform
-    croak "ERROR: cannot create symlinks: $_";
+    Bio::Path::Find::Exception->throw( msg =>  "ERROR: cannot create symlinks: $_" );
   };
 
   return $success

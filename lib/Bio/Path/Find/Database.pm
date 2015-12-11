@@ -8,10 +8,11 @@ use namespace::autoclean;
 use MooseX::StrictConstructor;
 
 use Types::Standard qw( Str ArrayRef HashRef Undef );
-use Carp qw( croak carp );
+use Carp qw( carp );
 use DBI;
 
 use Bio::Track::Schema;
+use Bio::Path::Find::Exception;
 use Bio::Path::Find::Types qw( BioTrackSchema );
 
 with 'Bio::Path::Find::Role::HasEnvironment',
@@ -135,7 +136,9 @@ sub _build_db_root {
              : '/lustre/scratch108/pathogen/pathpipe';
   }
 
-  croak "ERROR: data hierarchy root directory ($db_root) does not exist (or is not a directory)"
+  Bio::Path::Find::Exception->throw(
+    msg => "ERROR: data hierarchy root directory ($db_root) does not exist (or is not a directory)"
+  )
     unless -d $db_root;
 
   return $db_root;
@@ -175,7 +178,7 @@ sub _build_hierarchy_template {
     $template = 'genus:species-subspecies:TRACKING:projectssid:sample:technology:library:lane';
   }
 
-  croak "ERROR: invalid directory hierarchy template ($template)"
+  Bio::Path::Find::Exception->throw( msg => "ERROR: invalid directory hierarchy template ($template)" )
     unless $template =~ m/^([\w-]+:?)+$/;
 
   return $template;
@@ -275,7 +278,7 @@ sub _get_dsn {
 
   my $dsn;
   if ( $self->environment eq 'test' ) {
-    croak 'ERROR: must specify SQLite DB location as "connection:dbname" in test config'
+    Bio::Path::Find::Exception->throw( msg =>  'ERROR: must specify SQLite DB location as "connection:dbname" in test config' )
       unless $c->{dbname};
     $dsn = 'dbi:SQLite:dbname=' . $c->{dbname};
   }

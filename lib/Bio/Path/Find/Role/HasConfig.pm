@@ -6,9 +6,9 @@ package Bio::Path::Find::Role::HasConfig;
 use Moose::Role;
 
 use Types::Standard qw( Str HashRef );
-
-use Carp qw( croak );
 use Config::Any;
+
+use Bio::Path::Find::Exception;
 
 with 'Bio::Path::Find::Role::HasEnvironment';
 
@@ -51,7 +51,7 @@ sub _build_config_file {
                   ? 't/data/04_has_config/test.conf'
                   : '/software/pathogen/projects/PathFind/config/prod.yml';
 
-  croak "ERROR: config file ($config_file) does not exist"
+  Bio::Path::Find::Exception->throw( msg =>  "ERROR: config file ($config_file) does not exist" )
     unless -f $config_file;
 
   return $config_file;
@@ -87,7 +87,9 @@ sub _build_config {
     }
   );
 
-  croak q(ERROR: failed to read configuration from file ") . $self->config_file . q(")
+  Bio::Path::Find::Exception->throw(
+    msg => q(ERROR: failed to read configuration from file ") . $self->config_file . q(")
+  )
     unless scalar keys %{ $cfg->{$self->config_file} };
 
   return $cfg->{$self->config_file};
