@@ -91,6 +91,8 @@ is $tf->run, 'called _make_stats', 'correctly called _make_stats';
 
 done_testing;
 
+file( qw( t data 16_pathfind _pathfind_test.log ) )->remove;
+
 __DATA__
 t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1
 t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_IN_2/SLX/APP_IN_2_7492527/10018_1#2

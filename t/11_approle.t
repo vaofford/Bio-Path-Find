@@ -141,4 +141,5 @@ is_deeply $stats, \@expected_stats, 'tab-separated contents look right';
 done_testing;
 
 chdir $orig_cwd;
+$test_log->remove;
 
