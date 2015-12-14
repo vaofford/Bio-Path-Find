@@ -1,7 +1,7 @@
 
 package Bio::Path::Find::App::Role::AppRole;
 
-# ABSTRACT: a base class that carries most of the boilerplate for "finder" apps
+# ABSTRACT: a role that carries most of the boilerplate for "finder" apps
 
 use v5.10; # for "say"
 
@@ -240,7 +240,6 @@ sub BUILD {
 
   # check for dependencies between parameters: if "type" is "file", we need to
   # know what type of IDs we'll find in the file
-  # say STDERR q(ERROR: if "type" is "file", you must also specify "file_id_type") and exit
   Bio::Path::Find::Exception->throw( msg => q(ERROR: if "type" is "file", you must also specify "file_id_type") )
     if ( $self->type eq 'file' and not $self->file_id_type );
 
@@ -267,23 +266,6 @@ sub BUILD {
   $self->_ids($ids);
   $self->_type($type);
 }
-
-#-------------------------------------------------------------------------------
-#- exception handling ----------------------------------------------------------
-#-------------------------------------------------------------------------------
-
-around 'run' => sub {
-  my $orig = shift;
-  my $self = shift;
-
-  try {
-    $self->$orig(@_);
-  } catch {
-    say "caught an exception:";
-    say STDERR $_;
-    say "done";
-  };
-};
 
 #-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------
