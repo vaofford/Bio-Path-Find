@@ -2,10 +2,19 @@
 
 # PODNAME: pathfind
 
+use v5.10; # for "say"
+
 use strict;
 use warnings;
 
+use Try::Tiny;
+
 use Bio::Path::Find::App::PathFind;
 
-Bio::Path::Find::App::PathFind->new_with_options->run;
+try {
+  Bio::Path::Find::App::PathFind->new_with_options->run;
+} catch {
+  say STDERR $_;
+};
+
 

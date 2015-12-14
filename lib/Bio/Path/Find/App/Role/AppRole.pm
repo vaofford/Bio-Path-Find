@@ -33,6 +33,9 @@ with 'MooseX::Log::Log4perl',
      'Bio::Path::Find::Role::HasConfig',
      'Bio::Path::Find::Role::HasEnvironment';
 
+# this is the one and only method that the concrete find class needs to provide
+requires 'run';
+
 #-------------------------------------------------------------------------------
 #- common attributes -----------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -49,7 +52,6 @@ option 'id' => (
   is            => 'rw',
   isa           => Str,
   cmd_aliases   => 'i',
-  cmd_position  => 1,
   required      => 1,
   trigger       => sub {
     my ( $self, $id ) = @_;
@@ -59,11 +61,10 @@ option 'id' => (
 );
 
 option 'type' => (
-  documentation => 'ID type, or "file" for IDs in a file',
+  documentation => 'ID type. Use "file" to read IDs from file',
   is            => 'rw',
   isa           => IDType,
   cmd_aliases   => 't',
-  cmd_position  => 2,
   required      => 1,
 );
 
@@ -71,13 +72,15 @@ option 'file_id_type' => (
   documentation => 'type of IDs in the input file',
   is            => 'rw',
   isa           => FileIDType,
+  cmd_flag      => 'file-id-type',
   cmd_aliases   => 'ft',
 );
 
 option 'csv_separator' => (
-  documentation => 'the separator used when writing CSV files',
+  documentation => 'field separator to use when writing CSV files',
   is            => 'rw',
   isa           => Str,
+  cmd_flag      => 'csv-separator',
   cmd_aliases   => 'c',
   default       => ',',
 );
@@ -86,6 +89,7 @@ option 'no_progress_bars' => (
   documentation => "don't show progress bars",
   is            => 'ro',
   isa           => Bool,
+  cmd_flag      => 'no-progress-bars',
   cmd_aliases   => 'n',
   trigger       => sub {
     my ( $self, $flag ) = @_;
@@ -236,6 +240,7 @@ sub BUILD {
 
   # check for dependencies between parameters: if "type" is "file", we need to
   # know what type of IDs we'll find in the file
+  # say STDERR q(ERROR: if "type" is "file", you must also specify "file_id_type") and exit
   Bio::Path::Find::Exception->throw( msg => q(ERROR: if "type" is "file", you must also specify "file_id_type") )
     if ( $self->type eq 'file' and not $self->file_id_type );
 
@@ -262,6 +267,23 @@ sub BUILD {
   $self->_ids($ids);
   $self->_type($type);
 }
+
+#-------------------------------------------------------------------------------
+#- exception handling ----------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+around 'run' => sub {
+  my $orig = shift;
+  my $self = shift;
+
+  try {
+    $self->$orig(@_);
+  } catch {
+    say "caught an exception:";
+    say STDERR $_;
+    say "done";
+  };
+};
 
 #-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------

@@ -1,11 +1,11 @@
 
 package Bio::Path::Find::App::PathFind;
 
-# ABSTRACT: the guts of a pathfind app
+# ABSTRACT: find files and directories for sequencing lanes
 
 use v5.10; # for "say"
 
-use MooseX::App::Simple;
+use MooseX::App::Simple qw( Depends );
 # use namespace::autoclean; # leave out; messes with MooseX::App
 use MooseX::StrictConstructor;
 
@@ -38,51 +38,45 @@ use Bio::Path::Find::Types qw(
 with 'MooseX::Log::Log4perl',
      'Bio::Path::Find::App::Role::AppRole';
 
-# command_short_description 'Find sequencing data';
-# command_usage <<EOF_usage;
-#
-# Find information about sequencing files.
-#
-# Required:
-#   -i,  --id <ID>                  ID to find, or name of file containing IDs to find
-#   -t,  --type <type>              type of ID(s); lane|sample|library|study|species|file
-#
-#   -ft, --file-id-type <filetype>  type of IDs in file input file; lane|sample
-#                                   Required if type is "file"
-# Filters:
-#   -ft, --filetype <filetype>      type of file to return; fastq|bam|pacbio|corrected
-#   -q,  --qc <status>              filter on QC status; passed|failed|pending
-#
-# Output:
-#   -s,  --stats <output file>      create a CSV file containing statistics for found data
-#   -c,  --csv-separator <sep>      separator for stats CSV file; default ","
-#   -l,  --symlink [<dest dir>]     create symbolic links to data files in the destination dir
-#   -a,  --archive [<archive name>] create an archive of found files
-#   -z   --zip                      create zip archives (default is to create tar archives)
-#   -r,  --rename                   convert hash (#) to underscore (_) in output filenames
-#   -n,  --no-progress-bars         don't show progress bars when archiving
-#   -h,  -?                         print this message
-# EOF_usage
 
+=head1 USAGE
+
+pathfind --type <ID type> --id <id> [options]
+
+=cut
 
 #-------------------------------------------------------------------------------
 #- public attributes -----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
 option 'filetype' => (
-  documentation => 'file type to find',
+  documentation => 'type of files to find',
   is            => 'ro',
   isa           => FileType,
   cmd_aliases   => 'f',
 );
 
 option 'qc' => (
-  documentation => 'QC state',
+  documentation => 'filter results by lane QC state',
   is            => 'ro',
   isa           => QCState,
   cmd_aliases   => 'q',
 );
 
+option 'rename' => (
+  documentation => 'replace hash (#) with underscore (_) in filenames',
+  is            => 'rw',
+  isa           => Bool,
+  cmd_aliases   => 'r',
+);
+
+option 'zip' => (
+  documentation => 'archive data in ZIP format',
+  is            => 'ro',
+  isa           => Bool,
+  cmd_aliases   => 'z',
+  depends       => [ 'archive' ],
+);
 #---------------------------------------
 
 # this option can be used as a simple switch ("-l") or with an argument
@@ -184,22 +178,6 @@ sub _check_for_stats_value {
 
 has '_stats_file' => ( is => 'rw', isa => PathClassFile );
 has '_stats_flag' => ( is => 'rw', isa => Bool );
-
-#---------------------------------------
-
-option 'rename' => (
-  documentation => 'replace hash (#) with underscore (_) in filenames',
-  is            => 'rw',
-  isa           => Bool,
-  cmd_aliases   => 'r',
-);
-
-option 'zip' => (
-  documentation => 'archive data in ZIP format',
-  is            => 'ro',
-  isa           => Bool,
-  cmd_aliases   => 'z',
-);
 
 #-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
@@ -367,7 +345,7 @@ sub _make_archive {
     # get the contents of the tar file. This is a little slow but we can't
     # break it down and use a progress bar, so at least tell the user what's
     # going on
-    print STDERR 'Writing tar file... ';
+    print STDERR 'Building tar file... ';
     my $tar_contents = $tar->write;
     print STDERR "done\n";
 
