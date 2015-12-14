@@ -5,26 +5,7 @@
 use strict;
 use warnings;
 
-use Try::Tiny;
-
 use Bio::Path::Find::App::PathFind;
 
-# try {
-  my $pathfind = Bio::Path::Find::App::PathFind->new_with_options;
-  $pathfind->run;
-# }
-# catch {
-#   if ( ref $_ and $_->isa('Bio::Path::Find::Exception') ) {
-#     say STDERR $_->msg;
-#   }
-#   else {
-#     print $_;
-#   }
-#   exit 1;
-# };
-
-# TODO this is work in progress. Catching the exception here doesn't help much -- the Moose
-# TODO attribute validation errors are still mostly unreadable. Need a better way to catch
-# TODO them
-exit 0;
+Bio::Path::Find::App::PathFind->new_with_options->run;
 

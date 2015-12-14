@@ -1,11 +1,12 @@
 
 package Bio::Path::Find::App::Role::AppRole;
 
-# ABSTRACT: a role that carries most of the boilerplate for "finder" apps
+# ABSTRACT: a base class that carries most of the boilerplate for "finder" apps
 
 use v5.10; # for "say"
 
 use Moose::Role;
+use MooseX::App::Role;
 
 use Path::Class;
 use Text::CSV_XS;
@@ -28,12 +29,9 @@ use Bio::Path::Find::Types qw(
 use Bio::Path::Find::Finder;
 use Bio::Path::Find::Exception;
 
-with 'MooseX::Getopt::Dashes',
-     'MooseX::Log::Log4perl',
+with 'MooseX::Log::Log4perl',
      'Bio::Path::Find::Role::HasConfig',
      'Bio::Path::Find::Role::HasEnvironment';
-
-requires 'run';
 
 #-------------------------------------------------------------------------------
 #- common attributes -----------------------------------------------------------
@@ -46,13 +44,13 @@ requires 'run';
 # are set up by the "new_with_options" call that instantiates the *Find object
 # in the main script, e.g. pathfind
 
-has 'id' => (
+option 'id' => (
   documentation => 'ID or name of file containing IDs',
   is            => 'rw',
   isa           => Str,
   cmd_aliases   => 'i',
+  cmd_position  => 1,
   required      => 1,
-  traits        => ['Getopt'],
   trigger       => sub {
     my ( $self, $id ) = @_;
     ( my $renamed_id = $id ) =~ s/\#/_/g;
@@ -60,38 +58,35 @@ has 'id' => (
   },
 );
 
-has 'type' => (
+option 'type' => (
   documentation => 'ID type, or "file" for IDs in a file',
   is            => 'rw',
   isa           => IDType,
   cmd_aliases   => 't',
+  cmd_position  => 2,
   required      => 1,
-  traits        => ['Getopt'],
 );
 
-has 'file_id_type' => (
+option 'file_id_type' => (
   documentation => 'type of IDs in the input file',
   is            => 'rw',
   isa           => FileIDType,
   cmd_aliases   => 'ft',
-  traits        => ['Getopt'],
 );
 
-has 'csv_separator' => (
-  documentation => 'the separator used when writing CSV files (default ",")',
+option 'csv_separator' => (
+  documentation => 'the separator used when writing CSV files',
   is            => 'rw',
   isa           => Str,
   cmd_aliases   => 'c',
-  traits        => ['Getopt'],
   default       => ',',
 );
 
-has 'no_progress_bars' => (
+option 'no_progress_bars' => (
   documentation => "don't show progress bars",
   is            => 'ro',
   isa           => Bool,
   cmd_aliases   => 'n',
-  traits        => ['Getopt'],
   trigger       => sub {
     my ( $self, $flag ) = @_;
     # set a flag on the config object to tell interested objects whether they
@@ -100,32 +95,18 @@ has 'no_progress_bars' => (
   },
 );
 
-has 'verbose' => (
+option 'verbose' => (
   documentation => 'show debugging messages',
   is            => 'rw',
   isa           => Bool,
   cmd_aliases   => 'v',
   default       => 0,
-  traits        => ['Getopt'],
 );
 
 # these are "non-option" attributes
 has 'environment'  => ( is => 'rw', isa => Environment, default => 'prod' );
 has 'config_file'  => ( is => 'rw', isa => Str,         default => 'live.conf' );
 # TODO get rid of the hard-coded config file path somehow
-
-# configure the usage message. This method is used by MooseX::Getopt::Usage to
-# determine which POD sections are used to build the usage message, i.e. the
-# DESCRIPTION section from the POD in the concrete application class, e.g.
-# Bio::Path::Find::App::PathFind, provides the usage message.
-#
-# If we miss this method out, MooseX::Getopt will auto-generate the options
-# list, which is in hash order and shows all attributes, not just the command
-# line options
-
-sub getopt_usage_config {
-  return ( usage_sections => [ 'DESCRIPTION' ] );
-}
 
 #-------------------------------------------------------------------------------
 #- private attributes ----------------------------------------------------------
@@ -346,45 +327,6 @@ sub _write_stats_csv {
 
   $fh->close;
 }
-
-#-------------------------------------------------------------------------------
-#- method modifiers ------------------------------------------------------------
-#-------------------------------------------------------------------------------
-
-around 'new_with_options' => sub {
-  my $orig = shift;
-  my $self = shift;
-  my @params = @_;
-
-  try {
-    $self->$orig(@params);
-  } catch {
-    if ( m/Attribute \((\w+)\) does not pass the type constraint/ ) {
-      say STDERR "$1 is not valid";
-    }
-    elsif ( m/Mandatory parameter '(\w+)' missing/ ) {
-      say STDERR "You must give a value for $1";
-    }
-    else {
-      say STDERR "Something went wrong: $_";
-    }
-    $self->getopt_usage( exit => 1, err => 'There was a problem with your inputs' );
-  };
-
-};
-
-# around 'run' => sub {
-#   my $orig = shift;
-#   my $self = shift;
-#
-#   try {
-#     $self->$orig(@_);
-#   } catch {
-#     say STDERR $_->msg;
-#     exit 1;
-#   };
-#
-# };
 
 #-------------------------------------------------------------------------------
 

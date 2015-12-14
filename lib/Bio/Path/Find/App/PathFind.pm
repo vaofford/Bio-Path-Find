@@ -5,10 +5,9 @@ package Bio::Path::Find::App::PathFind;
 
 use v5.10; # for "say"
 
-use Moose;
-use namespace::autoclean;
+use MooseX::App::Simple;
+# use namespace::autoclean; # leave out; messes with MooseX::App
 use MooseX::StrictConstructor;
-use Moose::Util::TypeConstraints;
 
 use Carp qw( carp );
 use Path::Class;
@@ -25,7 +24,7 @@ use Bio::Path::Find::ProgressBar;
 
 use Types::Standard qw(
   ArrayRef
-  Str
+  +Str
   +Bool
 );
 
@@ -36,184 +35,170 @@ use Bio::Path::Find::Types qw(
   +PathClassFile FileFromStr
 );
 
-# the boilerplate functionality for this class comes from the AppRole
-with 'Bio::Path::Find::App::Role::AppRole',
-     'MooseX::Log::Log4perl';
+with 'MooseX::Log::Log4perl',
+     'Bio::Path::Find::App::Role::AppRole';
 
-=head1 DESCRIPTION
+# command_short_description 'Find sequencing data';
+# command_usage <<EOF_usage;
+#
+# Find information about sequencing files.
+#
+# Required:
+#   -i,  --id <ID>                  ID to find, or name of file containing IDs to find
+#   -t,  --type <type>              type of ID(s); lane|sample|library|study|species|file
+#
+#   -ft, --file-id-type <filetype>  type of IDs in file input file; lane|sample
+#                                   Required if type is "file"
+# Filters:
+#   -ft, --filetype <filetype>      type of file to return; fastq|bam|pacbio|corrected
+#   -q,  --qc <status>              filter on QC status; passed|failed|pending
+#
+# Output:
+#   -s,  --stats <output file>      create a CSV file containing statistics for found data
+#   -c,  --csv-separator <sep>      separator for stats CSV file; default ","
+#   -l,  --symlink [<dest dir>]     create symbolic links to data files in the destination dir
+#   -a,  --archive [<archive name>] create an archive of found files
+#   -z   --zip                      create zip archives (default is to create tar archives)
+#   -r,  --rename                   convert hash (#) to underscore (_) in output filenames
+#   -n,  --no-progress-bars         don't show progress bars when archiving
+#   -h,  -?                         print this message
+# EOF_usage
 
-  Find information about sequencing files.
-
-  Required:
-    -i,  --id <ID>                  ID to find, or name of file containing IDs to find
-    -t,  --type <type>              type of ID(s); lane|sample|library|study|species|file
-
-    -ft, --file-id-type <filetype>  type of IDs in file input file; lane|sample
-                                    Required if type is "file"
-  Filters:
-    -ft, --filetype <filetype>      type of file to return; fastq|bam|pacbio|corrected
-    -q,  --qc <status>              filter on QC status; passed|failed|pending
-
-  Output:
-    -s,  --stats <output file>      create a CSV file containing statistics for found data
-    -c,  --csv-separator <sep>      separator for stats CSV file; default ","
-    -l,  --symlink [<dest dir>]     create symbolic links to data files in the destination dir
-    -a,  --archive [<archive name>] create an archive of found files
-    -z   --zip                      create zip archives (default is to create tar archives)
-    -r,  --rename                   convert hash (#) to underscore (_) in output filenames
-    -n,  --no-progress-bars         don't show progress bars when archiving
-    -h,  -?                         print this message
-
-=cut
 
 #-------------------------------------------------------------------------------
 #- public attributes -----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-has 'filetype' => (
-  documentation => 'file type to find; fastq | bam | pacbio | corrected',
-  is            => 'rw',
+option 'filetype' => (
+  documentation => 'file type to find',
+  is            => 'ro',
   isa           => FileType,
   cmd_aliases   => 'f',
-  traits        => ['Getopt'],
 );
 
-has 'qc' => (
-  documentation => 'QC state; passed | failed | pending',
-  is            => 'rw',
+option 'qc' => (
+  documentation => 'QC state',
+  is            => 'ro',
   isa           => QCState,
   cmd_aliases   => 'q',
-  traits        => ['Getopt'],
 );
 
 #---------------------------------------
 
-# this is a bit hairy. The symlink (and later, archive) attribute needs to
-# accept either a boolean (if the flag is set on the command line but has
-# no argument) or a string (if the flag is set and a value is given). This
-# configuration doesn't seem to be possible using a combination of
-# MooseX::Getopt and Type::Tiny, hence this ugly work-around, using
-# Moose::Util::TypeConstraints instead of Type::Tiny.
+# this option can be used as a simple switch ("-l") or with an argument
+# ("-l mydir"). It's a bit fiddly to set that up...
 
-# first, set up a boolean-or-string type and register it with MooseX::Getopt as
-# accepting an optional string argument
-subtype 'BoolOrStr',
-  as 'Str';
-
-MooseX::Getopt::OptionTypeMap->add_option_type_to_map( 'BoolOrStr' => ':s' );
-
-# next, set up a trigger that checks for the value of the "symlink"
-# command-line argument nd tries to decide if it's a boolean or a string,
-# explicitly treating "defined but not set" as true
-has 'symlink' => (
+option 'symlink' => (
   documentation => 'create symlinks for data files in the specified directory',
-  is            => 'rw',
-  isa           => 'BoolOrStr',
+  is            => 'ro',
   cmd_aliases   => 'l',
-  traits        => ['Getopt'],
   trigger       => \&_check_for_symlink_value,
+  # no "isa" because we want to accept both Bool and Str and it doesn't seem to
+  # be possible to specify that using the combination of MooseX::App and
+  # Type::Tiny that we're using here
 );
 
+# set up a trigger that checks for the value of the "symlink" command-line
+# argument and tries to decide if it's a boolean, in which case we'll generate
+# a directory name to hold links, or a string, in which case we'll treat that
+# string as a directory name.
 sub _check_for_symlink_value {
-  my ( $self, $new_dir, $old_dir ) = @_;
-  if ( defined $new_dir and
-       $new_dir ne ''   and
-       not is_Bool($new_dir) ) {
-    $self->_symlink_dir( dir $new_dir);
+  my ( $self, $new, $old ) = @_;
+
+  if ( not defined $new ) {
+    # make links in a directory whose name we'll set ourselves
+    $self->_symlink_flag(1);
   }
-  elsif ( defined $new_dir
-    and $new_dir eq '' ) {
-    $self->symlink(1);
+  elsif ( not is_Bool($new) ) {
+    # make links in the directory specified by the user
+    $self->_symlink_flag(1);
+    $self->_symlink_dir( dir $new );
+  }
+  else {
+    # don't make links. Shouldn't ever get here
+    $self->_symlink_flag(0);
   }
 }
 
-# finally, set up a private attribute to store the (optional) value of the
-# "symlink" attribute. When using all of this we can check for "symlink" being
-# true or false, and, if it's true, check "_symlink_dir" for a value
-has '_symlink_dir' => (
-  is  => 'rw',
-  isa => PathClassDir->plus_coercions(DirFromStr),
-);
-
-# what a mess...
+# private attributes to store the (optional) value of the "symlink" attribute.
+# When using all of this we can check for "_symlink_flag" being true or false,
+# and, if it's true, check "_symlink_dir" for a value
+has '_symlink_dir'  => ( is => 'rw', isa => PathClassDir );
+has '_symlink_flag' => ( is => 'rw', isa => Bool );
 
 #---------------------------------------
 
 # set up "archive" like we set up "symlink". No need to register a new
 # subtype again though
 
-has 'archive' => (
+option 'archive' => (
   documentation => 'filename for archive',
   is            => 'rw',
-  isa           => 'BoolOrStr',
+  # no "isa" because we want to accept both Bool and Str
   cmd_aliases   => 'a',
-  traits        => ['Getopt'],
   trigger       => \&_check_for_archive_value,
 );
 
 sub _check_for_archive_value {
-  my ( $self, $new_dir, $old_dir ) = @_;
-  if ( defined $new_dir and
-       $new_dir ne ''   and
-       not is_Bool($new_dir) ) {
-    $self->_archive_dir( dir $new_dir);
+  my ( $self, $new, $old ) = @_;
+
+  if ( not defined $new ) {
+    $self->_archive_flag(1);
   }
-  elsif ( defined $new_dir and $new_dir eq '' ) {
-    $self->archive(1);
+  elsif ( not is_Bool($new) ) {
+    $self->_archive_flag(1);
+    $self->_archive_dir( dir $new );
+  }
+  else {
+    $self->_archive_flag(0);
   }
 }
 
-has '_archive_dir' => (
-  is  => 'rw',
-  isa => PathClassDir->plus_coercions(DirFromStr),
-);
+has '_archive_dir'  => ( is => 'rw', isa => PathClassDir );
+has '_archive_flag' => ( is => 'rw', isa => Bool );
 
 #---------------------------------------
 
-# set up "stats" like we set up "symlink"
-
-has 'stats' => (
+option 'stats' => (
   documentation => 'filename for statistics CSV output',
   is            => 'rw',
-  isa           => 'BoolOrStr',
+  # no "isa" because we want to accept both Bool and Str
   cmd_aliases   => 's',
-  traits        => ['Getopt'],
   trigger       => \&_check_for_stats_value,
 );
 
 sub _check_for_stats_value {
-  my ( $self, $new_file, $old_file ) = @_;
-  if ( defined $new_file and
-       $new_file ne ''   and
-       not is_Bool($new_file) ) {
-    $self->_stats_file( file $new_file );
+  my ( $self, $new, $old ) = @_;
+
+  if ( not defined $new ) {
+    $self->_stats_flag(1);
   }
-  elsif ( defined $new_file and $new_file eq '' ) {
-    $self->stats(1);
+  elsif ( not is_Bool($new) ) {
+    $self->_stats_flag(1);
+    $self->_stats_file( file $new );
+  }
+  else {
+    $self->_stats_flag(0);
   }
 }
 
-has '_stats_file' => (
-  is  => 'rw',
-  isa => PathClassFile->plus_coercions(FileFromStr),
-);
+has '_stats_file' => ( is => 'rw', isa => PathClassFile );
+has '_stats_flag' => ( is => 'rw', isa => Bool );
 
 #---------------------------------------
 
-has 'rename' => (
+option 'rename' => (
   documentation => 'replace hash (#) with underscore (_) in filenames',
   is            => 'rw',
   isa           => Bool,
   cmd_aliases   => 'r',
-  traits        => ['Getopt'],
 );
 
-has 'zip' => (
+option 'zip' => (
   documentation => 'archive data in ZIP format',
   is            => 'ro',
   isa           => Bool,
   cmd_aliases   => 'z',
-  traits        => ['Getopt'],
 );
 
 #-------------------------------------------------------------------------------
@@ -256,13 +241,13 @@ sub run {
   }
 
   # do something with the found lanes
-  if ( $self->symlink ) {
+  if ( $self->_symlink_flag ) {
     $self->_make_symlinks($lanes);
   }
-  elsif ( $self->archive ) {
+  elsif ( $self->_archive_flag ) {
     $self->_make_archive($lanes);
   }
-  elsif ( $self->stats ) {
+  elsif ( $self->_stats_flag ) {
     $self->_make_stats($lanes);
   }
   else {
@@ -630,6 +615,8 @@ sub _write_data {
 }
 
 #-------------------------------------------------------------------------------
+
+# build a CSV file with the statistics for all lanes and write it to file
 
 sub _make_stats {
   my ( $self, $lanes ) = @_;
