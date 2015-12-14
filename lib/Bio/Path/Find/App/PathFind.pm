@@ -5,7 +5,7 @@ package Bio::Path::Find::App::PathFind;
 
 use v5.10; # for "say"
 
-use MooseX::App::Simple qw( Depends );
+use MooseX::App::Simple qw( Depends Man );
 # use namespace::autoclean; # leave out; messes with MooseX::App
 use MooseX::StrictConstructor;
 
@@ -38,12 +38,148 @@ use Bio::Path::Find::Types qw(
 with 'MooseX::Log::Log4perl',
      'Bio::Path::Find::App::Role::AppRole';
 
+#-------------------------------------------------------------------------------
+#- usage text ------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 
 =head1 USAGE
 
-pathfind --type <ID type> --id <id> [options]
+pathfind --id <id> --type <ID type> [options]
+
+=head1 DESCRIPTION
+
+Given a study ID, lane ID, or sample ID, or a file containing a list of IDs,
+this script will output the path(s) on disk to the data associated with the
+specified sequencing run(s).
+
+=head1 OPTIONS
+
+=head2 REQUIRED OPTIONS
+
+=over
+
+=item --id -i <ID>
+
+The ID for which to search, or the name of a file on disk from which the search
+IDs should be read.
+
+=item --type -t <ID type>
+
+The type of ID specified by B<--id>, or B<file> to read IDs from disk. Must be
+one of B<lane>, B<sample>, B<study>, B<library>, B<species>, B<study> or
+B<file>.
+
+=item --file-id-type -ft <type of ID in file>
+
+The type of ID found in the specified file
+
+=back
+
+=head2 FURTHER OPTIONS
+
+=head3 FILTERING
+
+=over
+
+=item --qc | -q <QC status>
+
+Show information only for lanes with the specified quality control status. Must
+be one of B<passed>, B<failed>, or B<pending>.
+
+=item --filetype | -f <file type>
+
+If set, the script will list only files of the specified type. If B<--filetype>
+is not provided, the default behaviour is to return the path to the directory
+containing all files for the given lane. Must be one of B<bam>, B<corrected>,
+B<fastq>, or B<pacbio>.
+
+=back
+
+=head3 OUTPUT
+
+pathfind can output data in various ways. The default behaviour is to list
+the directories containing data for the specified ID(s). 
+
+=over
+
+=item --archive | -a [<archive name>]
+
+If an archive name is given, the found data will be written as a tar archive
+with the specified name. If the C<--archive> option is given without a value,
+the archive will be named according to the search ID. See also C<--zip>.
+
+=item --zip | -z
+
+Write a zip archive instead of a tar archive. Must be used along with the
+C<--archive> option.
+
+=item --symlink | -l [<link dir>]
+
+Create symbolic links to the found data. If a link directory is specified,
+the links will be created in that directory. The directory itself will be
+created if it does not already exist. If a link directory is not specified,
+the links will be created in the current working directory.
+
+=item --stats | -s [<CSV file>]
+
+Create a comma-separated-values (CSV) file containing the statistics for
+the found lanes. If a filename is supplied, the CSV data will be written
+to that file. If no filename is given, a filename will be generated from
+the input ID. See also C<--csv-separator>.
+
+=item --csv-separator | -c <separator>
+
+Specify the separator that should be used when writing CSV data. The default is
+a comma (",") but an alternative would be a tab character ("	").
+
+=item --rename | -r
+
+When collecting files in archives or when symlinking data files, convert
+hashes ("#") in filenames into underscores ("_"). This conversion is
+always done when generating names for archives or stats CSV files.
+
+=back
+
+=head3 SWITCHES
+
+=item --no-progress-bars | -n
+
+Don't show progress bars when performing slow operations. Useful if using
+C<pathfind> as part of a larger script.
+
+=item --verbose | -v
+
+Show (lots of) debugging messages.
+
+=item --help | -h | -?
+
+Show the usage message.
+
+=back
 
 =cut
+
+# old pathfind help text:
+#
+# Usage: /software/pathogen/internal/prod/bin/pathfind
+#                 -t|type         <study|lane|file|library|sample|species>
+#                 -i|id           <study id|study name|lane name|file of lane names>
+#         --file_id_type     <lane|sample> define ID types contained in file. default = lane
+#                 -h|help         <this help message>
+#                 -f|filetype     <fastq|bam|pacbio|corrected>
+#                 -l|symlink      <create sym links to the data and define output directory>
+#                 -a|archive      <name for archive containing the data>
+#                 -r|rename   <replace # in symlinks with _>
+#                 -s|stats        <output statistics>
+#                 -q|qc           <passed|failed|pending>
+#                 --prefix_with_library_name <prefix the symlink with the sample name>
+#
+#         Given a study, lane or a file containing a list of lanes or samples, this script will output the path (on pathogen disk) to the data associated with the specified study or lane.
+#         Using the option -qc (passed|failed|pending) will limit the results to data of the specified qc status.
+#         Using the option -filetype (fastq, bam, pacbio or corrected) will return the path to the files of this type for the given data.
+#         Using the option -symlink will create a symlink to the queried data in the current directory, alternativley an output directory can be specified in which the symlinks will be created.
+#         Similarly, the archive option will create and archive (.tar.gz) of the data under a default file name unless one is specified.
+# =cut
 
 #-------------------------------------------------------------------------------
 #- public attributes -----------------------------------------------------------
