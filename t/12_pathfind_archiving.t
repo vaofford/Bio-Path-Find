@@ -286,8 +286,8 @@ $pf = Bio::Path::Find::App::PathFind->new(%params);
 $lanes = $f->find_lanes( ids => [ '10018_1#1' ], type => 'lane', filetype => 'fastq' );
 
 output_like { $pf->_make_archive($lanes) }
-  qr/prokaryotes/,                                   # STDOUT
-  qr/pathfind_10018_1_1.tar.gz.*?Writing tar file/s, # STDERR
+  qr/prokaryotes/,                                    # STDOUT
+  qr/pathfind_10018_1_1.tar.gz.*?Building tar file/s, # STDERR
   'stdout shows correct contents, stderr shows correct filename for tar archive';
 
 $archive = file( $temp_dir, 'pathfind_10018_1_1.tar.gz' );
