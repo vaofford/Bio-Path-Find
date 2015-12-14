@@ -3,10 +3,13 @@ package Bio::Path::Find::App::Role::AppRole;
 
 # ABSTRACT: a role that carries most of the boilerplate for "finder" apps
 
+use v5.10; # for "say"
+
 use Moose::Role;
 
 use Path::Class;
 use Text::CSV_XS;
+use Try::Tiny;
 
 use Types::Standard qw(
   ArrayRef
@@ -343,6 +346,45 @@ sub _write_stats_csv {
 
   $fh->close;
 }
+
+#-------------------------------------------------------------------------------
+#- method modifiers ------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+around 'new_with_options' => sub {
+  my $orig = shift;
+  my $self = shift;
+  my @params = @_;
+
+  try {
+    $self->$orig(@params);
+  } catch {
+    if ( m/Attribute \((\w+)\) does not pass the type constraint/ ) {
+      say STDERR "$1 is not valid";
+    }
+    elsif ( m/Mandatory parameter '(\w+)' missing/ ) {
+      say STDERR "You must give a value for $1";
+    }
+    else {
+      say STDERR "Something went wrong: $_";
+    }
+    $self->getopt_usage( exit => 1, err => 'There was a problem with your inputs' );
+  };
+
+};
+
+# around 'run' => sub {
+#   my $orig = shift;
+#   my $self = shift;
+#
+#   try {
+#     $self->$orig(@_);
+#   } catch {
+#     say STDERR $_->msg;
+#     exit 1;
+#   };
+#
+# };
 
 #-------------------------------------------------------------------------------
 

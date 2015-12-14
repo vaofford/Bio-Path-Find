@@ -5,120 +5,26 @@
 use strict;
 use warnings;
 
+use Try::Tiny;
+
 use Bio::Path::Find::App::PathFind;
 
-my $pathfind = Bio::Path::Find::App::PathFind->new_with_options;
+# try {
+  my $pathfind = Bio::Path::Find::App::PathFind->new_with_options;
+  $pathfind->run;
+# }
+# catch {
+#   if ( ref $_ and $_->isa('Bio::Path::Find::Exception') ) {
+#     say STDERR $_->msg;
+#   }
+#   else {
+#     print $_;
+#   }
+#   exit 1;
+# };
 
-$pathfind->run;
-
-exit;
-
-__END__
-
-use Getopt::Long;
-use Bio::Path::Find::Finder;
-
-use Types::Standard qw( Str );
-use Bio::Path::Find::Types qw(
-  IDType
-  FileIDType
-  QCState
-  FileType
-  Environment
-);
-
-# a mapping that gives the type for each option, plus a short description of
-# the type that we can use in an error message
-# TODO see if we can use something like Type::Library to do this validation
-my %option_types = (
-  config       => { type => Str,         desc => 'a string' },
-  environment  => { type => Environment, desc => 'either "test" or "prod"' },
-  id           => { type => Str,         desc => 'a string' },
-  type         => { type => IDType,      desc => 'a valid ID type' },
-  filetype     => { type => Str,         desc => 'a string' },
-  file_id_type => { type => FileIDType,  desc => 'a valid file ID type' },
-  qc           => { type => QCState,     desc => 'either "passed", "failed", or "pending"' },
-);
-
-# set option defaults
-my %options = (
-  config      => 'live.conf',
-  environment => 'prod',
-  verbose     => 0,
-);
-
-# parse the command line options
-my $options_parsed_successfully = GetOptions(
-  \%options,
-  'config=s',
-  'environment=s',
-  'id=s',
-  'type=s',
-  'filetype|ft=s',
-  'file_id_type|fit=s',
-  'qc=s',
-  'help|?',
-  'verbose+'
-);
-
-usage() if $options{help};
-
-exit 1 unless $options_parsed_successfully;
-
-# check for required parameters
-unless ( $options{id} and $options{type}) {
-  print STDERR "ERROR: you must specify the ID (-id) and ID type (-type)\n";
-  exit 1;
-}
-
-# check types for supplied options
-while ( my ( $option_name, $option_value ) = each %options ) {
-  # skip the validation of this option unless we have a type to check for
-  next unless $option_types{$option_name};
-
-  my $type = $option_types{$option_name}->{type};
-  my $desc = $option_types{$option_name}->{desc};
-
-  unless ( $type->check($option_value) ) {
-    print STDERR qq(ERROR: option "$option_name" is not $desc\n);
-    exit 1;
-  }
-}
-
-# get a finder
-my $pf = Bio::Path::Find::Finder->new(
-  config_file => $options{config},
-  environment => $options{environment},
-);
-
-# increase the log level in response to the "-verbose" flag
-foreach my $category ( qw ( Bio.Path.Find.Finder Bio.Path.Find.Lane Bio.Path.Find.DatabaseManager ) ) {
-  $pf->log($category)->more_logging($options{verbose}) if $options{verbose};
-}
-
-# turn on DBIC debugging if the "-verbose" option is used multiple times
-$ENV{DBIC_TRACE} = 1 if $options{verbose} > 3;
-
-my %parameters = (
-  id   => $options{id},
-  type => $options{type},
-);
-
-# pass only meaningful options on to the find/print method
-foreach my $option ( grep ! m/(verbose|config|environment)/, keys %options ) {
-  $parameters{$option} = $options{$option} if $options{$option};
-}
-
-$pf->print_paths(%parameters);
-
+# TODO this is work in progress. Catching the exception here doesn't help much -- the Moose
+# TODO attribute validation errors are still mostly unreadable. Need a better way to catch
+# TODO them
 exit 0;
-
-#-------------------------------------------------------------------------------
-#- functions -------------------------------------------------------------------
-#-------------------------------------------------------------------------------
-
-sub usage {
-  say 'usage: pathfind ...';
-  exit 0;
-}
 
