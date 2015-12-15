@@ -50,7 +50,7 @@ symlink( "$orig_cwd/t/data", "$temp_dir/t/data") == 1
 chdir $temp_dir;
 
 # create a test log file and make sure it isn't already there
-my $test_log = file('t/data/11_approle/_testfind_test.log');
+my $test_log = file('_testfind_test.log');
 $test_log->remove;
 
 # simple find - get samples for a lane
@@ -74,6 +74,9 @@ ok -f $test_log, 'test log found';
 
 my @log_lines = $test_log->slurp( chomp => 1 );
 is scalar @log_lines, 1, 'got one log entry';
+
+my $username = ( getpwuid($<) )[0];
+like $log_lines[0], qr/$username/, 'found username in command log';
 
 # check that the renamed ID is generated correctly
 $params{id} = '10018_1#1';
@@ -141,5 +144,4 @@ is_deeply $stats, \@expected_stats, 'tab-separated contents look right';
 done_testing;
 
 chdir $orig_cwd;
-$test_log->remove;
 
