@@ -147,6 +147,12 @@ always done when generating names for archives or stats CSV files.
 Don't show progress bars when performing slow operations. Useful if using
 C<pathfind> as part of a larger script.
 
+=item --no-tar-compression | -u
+
+Don't compress tar archives. Since data files are already gzip compressed, the
+extra compression often won't achieve much. Leaving the archive uncompressed
+will speed up the archiving operation.
+
 =item --verbose | -v
 
 Show (lots of) debugging messages.
@@ -204,6 +210,14 @@ option 'rename' => (
   is            => 'rw',
   isa           => Bool,
   cmd_aliases   => 'r',
+);
+
+option 'no_tar_compression' => (
+  documentation => "don't compress tar archives",
+  is            => 'rw',
+  isa           => Bool,
+  cmd_flag      => 'no-tar-compression',
+  cmd_aliases   => 'u',
 );
 
 option 'zip' => (
@@ -435,8 +449,14 @@ sub _make_archive {
   }
   else {
     $self->log->debug('_archive_dir attribute is not set; building a filename');
-    # we'll ALWAYS make a sensible name for the archive itself
-    $archive_filename = 'pathfind_' . $self->_renamed_id . ( $self->zip ? '.zip' : '.tar.gz' );
+    # we'll ALWAYS make a sensible name for the archive itself (use renamed_id)
+    if ( $self->zip ) {
+      $archive_filename = 'pathfind_' . $self->_renamed_id . '.zip';
+    }
+    else {
+      $archive_filename = 'pathfind_' . $self->_renamed_id
+                          . ( $self->no_tar_compression ? '.tar' : '.tar.gz' );
+    }
   }
 
   say STDERR "Archiving lane data to '$archive_filename'";
@@ -485,11 +505,13 @@ sub _make_archive {
     my $tar_contents = $tar->write;
     print STDERR "done\n";
 
-    # gzip compress the archive
-    my $compressed_tar = $self->_compress_data($tar_contents);
+    # gzip compress the archive ?
+    my $output = $self->no_tar_compression
+               ? $tar_contents
+               : $self->_compress_data($tar_contents);
 
     # and write it out, gzip compressed
-    $self->_write_data( $compressed_tar, $archive_filename );
+    $self->_write_data( $output, $archive_filename );
   }
 
   #---------------------------------------

@@ -287,7 +287,7 @@ $lanes = $f->find_lanes( ids => [ '10018_1#1' ], type => 'lane', filetype => 'fa
 
 output_like { $pf->_make_archive($lanes) }
   qr/prokaryotes/,                                    # STDOUT
-  qr/pathfind_10018_1_1.tar.gz.*?Building tar file/s, # STDERR
+  qr/pathfind_10018_1_1\.tar\.gz.*?Building tar file/s, # STDERR
   'stdout shows correct contents, stderr shows correct filename for tar archive';
 
 $archive = file( $temp_dir, 'pathfind_10018_1_1.tar.gz' );
@@ -300,6 +300,18 @@ my $tar = Archive::Tar->new;
 lives_ok { $tar->read($archive) } 'no problem reading tar archive';
 is_deeply [ $tar->list_files ], [ '10018_1_1/10018_1#1_1.fastq.gz', '10018_1_1/stats.csv' ],
   'got expected files in tar archive';
+
+# check we can write uncompressed tar files
+$params{no_tar_compression} = 1;
+
+$pf = Bio::Path::Find::App::PathFind->new(%params);
+
+$lanes = $f->find_lanes( ids => [ '10018_1#1' ], type => 'lane', filetype => 'fastq' );
+
+output_like { $pf->_make_archive($lanes) }
+  qr/prokaryotes/,                                    # STDOUT
+  qr/pathfind_10018_1_1\.tar(?!\.gz).*?Building tar file/s, # STDERR
+  'stdout shows correct contents, stderr shows correct filename for tar archive';
 
 # check for errors when writing
 
@@ -329,7 +341,7 @@ $pf = Bio::Path::Find::App::PathFind->new(%params);
 
 output_like { $pf->_make_archive($lanes) }
   qr/prokaryotes/,                                # STDOUT
-  qr/pathfind_10018_1_1.zip.*?Writing zip file/s, # STDERR
+  qr/pathfind_10018_1_1\.zip.*?Writing zip file/s, # STDERR
   'stdout shows correct contents, stderr shows correct filename for zip archive';
 
 $archive = file( $temp_dir, 'pathfind_10018_1_1.zip' );
