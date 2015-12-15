@@ -41,6 +41,7 @@ use Test::More;
 use Test::Exception;
 use Test::Output;
 use Path::Class;
+use Cwd;
 
 use Bio::Path::Find::Finder;
 
@@ -49,7 +50,13 @@ use Bio::Path::Find::Finder;
 
 use_ok('Bio::Path::Find::App::TestFind');
 
+# set up a temp dir where we can write files
 my $temp_dir = File::Temp->newdir;
+dir( $temp_dir, 't' )->mkpath;
+my $orig_cwd = getcwd;
+symlink( "$orig_cwd/t/data", "$temp_dir/t/data") == 1
+  or die "ERROR: couldn't link data directory into temp directory";
+chdir $temp_dir;
 
 # the basic params. These will stay unchanged for all of the subsequent runs
 my %params = (
@@ -91,7 +98,7 @@ is $tf->run, 'called _make_stats', 'correctly called _make_stats';
 
 done_testing;
 
-file( qw( t data 16_pathfind _pathfind_test.log ) )->remove;
+chdir $orig_cwd;
 
 __DATA__
 t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1

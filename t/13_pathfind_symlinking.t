@@ -27,10 +27,6 @@ symlink( "$orig_cwd/t/data", "$temp_dir/t/data") == 1
   or die "ERROR: couldn't link data directory into temp directory";
 chdir $temp_dir;
 
-# create a test log file and make sure it isn't already there
-my $test_log = file($temp_dir, '_pathfind_test.log');
-$test_log->remove;
-
 #-------------------------------------------------------------------------------
 
 # get some test lanes using the Finder directly
@@ -123,5 +119,4 @@ done_testing;
 
 # tidy up after ourselves...
 chdir $orig_cwd;
-$test_log->remove;
 
