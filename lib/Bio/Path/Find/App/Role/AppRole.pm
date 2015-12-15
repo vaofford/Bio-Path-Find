@@ -276,7 +276,8 @@ sub BUILD {
 sub _log_command {
   my $self = shift;
 
-  my $command_line = join ' ', $0, @ARGV;
+  my $username     = ( getpwuid($<) )[0];
+  my $command_line = join ' ', $username, $0, @ARGV;
 
   $self->log('command_log')->info($command_line);
 }
