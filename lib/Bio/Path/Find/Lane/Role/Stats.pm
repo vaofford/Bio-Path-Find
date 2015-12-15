@@ -5,7 +5,6 @@ package Bio::Path::Find::Lane::Role::Stats;
 
 use Moose::Role;
 
-use Carp qw( croak );
 use Path::Class;
 
 use Types::Standard qw(

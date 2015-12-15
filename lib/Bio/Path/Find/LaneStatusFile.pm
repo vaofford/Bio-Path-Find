@@ -7,7 +7,7 @@ use Moose;
 use namespace::autoclean;
 use MooseX::StrictConstructor;
 
-use Carp qw( carp croak );
+use Carp qw( carp );
 use Path::Class;
 use DateTime;
 
@@ -20,6 +20,8 @@ use Bio::Path::Find::Types qw(
   PathClassFile
   Datetime
 );
+
+use Bio::Path::Find::Exception;
 
 #-------------------------------------------------------------------------------
 #- public attributes -----------------------------------------------------------
@@ -101,8 +103,11 @@ has '_file_mapping' => (
 sub BUILD {
   my $self = shift;
 
-  croak q(ERROR: can't find status file ") . $self->status_file . q(")
-    unless -f $self->status_file;
+  unless ( -f $self->status_file ) {
+    Bio::Path::Find::Exception->throw(
+      msg =>  q(ERROR: can't find status file ") . $self->status_file . q(")
+    );
+  }
 
   my @lines = $self->status_file->slurp(chomp => 1);
 

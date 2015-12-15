@@ -3,11 +3,14 @@ package Bio::Path::Find::App::Role::AppRole;
 
 # ABSTRACT: a role that carries most of the boilerplate for "finder" apps
 
+use v5.10; # for "say"
+
 use Moose::Role;
+use MooseX::App::Role;
 
 use Path::Class;
 use Text::CSV_XS;
-use Carp qw( croak );
+use Try::Tiny;
 
 use Types::Standard qw(
   ArrayRef
@@ -24,12 +27,13 @@ use Bio::Path::Find::Types qw(
 );
 
 use Bio::Path::Find::Finder;
+use Bio::Path::Find::Exception;
 
-with 'MooseX::Getopt::Usage',
-     'MooseX::Log::Log4perl',
+with 'MooseX::Log::Log4perl',
      'Bio::Path::Find::Role::HasConfig',
      'Bio::Path::Find::Role::HasEnvironment';
 
+# this is the one and only method that the concrete find class needs to provide
 requires 'run';
 
 #-------------------------------------------------------------------------------
@@ -43,13 +47,12 @@ requires 'run';
 # are set up by the "new_with_options" call that instantiates the *Find object
 # in the main script, e.g. pathfind
 
-has 'id' => (
+option 'id' => (
   documentation => 'ID or name of file containing IDs',
   is            => 'rw',
   isa           => Str,
   cmd_aliases   => 'i',
   required      => 1,
-  traits        => ['Getopt'],
   trigger       => sub {
     my ( $self, $id ) = @_;
     ( my $renamed_id = $id ) =~ s/\#/_/g;
@@ -57,58 +60,57 @@ has 'id' => (
   },
 );
 
-has 'type' => (
-  documentation => 'ID type, or "file" for IDs in a file',
+option 'type' => (
+  documentation => 'ID type. Use "file" to read IDs from file',
   is            => 'rw',
   isa           => IDType,
   cmd_aliases   => 't',
   required      => 1,
-  traits        => ['Getopt'],
 );
 
-has 'file_id_type' => (
+option 'file_id_type' => (
   documentation => 'type of IDs in the input file',
   is            => 'rw',
   isa           => FileIDType,
+  cmd_flag      => 'file-id-type',
   cmd_aliases   => 'ft',
-  traits        => ['Getopt'],
 );
 
-has 'csv_separator' => (
-  documentation => 'the separator used when writing CSV files (default ",")',
+option 'csv_separator' => (
+  documentation => 'field separator to use when writing CSV files',
   is            => 'rw',
   isa           => Str,
-  cmd_aliases   => 'sep',
-  traits        => ['Getopt'],
+  cmd_flag      => 'csv-separator',
+  cmd_aliases   => 'c',
   default       => ',',
 );
 
-has 'verbose' => (
+option 'no_progress_bars' => (
+  documentation => "don't show progress bars",
+  is            => 'ro',
+  isa           => Bool,
+  cmd_flag      => 'no-progress-bars',
+  cmd_aliases   => 'n',
+  trigger       => sub {
+    my ( $self, $flag ) = @_;
+    # set a flag on the config object to tell interested objects whether they
+    # should show progress bars when doing work
+    $self->config->{no_progress_bars} = $flag;
+  },
+);
+
+option 'verbose' => (
   documentation => 'show debugging messages',
   is            => 'rw',
   isa           => Bool,
   cmd_aliases   => 'v',
   default       => 0,
-  traits        => ['Getopt'],
 );
 
 # these are "non-option" attributes
 has 'environment'  => ( is => 'rw', isa => Environment, default => 'prod' );
 has 'config_file'  => ( is => 'rw', isa => Str,         default => 'live.conf' );
 # TODO get rid of the hard-coded config file path somehow
-
-# configure the usage message. This method is used by MooseX::Getopt::Usage to
-# determine which POD sections are used to build the usage message, i.e. the
-# DESCRIPTION section from the POD in the concrete application class, e.g.
-# Bio::Path::Find::App::PathFind, provides the usage message.
-#
-# If we miss this method out, MooseX::Getopt will auto-generate the options
-# list, which is in hash order and shows all attributes, not just the command
-# line options
-
-sub getopt_usage_config {
-  return ( usage_sections => [ 'DESCRIPTION' ] );
-}
 
 #-------------------------------------------------------------------------------
 #- private attributes ----------------------------------------------------------
@@ -238,7 +240,7 @@ sub BUILD {
 
   # check for dependencies between parameters: if "type" is "file", we need to
   # know what type of IDs we'll find in the file
-  croak q(ERROR: if "type" is "file", you must also specify "file_id_type")
+  Bio::Path::Find::Exception->throw( msg => q(ERROR: if "type" is "file", you must also specify "file_id_type") )
     if ( $self->type eq 'file' and not $self->file_id_type );
 
   # look at the input parameters and decide whether we're dealing with a single
@@ -287,14 +289,16 @@ sub _log_command {
 sub _load_ids_from_file {
   my ( $self, $filename ) = @_;
 
-  croak "ERROR: no such file ($filename)" unless -f $filename;
+  Bio::Path::Find::Exception->throw( msg => "ERROR: no such file ($filename)" )
+    unless -f $filename;
 
   # TODO check if this will work with the expected usage. If users are used
   # TODO to putting plex IDs as search terms, stripping lines starting with
   # TODO "#" will break those searches
   my @ids = grep ! m/^#/, $filename->slurp(chomp => 1);
 
-  croak "ERROR: no IDs found in file ($filename)" unless scalar @ids;
+  Bio::Path::Find::Exception->throw( msg => "ERROR: no IDs found in file ($filename)" )
+    unless scalar @ids;
 
   return \@ids;
 }
@@ -309,13 +313,13 @@ sub _write_stats_csv {
 
   return unless ( defined $stats and scalar @$stats );
 
-  croak 'ERROR: must supply a filename for the stats report'
+  Bio::Path::Find::Exception->throw( msg => 'ERROR: must supply a filename for the stats report' )
     unless defined $filename;
 
   my $fh = FileHandle->new;
 
   # see if the supplied filename exists and complain if it does
-  croak 'ERROR: stats CSV file already exists; not overwriting existing file'
+  Bio::Path::Find::Exception->throw( msg => 'ERROR: stats CSV file already exists; not overwriting existing file' )
     if -e $filename;
 
   $fh->open( $filename, '>' );

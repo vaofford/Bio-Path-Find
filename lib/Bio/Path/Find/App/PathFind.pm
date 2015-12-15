@@ -1,16 +1,15 @@
 
 package Bio::Path::Find::App::PathFind;
 
-# ABSTRACT: the guts of a pathfind app
+# ABSTRACT: find files and directories for sequencing lanes
 
 use v5.10; # for "say"
 
-use Moose;
-use namespace::autoclean;
+use MooseX::App::Simple qw( Depends Man );
+# use namespace::autoclean; # leave out; messes with MooseX::App
 use MooseX::StrictConstructor;
-use Moose::Util::TypeConstraints;
 
-use Carp qw( carp croak );
+use Carp qw( carp );
 use Path::Class;
 use Try::Tiny;
 use IO::Compress::Gzip;
@@ -20,11 +19,12 @@ use Archive::Tar;
 use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
 use Cwd;
 
+use Bio::Path::Find::Exception;
 use Bio::Path::Find::ProgressBar;
 
 use Types::Standard qw(
   ArrayRef
-  Str
+  +Str
   +Bool
 );
 
@@ -35,198 +35,285 @@ use Bio::Path::Find::Types qw(
   +PathClassFile FileFromStr
 );
 
-# the boilerplate functionality for this class comes from the AppRole
-with 'Bio::Path::Find::App::Role::AppRole',
-     'MooseX::Log::Log4perl';
+with 'MooseX::Log::Log4perl',
+     'Bio::Path::Find::App::Role::AppRole';
+
+#-------------------------------------------------------------------------------
+#- usage text ------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+=head1 USAGE
+
+pathfind --id <id> --type <ID type> [options]
 
 =head1 DESCRIPTION
 
-  Find information about sequencing files.
+Given a study ID, lane ID, or sample ID, or a file containing a list of IDs,
+this script will output the path(s) on disk to the data associated with the
+specified sequencing run(s).
 
-  Required:
-    -i,  --id <ID>                  ID to find, or name of file containing IDs to find
-    -t,  --type <type>              type of ID(s); lane|sample|library|study|species|file
+=head1 OPTIONS
 
-    -ft, --file_id_type <filetype>  type of IDs in file input file; lane|sample
-                                    Required if type is "file"
-  Filters:
-    -ft, --filetype <filetype>      type of file to return; fastq|bam|pacbio|corrected
-    -q,  --qc <status>              filter on QC status; passed|failed|pending
+=head2 REQUIRED OPTIONS
 
-  Output:
-    -s,  --stats <output file>      create a file containing statistics for found data
-    -l,  --symlink [<dest dir>]     create symbolic links to data files in the destination dir
-    -a,  --archive [<archive name>] create an archive of found files
-    -z   --zip                      create zip archives (default is to create tar archives)
-    -r,  --rename                   convert hash (#) to underscore (_) in output filenames
-    -n,  --no-progress-bars         don't show progress bars when archiving
-    -h,  -?                         print this message
+=over
+
+=item --id -i <ID>
+
+The ID for which to search, or the name of a file on disk from which the search
+IDs should be read.
+
+=item --type -t <ID type>
+
+The type of ID specified by B<--id>, or B<file> to read IDs from disk. Must be
+one of B<lane>, B<sample>, B<study>, B<library>, B<species>, B<study> or
+B<file>.
+
+=item --file-id-type -ft <type of ID in file>
+
+The type of ID found in the specified file
+
+=back
+
+=head2 FURTHER OPTIONS
+
+=head3 FILTERING
+
+=over
+
+=item --qc | -q <QC status>
+
+Show information only for lanes with the specified quality control status. Must
+be one of B<passed>, B<failed>, or B<pending>.
+
+=item --filetype | -f <file type>
+
+If set, the script will list only files of the specified type. If B<--filetype>
+is not provided, the default behaviour is to return the path to the directory
+containing all files for the given lane. Must be one of B<bam>, B<corrected>,
+B<fastq>, or B<pacbio>.
+
+=back
+
+=head3 OUTPUT
+
+pathfind can output data in various ways. The default behaviour is to list
+the directories containing data for the specified ID(s). 
+
+=over
+
+=item --archive | -a [<archive name>]
+
+If an archive name is given, the found data will be written as a tar archive
+with the specified name. If the C<--archive> option is given without a value,
+the archive will be named according to the search ID. See also C<--zip>.
+
+=item --zip | -z
+
+Write a zip archive instead of a tar archive. Must be used along with the
+C<--archive> option.
+
+=item --symlink | -l [<link dir>]
+
+Create symbolic links to the found data. If a link directory is specified,
+the links will be created in that directory. The directory itself will be
+created if it does not already exist. If a link directory is not specified,
+the links will be created in the current working directory.
+
+=item --stats | -s [<CSV file>]
+
+Create a comma-separated-values (CSV) file containing the statistics for
+the found lanes. If a filename is supplied, the CSV data will be written
+to that file. If no filename is given, a filename will be generated from
+the input ID. See also C<--csv-separator>.
+
+=item --csv-separator | -c <separator>
+
+Specify the separator that should be used when writing CSV data. The default is
+a comma (",") but an alternative would be a tab character ("	").
+
+=item --rename | -r
+
+When collecting files in archives or when symlinking data files, convert
+hashes ("#") in filenames into underscores ("_"). This conversion is
+always done when generating names for archives or stats CSV files.
+
+=back
+
+=head3 SWITCHES
+
+=item --no-progress-bars | -n
+
+Don't show progress bars when performing slow operations. Useful if using
+C<pathfind> as part of a larger script.
+
+=item --verbose | -v
+
+Show (lots of) debugging messages.
+
+=item --help | -h | -?
+
+Show the usage message.
+
+=back
 
 =cut
+
+# old pathfind help text:
+#
+# Usage: /software/pathogen/internal/prod/bin/pathfind
+#                 -t|type         <study|lane|file|library|sample|species>
+#                 -i|id           <study id|study name|lane name|file of lane names>
+#         --file_id_type     <lane|sample> define ID types contained in file. default = lane
+#                 -h|help         <this help message>
+#                 -f|filetype     <fastq|bam|pacbio|corrected>
+#                 -l|symlink      <create sym links to the data and define output directory>
+#                 -a|archive      <name for archive containing the data>
+#                 -r|rename   <replace # in symlinks with _>
+#                 -s|stats        <output statistics>
+#                 -q|qc           <passed|failed|pending>
+#                 --prefix_with_library_name <prefix the symlink with the sample name>
+#
+#         Given a study, lane or a file containing a list of lanes or samples, this script will output the path (on pathogen disk) to the data associated with the specified study or lane.
+#         Using the option -qc (passed|failed|pending) will limit the results to data of the specified qc status.
+#         Using the option -filetype (fastq, bam, pacbio or corrected) will return the path to the files of this type for the given data.
+#         Using the option -symlink will create a symlink to the queried data in the current directory, alternativley an output directory can be specified in which the symlinks will be created.
+#         Similarly, the archive option will create and archive (.tar.gz) of the data under a default file name unless one is specified.
+# =cut
 
 #-------------------------------------------------------------------------------
 #- public attributes -----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-has 'filetype' => (
-  documentation => 'file type to find; fastq | bam | pacbio | corrected',
-  is            => 'rw',
+option 'filetype' => (
+  documentation => 'type of files to find',
+  is            => 'ro',
   isa           => FileType,
   cmd_aliases   => 'f',
-  traits        => ['Getopt'],
 );
 
-has 'qc' => (
-  documentation => 'QC state; passed | failed | pending',
-  is            => 'rw',
+option 'qc' => (
+  documentation => 'filter results by lane QC state',
+  is            => 'ro',
   isa           => QCState,
   cmd_aliases   => 'q',
-  traits        => ['Getopt'],
 );
 
+option 'rename' => (
+  documentation => 'replace hash (#) with underscore (_) in filenames',
+  is            => 'rw',
+  isa           => Bool,
+  cmd_aliases   => 'r',
+);
+
+option 'zip' => (
+  documentation => 'archive data in ZIP format',
+  is            => 'ro',
+  isa           => Bool,
+  cmd_aliases   => 'z',
+  depends       => [ 'archive' ],
+);
 #---------------------------------------
 
-# this is a bit hairy. The symlink (and later, archive) attribute needs to
-# accept either a boolean (if the flag is set on the command line but has
-# no argument) or a string (if the flag is set and a value is given). This
-# configuration doesn't seem to be possible using a combination of
-# MooseX::Getopt and Type::Tiny, hence this ugly work-around, using
-# Moose::Util::TypeConstraints instead of Type::Tiny.
+# this option can be used as a simple switch ("-l") or with an argument
+# ("-l mydir"). It's a bit fiddly to set that up...
 
-# first, set up a boolean-or-string type and register it with MooseX::Getopt as
-# accepting an optional string argument
-subtype 'BoolOrStr',
-  as 'Str';
-
-MooseX::Getopt::OptionTypeMap->add_option_type_to_map( 'BoolOrStr' => ':s' );
-
-# next, set up a trigger that checks for the value of the "symlink"
-# command-line argument nd tries to decide if it's a boolean or a string,
-# explicitly treating "defined but not set" as true
-has 'symlink' => (
+option 'symlink' => (
   documentation => 'create symlinks for data files in the specified directory',
-  is            => 'rw',
-  isa           => 'BoolOrStr',
+  is            => 'ro',
   cmd_aliases   => 'l',
-  traits        => ['Getopt'],
   trigger       => \&_check_for_symlink_value,
+  # no "isa" because we want to accept both Bool and Str and it doesn't seem to
+  # be possible to specify that using the combination of MooseX::App and
+  # Type::Tiny that we're using here
 );
 
+# set up a trigger that checks for the value of the "symlink" command-line
+# argument and tries to decide if it's a boolean, in which case we'll generate
+# a directory name to hold links, or a string, in which case we'll treat that
+# string as a directory name.
 sub _check_for_symlink_value {
-  my ( $self, $new_dir, $old_dir ) = @_;
-  if ( defined $new_dir and
-       $new_dir ne ''   and
-       not is_Bool($new_dir) ) {
-    $self->_symlink_dir( dir $new_dir);
+  my ( $self, $new, $old ) = @_;
+
+  if ( not defined $new ) {
+    # make links in a directory whose name we'll set ourselves
+    $self->_symlink_flag(1);
   }
-  elsif ( defined $new_dir
-    and $new_dir eq '' ) {
-    $self->symlink(1);
+  elsif ( not is_Bool($new) ) {
+    # make links in the directory specified by the user
+    $self->_symlink_flag(1);
+    $self->_symlink_dir( dir $new );
+  }
+  else {
+    # don't make links. Shouldn't ever get here
+    $self->_symlink_flag(0);
   }
 }
 
-# finally, set up a private attribute to store the (optional) value of the
-# "symlink" attribute. When using all of this we can check for "symlink" being
-# true or false, and, if it's true, check "_symlink_dir" for a value
-has '_symlink_dir' => (
-  is  => 'rw',
-  isa => PathClassDir->plus_coercions(DirFromStr),
-);
-
-# what a mess...
+# private attributes to store the (optional) value of the "symlink" attribute.
+# When using all of this we can check for "_symlink_flag" being true or false,
+# and, if it's true, check "_symlink_dir" for a value
+has '_symlink_dir'  => ( is => 'rw', isa => PathClassDir );
+has '_symlink_flag' => ( is => 'rw', isa => Bool );
 
 #---------------------------------------
 
 # set up "archive" like we set up "symlink". No need to register a new
 # subtype again though
 
-has 'archive' => (
+option 'archive' => (
   documentation => 'filename for archive',
   is            => 'rw',
-  isa           => 'BoolOrStr',
+  # no "isa" because we want to accept both Bool and Str
   cmd_aliases   => 'a',
-  traits        => ['Getopt'],
   trigger       => \&_check_for_archive_value,
 );
 
 sub _check_for_archive_value {
-  my ( $self, $new_dir, $old_dir ) = @_;
-  if ( defined $new_dir and
-       $new_dir ne ''   and
-       not is_Bool($new_dir) ) {
-    $self->_archive_dir( dir $new_dir);
+  my ( $self, $new, $old ) = @_;
+
+  if ( not defined $new ) {
+    $self->_archive_flag(1);
   }
-  elsif ( defined $new_dir and $new_dir eq '' ) {
-    $self->archive(1);
+  elsif ( not is_Bool($new) ) {
+    $self->_archive_flag(1);
+    $self->_archive_dir( dir $new );
+  }
+  else {
+    $self->_archive_flag(0);
   }
 }
 
-has '_archive_dir' => (
-  is  => 'rw',
-  isa => PathClassDir->plus_coercions(DirFromStr),
-);
+has '_archive_dir'  => ( is => 'rw', isa => PathClassDir );
+has '_archive_flag' => ( is => 'rw', isa => Bool );
 
 #---------------------------------------
 
-# set up "stats" like we set up "symlink"
-
-has 'stats' => (
+option 'stats' => (
   documentation => 'filename for statistics CSV output',
   is            => 'rw',
-  isa           => 'BoolOrStr',
+  # no "isa" because we want to accept both Bool and Str
   cmd_aliases   => 's',
-  traits        => ['Getopt'],
   trigger       => \&_check_for_stats_value,
 );
 
 sub _check_for_stats_value {
-  my ( $self, $new_file, $old_file ) = @_;
-  if ( defined $new_file and
-       $new_file ne ''   and
-       not is_Bool($new_file) ) {
-    $self->_stats_file( file $new_file );
+  my ( $self, $new, $old ) = @_;
+
+  if ( not defined $new ) {
+    $self->_stats_flag(1);
   }
-  elsif ( defined $new_file and $new_file eq '' ) {
-    $self->stats(1);
+  elsif ( not is_Bool($new) ) {
+    $self->_stats_flag(1);
+    $self->_stats_file( file $new );
+  }
+  else {
+    $self->_stats_flag(0);
   }
 }
 
-has '_stats_file' => (
-  is  => 'rw',
-  isa => PathClassFile->plus_coercions(FileFromStr),
-);
-
-#---------------------------------------
-
-has 'rename' => (
-  documentation => 'replace hash (#) with underscore (_) in filenames',
-  is            => 'rw',
-  isa           => Bool,
-  cmd_aliases   => 'r',
-  traits        => ['Getopt'],
-);
-
-has 'no_progress_bars' => (
-  documentation => "don't show progress bars",
-  is            => 'ro',
-  isa           => Bool,
-  cmd_aliases   => 'n',
-  traits        => ['Getopt'],
-  trigger       => sub {
-    my ( $self, $flag ) = @_;
-    # set a flag on the config object to tell interested objects whether they
-    # should show progress bars when doing work
-    $self->config->{no_progress_bars} = $flag;
-  },
-);
-
-has 'zip' => (
-  documentation => 'archive data in ZIP format',
-  is            => 'ro',
-  isa           => Bool,
-  cmd_aliases   => 'z',
-  traits        => ['Getopt'],
-);
+has '_stats_file' => ( is => 'rw', isa => PathClassFile );
+has '_stats_flag' => ( is => 'rw', isa => Bool );
 
 #-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
@@ -268,13 +355,13 @@ sub run {
   }
 
   # do something with the found lanes
-  if ( $self->symlink ) {
+  if ( $self->_symlink_flag ) {
     $self->_make_symlinks($lanes);
   }
-  elsif ( $self->archive ) {
+  elsif ( $self->_archive_flag ) {
     $self->_make_archive($lanes);
   }
-  elsif ( $self->stats ) {
+  elsif ( $self->_stats_flag ) {
     $self->_make_stats($lanes);
   }
   else {
@@ -306,11 +393,14 @@ sub _make_symlinks {
   try {
     $dest->mkpath unless -d $dest;
   } catch {
-    croak "ERROR: couldn't make link directory ($dest)";
+    Bio::Path::Find::Exception->throw(
+      msg => "ERROR: couldn't make link directory ($dest)"
+    );
   };
 
   # should be redundant, but...
-  croak "ERROR: not a directory ($dest)" unless -d $dest;
+  Bio::Path::Find::Exception->throw( msg =>  "ERROR: not a directory ($dest)" )
+    unless -d $dest;
 
   say STDERR "Creating links in '$dest'";
 
@@ -374,7 +464,7 @@ sub _make_archive {
     # write it to file
     unless ( $zip->writeToFileNamed($archive_filename) == AZ_OK ) {
       print STDERR "failed\n";
-      croak "ERROR: couldn't write zip file ($archive_filename)";
+      Bio::Path::Find::Exception->throw( msg => "ERROR: couldn't write zip file ($archive_filename)" );
     }
 
     print STDERR "done\n";
@@ -391,7 +481,7 @@ sub _make_archive {
     # get the contents of the tar file. This is a little slow but we can't
     # break it down and use a progress bar, so at least tell the user what's
     # going on
-    print STDERR 'Writing tar file... ';
+    print STDERR 'Building tar file... ';
     my $tar_contents = $tar->write;
     print STDERR "done\n";
 
@@ -618,7 +708,7 @@ sub _write_data {
   );
 
   open ( FILE, '>', $filename )
-    or croak "ERROR: couldn't write output file ($filename): $!";
+    or Bio::Path::Find::Exception->throw( msg =>  "ERROR: couldn't write output file ($filename): $!" );
 
   binmode FILE;
 
@@ -639,6 +729,8 @@ sub _write_data {
 }
 
 #-------------------------------------------------------------------------------
+
+# build a CSV file with the statistics for all lanes and write it to file
 
 sub _make_stats {
   my ( $self, $lanes ) = @_;

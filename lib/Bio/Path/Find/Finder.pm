@@ -9,7 +9,7 @@ use Moose;
 use namespace::autoclean;
 use MooseX::StrictConstructor;
 
-use Carp qw( croak carp );
+use Carp qw( carp );
 use Path::Class;
 use File::Basename;
 use Try::Tiny;
@@ -38,6 +38,7 @@ use Bio::Path::Find::DatabaseManager;
 use Bio::Path::Find::Lane;
 use Bio::Path::Find::Sorter;
 use Bio::Path::Find::ProgressBar;
+use Bio::Path::Find::Exception;
 
 with 'Bio::Path::Find::Role::HasEnvironment',
      'Bio::Path::Find::Role::HasConfig',
@@ -85,9 +86,12 @@ sub _build_lane_role {
 
   my $role = $self->config->{lane_roles}->{ $self->{_script_name} };
 
-  croak "ERROR: couldn't find a lane role for the current script ("
-        . $self->{_script_name} . ')'
-    if not defined $role;
+  if ( not defined $role ) {
+    Bio::Path::Find::Exception->throw(
+        msg =>  "ERROR: couldn't find a lane role for the current script ("
+                . $self->{_script_name} . ')'
+    );
+  }
 
   return $role;
 }
@@ -258,8 +262,9 @@ sub _find_lanes {
           $lane = Bio::Path::Find::Lane->with_traits( $self->lane_role )
                                        ->new( row => $lane_row );
         } catch {
-          croak q(ERROR: couldn't apply role ") . $self->lane_role
-                . qq(" to lanes: $_);
+          Bio::Path::Find::Exception->throw(
+            msg =>  q(ERROR: couldn't apply role ") . $self->lane_role . qq(" to lanes: $_)
+          );
         };
 
         push @lanes, $lane;
