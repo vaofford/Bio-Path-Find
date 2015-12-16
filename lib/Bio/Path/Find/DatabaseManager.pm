@@ -10,15 +10,14 @@ use MooseX::StrictConstructor;
 use Types::Standard qw( Str ArrayRef HashRef );
 use Carp qw( carp );
 use DBI;
-use Data::Dump qw( pp );
+use Path::Class;
 
 use Bio::Path::Find::Types qw( BioPathFindDatabase );
 use Bio::Track::Schema;
 use Bio::Path::Find::Database;
 use Bio::Path::Find::Exception;
 
-with 'Bio::Path::Find::Role::HasEnvironment',
-     'Bio::Path::Find::Role::HasConfig',
+with 'Bio::Path::Find::Role::HasConfig',
      'MooseX::Log::Log4perl';
 
 =head1 CONTACT
@@ -36,17 +35,29 @@ path-help@sanger.ac.uk
 =attr connection_params
 
 A reference to a hash containing database connection parameters from the
-config.
+configuration.
 
 The parameters should be given using the key C<connection_params> and must
-specify C<host>, C<port>, and C<user>. If a password is required it should be
-given using C<pass>. For example, in a L<Config::General>-style config file:
+specify C<driver>, which should be either "mysql" or "SQLite".
+
+If the driver is "mysql", the connection parameters must also include
+C<host>, C<port>, and C<user>. If a password is required it should be
+given using C<pass>.
 
   <connection_params>
-    host mysql_database_host
-    port 3306
-    user myuser
-    pass mypass
+    driver mysql
+    host   mysql_database_host
+    port   3306
+    user   myuser
+    pass   mypass
+  </connection_params>
+
+If the driver is "SQLite", the configuration must include C<dbname>, which
+gives the path to the SQLite database file:
+
+  <connection_params>
+    driver SQLite
+    dbname /path/to/database.db
   </connection_params>
 
 =cut
@@ -61,17 +72,34 @@ has 'connection_params' => (
 sub _build_connection_params {
   my $self = shift;
 
-  my $connection = $self->config->{connection_params};
+  my $c = $self->config->{connection_params};
 
-  Bio::Path::Find::Exception->throw( msg =>  'ERROR: configuration does not specify any database connection parameters ("connection_params")' )
-    unless ( defined $connection and ref $connection eq 'HASH' );
+  Bio::Path::Find::Exception->throw(
+    msg => "ERROR: configuration does not specify any database connection parameters ('connection_params')" )
+    unless ( defined $c and ref $c eq 'HASH' );
 
-  foreach ( qw( host user port ) ) {
-    Bio::Path::Find::Exception->throw( msg =>  "ERROR: configuration does not specify one of the required database connection parameters ($_)" )
-      unless exists $connection->{$_};
+  Bio::Path::Find::Exception->throw(
+    msg => 'ERROR: configuration does not specify the database driver ("driver")' )
+    unless exists $c->{driver};
+
+  if ( $c->{driver} eq 'mysql' ) {
+    foreach my $param ( qw( host port user ) ) {
+      Bio::Path::Find::Exception->throw(
+        msg => "ERROR: configuration does not specify a required database connection parameter, $param" )
+        unless $c->{$param};
+    }
+  }
+  elsif ( $c->{driver} eq 'SQLite' ) {
+    Bio::Path::Find::Exception->throw(
+      msg => 'ERROR: configuration does not specify a required database connection parameter, dbname' )
+      unless $c->{dbname};
+  }
+  else {
+    Bio::Path::Find::Exception->throw(
+      msg => "ERROR: configuration does not specify a valid database driver; must be either 'mysql' or 'SQLite'" )
   }
 
-  return $connection;
+  return $c;
 }
 
 #---------------------------------------
@@ -80,11 +108,11 @@ sub _build_connection_params {
 
 A reference to an array containing the names of the available data sources.
 
-In a production environment, the data sources will be the names of the
-databases that are found in the MySQL instance that is specified in the
-config.
-
-In a test environment, there is a single data source, which is hard-coded.
+The list is generated using the L<DBI::data_sources> class method. If the
+configuration specifies the MySQL database driver, the list will contain the
+names of available databases in the specified MySQL instance. If the config
+specifies the SQLite driver, the list will contain the name of the database
+file itself.
 
 =cut
 
@@ -98,17 +126,26 @@ has 'data_sources' => (
 sub _build_data_sources {
   my $self = shift;
 
-  # if we're in the test environment, spoof the data sources list and provide
-  # the name of a test DB. Otherwise, retrieve the list by connecting to the
-  # MySQL database using the connection parameters from the config
-  my @sources = $self->is_in_test_env
-              ? ( 'pathogen_test_track' )
-              : grep s/^DBI:mysql://, DBI->data_sources('mysql', $self->connection_params);
+  my $c = $self->connection_params;
 
-  Bio::Path::Find::Exception->throw( msg =>  'ERROR: failed to retrieve a list of data sources' )
+  # ask the DBI for a list of sources
+  my @sources = grep s/^dbi:.*?://i, DBI->data_sources($c->{driver}, $c);
+
+  # if we're using SQLite, "data_sources" won't return anything, so add
+  # the name of the database itself
+
+  my $dbname = file($c->{dbname})->basename;
+  $dbname =~ s/\..*$//;
+
+  push @sources, $dbname if $c->{dbname};
+
+  Bio::Path::Find::Exception->throw( msg => 'ERROR: failed to retrieve a list of data sources' )
     unless scalar @sources;
 
-  $self->log->debug("list of data sources from database:\n", pp(\@sources));
+  {
+    $, = "\n";
+    $self->log->debug("list of data sources from database:\n", \@sources);
+  }
 
   return \@sources;
 }
@@ -152,13 +189,12 @@ sub _build_database_objects {
   my $self = shift;
 
   my %databases;
-  foreach my $database_name ( @{ $self->_database_names } ) {
+  foreach my $database_name ( @{ $self->data_sources } ) {
     # it's cheap to build all of these objects, because they won't attempt to
     # make a database connection until it's needed ("schema" is a lazy
     # attribute)
     my $database = Bio::Path::Find::Database->new(
       name        => $database_name,
-      environment => $self->environment,
       config      => $self->config
     );
 
@@ -168,39 +204,6 @@ sub _build_database_objects {
   }
 
   return \%databases;
-}
-
-#-------------------------------------------------------------------------------
-#- private attributes ---------------------------------------------------------
-#-------------------------------------------------------------------------------
-
-# this is the UNORDERED list of database names. In production mode the names
-# are retrieved from the data sources. In test mode the list is hard-coded.
-
-has '_database_names' => (
-  is      => 'ro',
-  isa     => ArrayRef[Str],
-  lazy    => 1,
-  builder => '_build_database_names',
-);
-
-sub _build_database_names {
-  my $self = shift;
-
-  my @database_names = ();
-  if ( $self->is_in_test_env ) {
-    Bio::Path::Find::Exception->throw( msg =>  'ERROR: when in the test environment, the configuration must specify the name of a test database (set "test_db")' )
-      unless defined $self->config->{test_db};
-    push @database_names, $self->config->{test_db};
-  }
-  else {
-    push @database_names, grep /^pathogen_.+_track$/,    @{ $self->data_sources };
-    push @database_names, grep /^pathogen_.+_external$/, @{ $self->data_sources };
-  }
-
-  $self->log->debug("list of database names:\n", pp(\@database_names));
-
-  return \@database_names;
 }
 
 #-------------------------------------------------------------------------------
