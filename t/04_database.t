@@ -97,6 +97,10 @@ throws_ok { $db->db_root }
 
 #---------------------------------------
 
+# check for a valid template from previous config
+is $db->hierarchy_template, $config->{hierarchy_template},
+  'found valid template in config';
+
 # missing template
 $config = {
   db_root            => 't/data/linked',
@@ -112,13 +116,17 @@ $config = {
 
 $db = Bio::Path::Find::Database->new( name => 'pathogen_prok_track', config => $config );
 
-my $template;
-warning_like { $template = $db->hierarchy_template }
-  qr/does not specify the directory hierarchy template/,
-  'got warning about missing hierarchy template in config';
-
+my $template = $db->hierarchy_template;
 is $template, 'genus:species-subspecies:TRACKING:projectssid:sample:technology:library:lane',
   'got default template';
+
+# invalid template
+$config->{hierarchy_template} = '*notavalidtemplate*';
+$db = Bio::Path::Find::Database->new( name => 'pathogen_prok_track', config => $config );
+
+throws_ok { $db->hierarchy_template }
+  qr/invalid directory hierarchy template/,
+  'exception with invalid template';
 
 #---------------------------------------
 

@@ -170,10 +170,8 @@ sub _build_hierarchy_template {
   # find the template for the directory hierarchy in the config
   my $template = $self->config->{hierarchy_template};
 
-  if ( not defined $template ) {
-    carp 'WARNING: configuration does not specify the directory hierarchy template ("template"); using default';
-    $template = 'genus:species-subspecies:TRACKING:projectssid:sample:technology:library:lane';
-  }
+  # fall back on a default setting
+  $template ||= 'genus:species-subspecies:TRACKING:projectssid:sample:technology:library:lane';
 
   Bio::Path::Find::Exception->throw( msg => "ERROR: invalid directory hierarchy template ($template)" )
     unless $template =~ m/^([\w-]+:?)+$/;
