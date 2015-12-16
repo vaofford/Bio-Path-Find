@@ -50,12 +50,11 @@ symlink( "$orig_cwd/t/data", "$temp_dir/t/data") == 1
 chdir $temp_dir;
 
 # create a test log file and make sure it isn't already there
-my $test_log = file('_testfind_test.log');
+my $test_log = file($temp_dir, '_testfind.log');
 $test_log->remove;
 
 # simple find - get samples for a lane
 my %params = (
-  environment => 'test',
   config_file => 't/data/11_approle/test.conf',
   id          => '10018_1',
   type        => 'lane',
@@ -86,7 +85,6 @@ is $tf->_renamed_id, '10018_1_1', 'renamed ID correctly generated';
 
 # more complicated - get samples for lane IDs in a file
 %params = (
-  environment  => 'test',
   config_file  => 't/data/11_approle/test.conf',
   id           => 't/data/11_approle/ids.txt',
   type         => 'file',

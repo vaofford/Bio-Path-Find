@@ -205,8 +205,6 @@ SKIP: {
              $ENV{TEST_MYSQL_PORT} and
              $ENV{TEST_MYSQL_USER} );
 
-  diag 'connecting to MySQL DB';
-
   $config = {
     db_root            => 't/data/linked',
     hierarchy_template => 'genus:species:TRACKING:sample:lane',

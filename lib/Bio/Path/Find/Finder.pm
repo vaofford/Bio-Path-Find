@@ -40,8 +40,7 @@ use Bio::Path::Find::Sorter;
 use Bio::Path::Find::ProgressBar;
 use Bio::Path::Find::Exception;
 
-with 'Bio::Path::Find::Role::HasEnvironment',
-     'Bio::Path::Find::Role::HasConfig',
+with 'Bio::Path::Find::Role::HasConfig',
      'MooseX::Log::Log4perl';
 
 =head1 CONTACT
@@ -56,9 +55,7 @@ path-help@sanger.ac.uk
 
 =head1 ATTRIBUTES
 
-Inherits C<config> and C<environment> from the roles
-L<Bio::Path::Find::Role::HasConfig> and
-L<Bio::Path::Find::Role::HasEnvironment>.
+Inherits C<config> from L<Bio::Path::Find::Role::HasConfig>.
 
 =attr lane_role
 
@@ -119,10 +116,7 @@ has '_db_manager' => (
 
 sub _build_db_manager {
   my $self = shift;
-  return Bio::Path::Find::DatabaseManager->new(
-    environment => $self->environment,
-    config      => $self->config,
-  );
+  return Bio::Path::Find::DatabaseManager->new( config => $self->config );
 }
 
 #---------------------------------------
@@ -133,10 +127,7 @@ has '_sorter' => (
   lazy    => 1,
   default => sub {
     my $self = shift;
-    Bio::Path::Find::Sorter->new(
-      environment => $self->environment,
-      config      => $self->config,
-    );
+    Bio::Path::Find::Sorter->new( config => $self->config );
   },
 );
 

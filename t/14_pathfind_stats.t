@@ -37,7 +37,6 @@ my @expected_stats              = $expected_stats_file->slurp( chomp => 1, split
 
 # get some test lanes using the Finder directly
 my $f = Bio::Path::Find::Finder->new(
-  environment => 'test',
   config_file => 't/data/14_pathfind_stats/test.conf',
   lane_role   => 'Bio::Path::Find::Lane::Role::PathFind',
 );
@@ -50,7 +49,6 @@ is scalar @$lanes, 50, 'found 50 lanes with ID 10018_1 using Finder';
 # get a PathFind object
 
 my %params = (
-  environment      => 'test',
   config_file      => 't/data/14_pathfind_stats/test.conf',
   id               => '10018_1',
   type             => 'lane',
@@ -76,7 +74,6 @@ is_deeply $stats, \@expected_stats, 'written contents look right';
 $stats_file = file( $temp_dir, 'named_file.csv' );
 
 %params = (
-  environment      => 'test',
   config_file      => 't/data/14_pathfind_stats/test.conf',
   id               => '10018_1',
   type             => 'lane',

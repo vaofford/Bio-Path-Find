@@ -153,8 +153,6 @@ SKIP: {
   lives_ok { $dbm = Bio::Path::Find::DatabaseManager->new( config => $config ) }
     'no exception with valid live mysql config';
 
-  diag 'connecting to MySQL DB';
-
   my $can_connect;
   try {
     $can_connect = 1 if $dbm->data_sources;

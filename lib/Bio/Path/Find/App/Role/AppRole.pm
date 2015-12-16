@@ -19,7 +19,6 @@ use Types::Standard qw(
 );
 
 use Bio::Path::Find::Types qw(
-  Environment
   IDType
   FileIDType
   BioPathFindFinder
@@ -30,8 +29,7 @@ use Bio::Path::Find::Finder;
 use Bio::Path::Find::Exception;
 
 with 'MooseX::Log::Log4perl',
-     'Bio::Path::Find::Role::HasConfig',
-     'Bio::Path::Find::Role::HasEnvironment';
+     'Bio::Path::Find::Role::HasConfig';
 
 # this is the one and only method that the concrete find class needs to provide
 requires 'run';
@@ -108,7 +106,6 @@ option 'verbose' => (
 );
 
 # these are "non-option" attributes
-has 'environment'  => ( is => 'rw', isa => Environment, default => 'prod' );
 has 'config_file'  => ( is => 'rw', isa => Str,         default => 'live.conf' );
 # TODO get rid of the hard-coded config file path somehow
 
@@ -136,12 +133,7 @@ has '_log_file' => (
 
 sub _build_log_file {
   my $self = shift;
-
-  my $config_file = $self->is_in_test_env
-                  ? $self->config->{test_logfile}
-                  : $self->config->{logfile};
-
-  return file($config_file);
+  return file $self->config->{logfile};
 }
 
 #---------------------------------------
@@ -205,11 +197,7 @@ has '_finder' => (
 
 sub _build_finder {
   my $self = shift;
-
-  return Bio::Path::Find::Finder->new(
-    config      => $self->config,
-    environment => $self->environment,
-  );
+  return Bio::Path::Find::Finder->new(config => $self->config);
 }
 
 #---------------------------------------

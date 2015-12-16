@@ -20,7 +20,6 @@ Log::Log4perl->easy_init( $FATAL );
 use_ok('Bio::Path::Find::Lane');
 
 my $dbm = Bio::Path::Find::DatabaseManager->new(
-  environment => 'test',
   config_file => 't/data/06_lane/test.conf',
 );
 
