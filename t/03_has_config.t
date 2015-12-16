@@ -19,16 +19,16 @@ use Test::More;
 use Test::Exception;
 
 BEGIN {
-  $ENV{BPF_TEST_VALUE} = 'a_value';
+  $ENV{BPF_TEST_VALUE}  = 'a_value';
+  $ENV{PATHFIND_CONFIG} = 't/data/03_has_config/test.conf';
 }
 
 use_ok('Bio::Path::Find::TestClass');
 
+# specify config filename when instantiating
 my $t;
-lives_ok { $t = Bio::Path::Find::TestClass->new( environment => 'test' ) }
+lives_ok { $t = Bio::Path::Find::TestClass->new( config_file => 't/data/03_has_config/test.conf' ) }
   'got new B::M::F::TestClass object successfully';
-
-is $t->environment, 'test', 'object is in test environment';
 
 my $expected_config = {
   db_root        => 't/data',
@@ -38,9 +38,25 @@ my $expected_config = {
   },
 };
 
-$t = Bio::Path::Find::TestClass->new( config_file => 't/data/03_has_config/test.conf' );
-is $t->environment, 'prod', 'object is in prod environment';
-is_deeply $t->config, $expected_config, 'got expected config from Config::General-style config';
+is_deeply $t->config, $expected_config, 'got expected config via attribute';
+
+# get config filename from environment
+$t = Bio::Path::Find::TestClass->new;
+
+is_deeply $t->config, $expected_config, 'got expected config via environment variable';
+
+# read a YAML config file
+lives_ok { $t = Bio::Path::Find::TestClass->new( config_file => 't/data/03_has_config/test.yml' ) }
+  'got new B::M::F::TestClass object successfully';
+
+$expected_config = {
+  db_root        => 't/data',
+  subdir_mapping => {
+    one => 'two',
+  },
+};
+
+is_deeply $t->config, $expected_config, 'got expected config via environment variable';
 
 done_testing;
 

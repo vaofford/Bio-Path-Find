@@ -10,8 +10,6 @@ use Config::Any;
 
 use Bio::Path::Find::Exception;
 
-with 'Bio::Path::Find::Role::HasEnvironment';
-
 =head1 CONTACT
 
 path-help@sanger.ac.uk
@@ -47,11 +45,10 @@ has 'config_file' => (
 sub _build_config_file {
   my $self = shift;
 
-  my $config_file = $self->environment eq 'test'
-                  ? 't/data/04_has_config/test.conf'
-                  : '/software/pathogen/projects/PathFind/config/prod.yml';
+  my $config_file = $ENV{PATHFIND_CONFIG} ||
+                    '/software/pathogen/projects/PathFind/config/prod.yml';
 
-  Bio::Path::Find::Exception->throw( msg =>  "ERROR: config file ($config_file) does not exist" )
+  Bio::Path::Find::Exception->throw( msg => "ERROR: config file ($config_file) does not exist" )
     unless -f $config_file;
 
   return $config_file;
