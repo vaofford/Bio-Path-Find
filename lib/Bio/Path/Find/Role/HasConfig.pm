@@ -24,13 +24,12 @@ path-help@sanger.ac.uk
 
 =attr config_file
 
-Path to the configuration file.
+Path to the configuration file. If not specified, we'll look for a filename
+in the C<PATHFIND_CONFIG> environment variable.
 
-If C<environment> is 'C<test>', we look for a default configuration file in a
-directory within the test suite, otherwise the default is a Sanger-specific
-disk location.
-
-May be overridden by setting at instantiation.
+Throws an exception if the config file isn't specified and can't be found
+via C<PATHFIND_CONFIG>, or if the file doesn't exist where it's supposed to
+exist.
 
 =cut
 
