@@ -58,5 +58,10 @@ $expected_config = {
 
 is_deeply $t->config, $expected_config, 'got expected config via environment variable';
 
+# check for exception when specified config file doesn't exist
+throws_ok { Bio::Path::Find::TestClass->new( config_file => 'non-existent-file' ) }
+  qr/doesn't exist/,
+  'exception when specified config file does not exist';
+
 done_testing;
 
