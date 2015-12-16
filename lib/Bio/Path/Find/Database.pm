@@ -15,8 +15,7 @@ use Bio::Track::Schema;
 use Bio::Path::Find::Exception;
 use Bio::Path::Find::Types qw( BioTrackSchema );
 
-with 'Bio::Path::Find::Role::HasEnvironment',
-     'Bio::Path::Find::Role::HasConfig';
+with 'Bio::Path::Find::Role::HasConfig';
 
 =head1 CONTACT
 
@@ -50,27 +49,24 @@ has 'name' => (
 
 The L<Bio::Track::Schema> object for the database handled by this object.
 Connection parameters are taken from the configuration.
-In production, the database is assumed to be a MySQL instance. The
-configuration must contain the parameters C<host>, C<port>, and C<user>. If
-the connection requires a password, C<pass> must also be given, e.g.
+
+The configuration must contain the parameter C<dsn>, giving the L<DBI> DSN
+string for the database. If the connection requires a username and/or password,
+C<user> and C<pass> must also be given, e.g.
 
   <connection_params>
-    host dbhost
-    port 3306
-    user find_user
+    dsn  dbi:SQLite:dbname=t/data/pathogen_prod_track.db
   </connection_params>
 
-In a test environment, the database is assumed to be an SQLite DB file, in
-which case the configuration block must contain the key C<dbname>. The
-C<host>, C<port>, and C<user> keys must be present but can contain dummy
-values, e.g.
+for a SQLite database, or
 
   <connection_params>
-    dbname test_database.db
-    host host
-    port 3306
-    user user
+    dsn  DBI:mysql=host=test_db_host;port=3306;database=pathogen_prok_track
+    user test_db_username
+    pass test_db_password
   </connection_params>
+
+for a MySQL database.
 
 B<Read only>.
 
@@ -86,13 +82,19 @@ has 'schema' => (
 sub _build_schema {
   my $self = shift;
 
-  my $dsn = $self->_get_dsn;
+  my $c    = $self->config->{connection_params};
 
-  my $user = $self->config->{connection_params}->{user};
-  my $pass = $self->config->{connection_params}->{pass} || undef;
-  my $schema = $self->is_in_test_env
-             ? Bio::Track::Schema->connect($dsn)
-             : Bio::Track::Schema->connect($dsn, $user, $pass);
+  my $dsn  = $self->_get_dsn;
+  my $user = $c->{user};
+  my $pass = $c->{pass};
+
+  my $schema;
+  if ( $c->{driver} eq 'mysql' ) {
+    $schema = Bio::Track::Schema->connect($dsn, $user, $pass);
+  }
+  elsif ( $c->{driver} eq 'SQLite' ) {
+    $schema = Bio::Track::Schema->connect($dsn);
+  }
 
   return $schema;
 }
@@ -106,10 +108,9 @@ that store the data. The C<db_root> attribute gives the root of this directory
 hierarchy. The root directory should be specified in the configuration file,
 using the key C<db_root>.
 
-If C<db_root> is not found in the config, a warning is issued and we use a
-default value: if the C<environment> attribute is set to C<test>, C<db_root>
-defaults to a directory in the test suite, otherwise the default is a
-Sanger-specific disk location.
+If C<db_root> is not found in the config, an exception is thrown. If the config
+specifies a directory but the directory doesn't exist (or isn't a directory),
+an exception is thrown.
 
 B<Read-only>.
 
@@ -129,16 +130,12 @@ sub _build_db_root {
   # find the root directory for the directory structure containing the data
   my $db_root = $self->config->{db_root};
 
-  if ( not defined $db_root ) {
-    carp 'WARNING: configuration does not specify the path to the root directory containing data directories ("db_root"); using default';
-    $db_root = $self->environment eq 'test'
-             ? 't/data/04_database/root_dir'
-             : '/lustre/scratch108/pathogen/pathpipe';
-  }
+  Bio::Path::Find::Exception->throw(
+    msg => "ERROR: data hierarchy root directory is not defined in the configuration" )
+    unless defined $db_root;
 
   Bio::Path::Find::Exception->throw(
-    msg => "ERROR: data hierarchy root directory ($db_root) does not exist (or is not a directory)"
-  )
+    msg => "ERROR: data hierarchy root directory ($db_root) does not exist (or is not a directory)" )
     unless -d $db_root;
 
   return $db_root;
@@ -274,19 +271,37 @@ sub _build_db_subdirs {
 sub _get_dsn {
   my $self = shift;
 
+  Bio::Path::Find::Exception->throw(
+    msg => 'ERROR: must specify database connection parameters in configuration' )
+    unless exists $self->config->{connection_params};
+
   my $c = $self->config->{connection_params};
 
+  Bio::Path::Find::Exception->throw(
+    msg => 'ERROR: must specify a database driver in connection parameters configuration' )
+    unless exists $c->{driver};
+
   my $dsn;
-  if ( $self->environment eq 'test' ) {
-    Bio::Path::Find::Exception->throw( msg =>  'ERROR: must specify SQLite DB location as "connection:dbname" in test config' )
-      unless $c->{dbname};
-    $dsn = 'dbi:SQLite:dbname=' . $c->{dbname};
+
+  if ( $c->{driver} eq 'mysql' ) {
+
+    # make sure all of the required connection parameters are supplied
+    foreach my $param ( qw( host port user ) ) {
+      Bio::Path::Find::Exception->throw( msg => "ERROR: missing connection parameter, $param" )
+        unless exists $c->{$param};
+    }
+
+    $dsn = "DBI:mysql:host=$c->{host};port=$c->{port};database=" . $self->name;
+  }
+  elsif ( $c->{driver} eq 'SQLite' ) {
+    Bio::Path::Find::Exception->throw( msg => "ERROR: missing connection parameter, dbname" )
+      unless exists $c->{dbname};
+    $dsn = "dbi:SQLite:dbname=$c->{dbname}";
   }
   else {
-    $dsn = 'DBI:mysql:'
-           . "host=$c->{host};"
-           . "port=$c->{port};"
-           . 'database=' . $self->name;
+    Bio::Path::Find::Exception->throw(
+      msg => "ERROR: not a valid database driver; must be either 'mysql' or 'SQLite'"
+    );
   }
 
   return $dsn;

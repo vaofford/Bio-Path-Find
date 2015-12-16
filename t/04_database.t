@@ -9,64 +9,195 @@ use Try::Tiny;
 
 use_ok('Bio::Path::Find::Database');
 
+#-------------------------------------------------------------------------------
+
+# reading config from file
+
+# check we can get a DSN for a mysql database
 my $db;
-lives_ok { $db = Bio::Path::Find::Database->new( environment => 'test', name => 'pathogen_prok_track', config_file => 't/data/04_database/test_no_dbname.conf' ) }
-  'got a B::P::F::Database object';
-throws_ok { $db->_get_dsn }
-  qr/must specify SQLite DB location/,
-  'exception with configuration having missing dbname';
+lives_ok {
+    $db = Bio::Path::Find::Database->new(
+      name        => 'pathogen_prok_track',
+      config_file => 't/data/04_database/mysql.conf',
+    )
+  }
+  'got a B::P::F::Database object for a MySQL connection using config file';
 
-lives_ok { $db = Bio::Path::Find::Database->new( environment => 'test', name => 'pathogen_prok_track', config_file => 't/data/04_database/test.conf' ) }
-  'got a B::P::F::Database object';
-
-my $dsn;
-lives_ok { $dsn = $db->_get_dsn } 'no exception getting DSN';
-
-$db = Bio::Path::Find::Database->new(
-  environment => 'test',
-  name        => 'pathogen_prok_track',
-  config_file => 't/data/04_database/test.conf',
-);
-
-is $db->_get_dsn, 'dbi:SQLite:dbname=t/data/pathogen_prok_track.db', 'correct DSN in test env';
 is $db->db_root, 't/data/linked', 'got expected root directory';
+is $db->_get_dsn, 'DBI:mysql:host=test_db_host;port=3306;database=pathogen_prok_track',
+  'got expected MySQL DSN using config file';
 isa_ok $db->schema, 'Bio::Track::Schema', 'schema';
 
-my $broken_db = Bio::Path::Find::Database->new( environment => 'test', name => 'pathogen_prok_track', config_file => 't/data/04_database/test_no_hierarchy_template.conf' );
+#---------------------------------------
+
+# and for an SQLite DB
+lives_ok {
+    $db = Bio::Path::Find::Database->new(
+      name        => 'pathogen_prok_track',
+      config_file => 't/data/04_database/sqlite.conf',
+    )
+  }
+  'got a B::P::F::Database object for a SQLite connection using config file';
+
+is $db->_get_dsn, 'dbi:SQLite:dbname=t/data/pathogen_prok_track.db',
+  'got expected SQLite DSN using config file';
+isa_ok $db->schema, 'Bio::Track::Schema', 'schema';
+
+#---------------------------------------
+
+# check we can use a config hash too
+my $config = {
+  db_root            => 't/data/linked',
+  hierarchy_template => 'genus:species:TRACKING:sample:lane',
+  connection_params  => {
+    driver => 'mysql',
+    host   => 'my_db_host',
+    port   => 3306,
+    user   => 'username',
+    pass   => 'password',
+  },
+  db_subdirs => {
+    pathogen_prok_track => 'prokaryotes',
+  },
+};
+
+lives_ok {
+    $db = Bio::Path::Find::Database->new(
+      name   => 'pathogen_prok_track',
+      config => $config,
+    )
+  }
+  'got a B::P::F::Database object using config hash';
+
+is $db->_get_dsn, 'DBI:mysql:host=my_db_host;port=3306;database=pathogen_prok_track',
+  'got expected DSN using config hash';
+
+#-------------------------------------------------------------------------------
+
+# look for warnings and exceptions
+
+# missing db_root
+$config = {
+  # no db_root
+  hierarchy_template => 'genus:species:TRACKING:sample:lane',
+  connection_params  => {
+    driver => 'SQLite',
+    dbname => 't/data/pathogen_prok_track.db',
+  },
+  db_subdirs => {
+    pathogen_prok_track => 'prokaryotes',
+  },
+};
+
+$db = Bio::Path::Find::Database->new( name => 'pathogen_prok_track', config => $config );
+
+throws_ok { $db->db_root }
+  qr/data hierarchy root directory is not defined/,
+  'exception with missing db_root';
+
+#---------------------------------------
+
+# missing template
+$config = {
+  db_root            => 't/data/linked',
+  # no template
+  connection_params  => {
+    driver => 'SQLite',
+    dbname => 't/data/pathogen_prok_track.db',
+  },
+  db_subdirs => {
+    pathogen_prok_track => 'prokaryotes',
+  },
+};
+
+$db = Bio::Path::Find::Database->new( name => 'pathogen_prok_track', config => $config );
+
 my $template;
-warning_like { $template = $broken_db->hierarchy_template }
+warning_like { $template = $db->hierarchy_template }
   qr/does not specify the directory hierarchy template/,
   'got warning about missing hierarchy template in config';
 
 is $template, 'genus:species-subspecies:TRACKING:projectssid:sample:technology:library:lane',
   'got default template';
 
-warning_is { $template = $db->hierarchy_template } [], 'no warning when template set in config';
-is $template, 'genus:species:TRACKING:sample:lane', 'got correct template';
+#---------------------------------------
 
-$broken_db = Bio::Path::Find::Database->new( environment => 'test', name => 'pathogen_prok_track', config_file => 't/data/04_database/test_no_mapping.conf' );
+# missing connection params
+$config = {
+  db_root            => 't/data/linked',
+  hierarchy_template => 'genus:species:TRACKING:sample:lane',
+  # no connection params
+  db_subdirs => {
+    pathogen_prok_track => 'prokaryotes',
+  },
+};
+
+$db = Bio::Path::Find::Database->new( name => 'pathogen_prok_track', config => $config );
+
+throws_ok { $db->_get_dsn }
+  qr/must specify database connection parameters/,
+  'exception when connection params missing from config';
+
+#---------------------------------------
+
+# missing DB driver
+$config = {
+  db_root            => 't/data/linked',
+  hierarchy_template => 'genus:species:TRACKING:sample:lane',
+  connection_params  => {
+    # missing driver
+    host     => 'test_db_host',
+    port     => 3308,
+    user     => 'username',
+    pass     => 'password',
+  },
+  db_subdirs => {
+    pathogen_prok_track => 'prokaryotes',
+  },
+};
+
+$db = Bio::Path::Find::Database->new( name => 'pathogen_prok_track', config => $config );
+
+throws_ok { $db->_get_dsn }
+  qr/must specify a database driver/,
+  'exception when driver is missing from config';
+
+#---------------------------------------
+
+# bad driver
+$config->{connection_params}->{driver} = 'not-a-real-driver';
+$db = Bio::Path::Find::Database->new( name => 'pathogen_prok_track', config => $config );
+
+throws_ok { $db->_get_dsn }
+  qr/not a valid database driver/,
+  'exception with unknown driver';
+
+#---------------------------------------
+
+# missing mapping
+$config = {
+  db_root            => 't/data/linked',
+  hierarchy_template => 'genus:species:TRACKING:sample:lane',
+  connection_params  => {
+    driver => 'SQLite',
+    dbname => 't/data/pathogen_prok_track.db',
+  },
+  # no mapping
+};
+
+$db = Bio::Path::Find::Database->new( name => 'pathogen_prok_track', config => $config );
 
 my $root;
-warning_like { $root = $broken_db->hierarchy_root_dir }
+warning_like { $root = $db->hierarchy_root_dir }
   qr/does not specify the mapping/,
-  'warning with config having no subdir mapping';
+  'got warning about missing mapping in config';
 
 is $root, 't/data/linked/prokaryotes/seq-pipelines',
   'got correct root dir without subdir';
 
-warning_is { $root = $db->hierarchy_root_dir } [], 'no warning when subdir mapping in config';
-
-is $root, 't/data/linked/prokaryotes/seq-pipelines',
-  'got correct root dir';
-
-# check we get a valid DSN for a MySQL DB
-$db = Bio::Path::Find::Database->new( environment => 'prod', name => 'pathogen_track_test', config_file => 't/data/04_database/prod_dummy_creds.conf');
-is $db->_get_dsn, 'DBI:mysql:host=dbhost;port=3306;database=pathogen_track_test', 'correct DSN in "production"';
+#-------------------------------------------------------------------------------
 
 # see if we can perform tests on a test DB on a MySQL server
-$db = Bio::Path::Find::Database->new( environment => 'prod', name => 'pathogen_track_test', config_file => 't/data/04_database/prod.conf');
-
-isa_ok $db->schema, 'Bio::Track::Schema', 'schema';
 
 SKIP: {
   skip 'no credentials for live DB; set TEST_MYSQL_HOST, TEST_MYSQL_PORT, TEST_MYSQL_USER', 1
@@ -75,6 +206,27 @@ SKIP: {
              $ENV{TEST_MYSQL_USER} );
 
   diag 'connecting to MySQL DB';
+
+  $config = {
+    db_root            => 't/data/linked',
+    hierarchy_template => 'genus:species:TRACKING:sample:lane',
+    connection_params  => {
+      driver => 'mysql',
+      host   => $ENV{TEST_MYSQL_HOST},
+      port   => $ENV{TEST_MYSQL_PORT},
+      user   => $ENV{TEST_MYSQL_USER},
+    },
+    db_subdirs => {
+      pathogen_prok_track => 'prokaryotes',
+    },
+  };
+
+  $db = Bio::Path::Find::Database->new(
+    name   => 'pathogen_track_test',
+    config => $config,
+  );
+
+  isa_ok $db->schema, 'Bio::Track::Schema', 'schema';
 
   lives_ok { $db->schema->resultset('LatestLane')->count }
     'can count rows in lane table';
