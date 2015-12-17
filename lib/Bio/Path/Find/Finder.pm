@@ -14,6 +14,8 @@ use Path::Class;
 use File::Basename;
 use Try::Tiny;
 
+use Term::ProgressBar::Simple;
+
 use Type::Params qw( compile );
 use Types::Standard qw(
   Object
@@ -214,11 +216,19 @@ sub _find_lanes {
 
   # set up the progress bar
   my $max = scalar( @db_names ) * scalar( @$ids );
-  my $progress_bar = Bio::Path::Find::ProgressBar->new(
-    name   => 'finding lanes',
-    count  => $max,
+  # my $progress_bar = Bio::Path::Find::ProgressBar->new(
+  #   name   => 'finding lanes',
+  #   count  => $max,
+  #   silent => $self->config->{no_progress_bars},
+  # );
+
+  my $pb = Term::ProgressBar::Simple->new( {
     silent => $self->config->{no_progress_bars},
-  );
+    ETA    => 'linear',
+    count  => $max,
+    remove => 1,
+    name   => 'finding lanes'
+  });
 
   # walk over the list of available databases and, for each ID, search for
   # lanes matching the specified ID
@@ -232,7 +242,7 @@ sub _find_lanes {
     ID: foreach my $id ( @$ids ) {
       $self->log->debug( qq(looking for ID "$id") );
 
-      $progress_bar->update($i++);
+      # $progress_bar->update($i++);
 
       my $rs = $database->schema->get_lanes_by_id($id, $type);
       next ID unless $rs; # no matching lanes
@@ -260,11 +270,12 @@ sub _find_lanes {
 
         push @lanes, $lane;
       }
+      $pb++ unless $self->config->{no_progress_bars};
     }
 
   }
 
-  $progress_bar->finished;
+  # $progress_bar->finished;
 
   return \@lanes;
 }
