@@ -12,6 +12,7 @@ use Try::Tiny;
 use Bio::Path::Find::App::PathFind;
 
 try {
+  # Bio::Path::Find::App::PathFind->new_with_options(config_file => 'prod.conf')->run;
   Bio::Path::Find::App::PathFind->new_with_options->run;
 } catch {
   say STDERR $_;

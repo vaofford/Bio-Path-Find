@@ -106,7 +106,7 @@ option 'verbose' => (
 );
 
 # these are "non-option" attributes
-has 'config_file'  => ( is => 'rw', isa => Str,         default => 'live.conf' );
+# has 'config_file'  => ( is => 'rw', isa => Str, default => 'live.conf' );
 # TODO get rid of the hard-coded config file path somehow
 
 #-------------------------------------------------------------------------------
