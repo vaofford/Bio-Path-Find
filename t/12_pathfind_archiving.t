@@ -321,7 +321,7 @@ $params{zip} = 1;
 $pf = Bio::Path::Find::App::PathFind->new(%params);
 
 output_like { $pf->_make_archive($lanes) }
-  qr/prokaryotes/,                                # STDOUT
+  qr/prokaryotes/,                                 # STDOUT
   qr/pathfind_10018_1_1\.zip.*?Writing zip file/s, # STDERR
   'stdout shows correct contents, stderr shows correct filename for zip archive';
 
@@ -337,7 +337,7 @@ is_deeply [ $zip->memberNames ], [ '10018_1_1/10018_1#1_1.fastq.gz', '10018_1_1/
 
 # check for errors when writing
 
-$params{archive} = '/non-existent-dir/test.zip';
+$params{archive} = file '/non-existent-dir/test.zip';
 
 $pf = Bio::Path::Find::App::PathFind->new(%params);
 
