@@ -458,6 +458,7 @@ sub _make_archive {
                           . ( $self->no_tar_compression ? '.tar' : '.tar.gz' );
     }
   }
+  $archive_filename = file $archive_filename;
 
   say STDERR "Archiving lane data to '$archive_filename'";
 
@@ -482,10 +483,14 @@ sub _make_archive {
     print STDERR 'Writing zip file... ';
 
     # write it to file
-    unless ( $zip->writeToFileNamed($archive_filename) == AZ_OK ) {
-      print STDERR "failed\n";
-      Bio::Path::Find::Exception->throw( msg => "ERROR: couldn't write zip file ($archive_filename)" );
-    }
+    try {
+      unless ( $zip->writeToFileNamed($archive_filename->stringify) == AZ_OK ) {
+        print STDERR "failed\n";
+        Bio::Path::Find::Exception->throw( msg => "ERROR: couldn't write zip file ($archive_filename)" );
+      }
+    } catch {
+      Bio::Path::Find::Exception->throw( msg => "ERROR: error while writing zip file ($archive_filename): $_" );
+    };
 
     print STDERR "done\n";
   }
