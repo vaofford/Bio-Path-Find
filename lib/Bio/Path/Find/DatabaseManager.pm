@@ -143,7 +143,7 @@ sub _build_data_sources {
     unless scalar @sources;
 
   {
-    $, = "\n";
+    local $, = "\n";
     $self->log->debug("list of data sources from database:\n", \@sources);
   }
 
