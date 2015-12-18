@@ -13,51 +13,145 @@ Log::Log4perl->easy_init( $FATAL );
 
 use_ok('Bio::Path::Find::DatabaseManager');
 
-my $dbm;
-lives_ok { $dbm = Bio::Path::Find::DatabaseManager->new( config_file => 't/data/05_database_manager/no_connection_params.conf') }
-  'no exception instantiating with config having no connection parameters';
-throws_ok { $dbm->connection_params }
-  qr/does not specify any database connection parameters/,
-  'exception trying to retrieve connection params';
+#-------------------------------------------------------------------------------
 
-lives_ok { $dbm = Bio::Path::Find::DatabaseManager->new( config_file => 't/data/05_database_manager/some_connection_params.conf') }
-  'no exception instantiating with config having missing connection parameters';
-throws_ok { $dbm->connection_params }
-  qr/does not specify one of the required database connection parameters/,
+# read config from file
+
+my $dbm;
+lives_ok {
+    $dbm = Bio::Path::Find::DatabaseManager->new(
+      config_file => 't/data/05_database_manager/test.conf'
+    )
+  }
+  'no exception instantiating with valid config';
+
+#---------------------------------------
+
+# use a config hash
+
+my $config = {
+  db_root => 't/data/05_database_manager/root_dir',
+  hierarchy_template => 'genus:species-subspecies:TRACKING:projectssid:sample:technology:library:lane',
+  connection_params => {
+    driver => 'SQLite',
+    dbname => 't/data/empty_tracking_database.db',
+  },
+  db_subdirs => {
+    pathogen_virus_track => 'viruses',
+    pathogen_prok_track  => 'prokaryotes',
+  },
+};
+
+lives_ok { $dbm = Bio::Path::Find::DatabaseManager->new( config => $config ) }
+  'no exception instantiating with valid config';
+
+#---------------------------------------
+
+# check exceptions with invalid configuration
+
+# missing params
+delete $config->{connection_params};
+
+throws_ok { Bio::Path::Find::DatabaseManager->new( config => $config )->connection_params }
+  qr/does not specify any database connection parameters/,
   'exception with missing connection params';
 
-lives_ok { $dbm = Bio::Path::Find::DatabaseManager->new( config_file => 't/data/05_database_manager/bad_connection_params.conf') }
-  'no exception instantiating with config having invalid connection parameters';
-throws_ok { $dbm->data_sources }
-  qr/failed to retrieve a list of data sources/,
-  "exception with bad database connection params; can't retrieve data sources";
+# missing driver
+$config->{connection_params} = {
+  dbname => 't/data/empty_tracking_database.db',
+};
 
-lives_ok { $dbm = Bio::Path::Find::DatabaseManager->new( environment => 'test', config_file => 't/data/05_database_manager/test.conf') }
-  'no exception instantiating with test config';
-my $ds;
-lives_ok { $ds = $dbm->data_sources }
-  "no exception building list of test data_sources";
+throws_ok { Bio::Path::Find::DatabaseManager->new( config => $config )->connection_params }
+  qr/does not specify the database driver/,
+  'exception with missing driver';
 
-# make sure we get the expected SQLite DB with the test config
-is_deeply $ds, [ 'pathogen_test_track' ], 'got expected list of test data sources';
+# missing driver
+$config->{connection_params}->{driver} = 'not-a-supported-driver';
 
-ok scalar keys %{ $dbm->databases }, 'got a Bio::Path::Find::Database object for test DB';
+throws_ok { Bio::Path::Find::DatabaseManager->new( config => $config )->connection_params }
+  qr/does not specify a valid database driver/,
+  'exception with unsupported driver';
 
-my $db = $dbm->get_database('pathogen_test_track');
+# missing mysql param
+$config->{connection_params} = {
+  driver => 'mysql',
+  # host   => 'db_host',
+  port   => 3306,
+  user   => 'db_user',
+};
+
+throws_ok { Bio::Path::Find::DatabaseManager->new( config => $config )->connection_params }
+  qr/does not specify a required database connection parameter, host/,
+  'exception with missing mysql param';
+
+# missing SQLite param
+$config->{connection_params} = {
+  driver => 'SQLite',
+  # dbname => 'database.db',
+};
+
+throws_ok { Bio::Path::Find::DatabaseManager->new( config => $config )->connection_params }
+  qr/does not specify a required database connection parameter, dbname/,
+  'exception with missing SQLite param';
+
+#-------------------------------------------------------------------------------
+
+# check data sources
+
+# local SQLite DB
+
+$config = {
+  db_root => 't/data/05_database_manager/root_dir',
+  hierarchy_template => 'genus:species-subspecies:TRACKING:projectssid:sample:technology:library:lane',
+  connection_params => {
+    driver => 'SQLite',
+    dbname => 't/data/empty_tracking_database.db',
+  },
+  db_subdirs => {
+    pathogen_virus_track => 'viruses',
+    pathogen_prok_track  => 'prokaryotes',
+  },
+};
+
+lives_ok { $dbm = Bio::Path::Find::DatabaseManager->new( config => $config ) }
+  'no exception with valid SQLite config';
+
+is_deeply $dbm->data_sources, [ 'empty_tracking_database' ],
+  'got SQLite DB name in data sources';
+
+my $db;
+lives_ok { $db = $dbm->get_database('empty_tracking_database') }
+  'no exception getting Bio::Path::Find::Database for SQLite DB';
+
 isa_ok $db, 'Bio::Path::Find::Database', 'database object';
-isa_ok $db->schema, 'Bio::Track::Schema', 'schema';
 
-# use "production" config. Can't easily compare the list of databases, since that's
-# liable to change in the test instance
-$dbm = Bio::Path::Find::DatabaseManager->new( environment => 'prod', config_file => 't/data/05_database_manager/prod.conf');
+#---------------------------------------
+
+# MySQL DB
 
 SKIP: {
-  skip 'no access to live DB; set TEST_MYSQL_HOST, TEST_MYSQL_PORT, TEST_MYSQL_USER', 3
+  skip 'no access to live DB; set TEST_MYSQL_HOST, TEST_MYSQL_PORT, TEST_MYSQL_USER', 4
     unless ( $ENV{TEST_MYSQL_HOST} and
              $ENV{TEST_MYSQL_PORT} and
              $ENV{TEST_MYSQL_USER} );
 
-  diag 'connecting to MySQL DB';
+  $config = {
+    db_root => 't/data/05_database_manager/root_dir',
+    hierarchy_template => 'genus:species-subspecies:TRACKING:projectssid:sample:technology:library:lane',
+    connection_params => {
+      driver => 'mysql',
+      host   => $ENV{TEST_MYSQL_HOST},
+      port   => $ENV{TEST_MYSQL_PORT},
+      user   => $ENV{TEST_MYSQL_USER},
+    },
+    db_subdirs => {
+      pathogen_virus_track => 'viruses',
+      pathogen_prok_track  => 'prokaryotes',
+    },
+  };
+
+  lives_ok { $dbm = Bio::Path::Find::DatabaseManager->new( config => $config ) }
+    'no exception with valid live mysql config';
 
   my $can_connect;
   try {
@@ -69,15 +163,18 @@ SKIP: {
   SKIP: {
     skip "MySQL database tests; check connection params", 3 unless $can_connect;
 
+    my $ds;
     lives_ok { $ds = $dbm->data_sources }
       'no exception building list of production data_sources';
 
-    $db = $dbm->get_database('pathogen_test_external');
+    my $db = $dbm->get_database('pathogen_test_external');
     isa_ok $db, 'Bio::Path::Find::Database', 'database object';
     isa_ok $db->schema, 'Bio::Track::Schema', 'schema';
   }
 
 }
+
+#-------------------------------------------------------------------------------
 
 done_testing;
 

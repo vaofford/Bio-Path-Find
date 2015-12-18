@@ -35,7 +35,6 @@ chdir $temp_dir;
 # check filename collection
 
 my %params = (
-  environment      => 'test',
   config_file      => 't/data/12_pathfind_archiving/test.conf',
   id               => '10018_1',
   type             => 'lane',
@@ -48,7 +47,6 @@ lives_ok { $pf = Bio::Path::Find::App::PathFind->new(%params) }
 
 # get the lanes using the Finder directly
 my $f = Bio::Path::Find::Finder->new(
-  environment => 'test',
   config_file => 't/data/12_pathfind_archiving/test.conf',
   lane_role   => 'Bio::Path::Find::Lane::Role::PathFind',
 );
@@ -85,14 +83,6 @@ is_deeply $got_filenames, \@expected_filenames,
 is_deeply $got_stats, \@expected_stats,
   'got expected stats from _collect_filenames';
 
-# check the progress bar, sort of
-$params{no_progress_bars} = 0;
-$pf = Bio::Path::Find::App::PathFind->new(%params);
-
-stderr_like { $pf->_collect_filenames($lanes) }
-  qr/finding files:\s+\d+\%/,
-  'got progress bar for _collect_filenames';
-
 # check the writing of CSV files
 my $filename = file( $temp_dir, 'written_stats.csv' );
 $pf->_write_stats_csv($got_stats, $filename);
@@ -109,7 +99,6 @@ is_deeply \@got_stats, \@expected_stats, 'written stats file looks correct';
 # check the creation of a tar archive
 
 %params = (
-  environment      => 'test',
   config_file      => 't/data/12_pathfind_archiving/test.conf',
   id               => '10018_1',
   type             => 'lane',
@@ -162,7 +151,6 @@ pop @expected_filenames;
 
 # check renaming of files in the archive
 %params = (
-  environment      => 'test',
   config_file      => 't/data/12_pathfind_archiving/test.conf',
   id               => '10018_1',
   type             => 'lane',
@@ -186,7 +174,6 @@ is scalar( grep(m/\#/, @archived_files) ), 0, 'filenames have been renamed';
 # check compression
 
 %params = (
-  environment      => 'test',
   config_file      => 't/data/12_pathfind_archiving/test.conf',
   id               => '10018_1',
   type             => 'lane',
@@ -231,7 +218,6 @@ is $uncompressed_slurped_data, $data, 'file written to disk matches original';
 # check creation of a zip archive
 
 %params = (
-  environment      => 'test',
   config_file      => 't/data/12_pathfind_archiving/test.conf',
   id               => '10018_1',
   type             => 'lane',
@@ -270,7 +256,6 @@ is $zip_members[-1], '10018_1/stats.csv', 'last member has correct name';
 # first, make a tar archive
 
 %params = (
-  environment      => 'test',
   config_file      => 't/data/12_pathfind_archiving/test.conf',
   id               => '10018_1#1',
   type             => 'lane',

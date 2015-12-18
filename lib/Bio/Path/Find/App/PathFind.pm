@@ -18,9 +18,9 @@ use Text::CSV_XS;
 use Archive::Tar;
 use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
 use Cwd;
+use Term::ProgressBar::Simple;
 
 use Bio::Path::Find::Exception;
-use Bio::Path::Find::ProgressBar;
 
 use Types::Standard qw(
   ArrayRef
@@ -98,7 +98,7 @@ B<fastq>, or B<pacbio>.
 =head3 OUTPUT
 
 pathfind can output data in various ways. The default behaviour is to list
-the directories containing data for the specified ID(s). 
+the directories containing data for the specified ID(s).
 
 =over
 
@@ -418,19 +418,19 @@ sub _make_symlinks {
 
   say STDERR "Creating links in '$dest'";
 
-  my $progress_bar = Bio::Path::Find::ProgressBar->new(
-    name   => 'linking',
-    count  => scalar @$lanes,
-    silent => $self->no_progress_bars,
-  );
+  my $pb = $self->config->{no_progress_bars}
+         ? 0
+         : Term::ProgressBar::Simple->new( {
+             name   => 'linking',
+             count  => scalar @$lanes,
+             remove => 1,
+           } );
 
   my $i = 0;
   foreach my $lane ( @$lanes ) {
     $lane->make_symlinks( dest => $dest, rename => $self->rename );
-    $progress_bar->update($i++);
+    $pb++;
   }
-
-  $progress_bar->finished;
 }
 
 #-------------------------------------------------------------------------------
@@ -527,11 +527,13 @@ sub _make_archive {
 sub _collect_filenames {
   my ( $self, $lanes ) = @_;
 
-  my $progress_bar = Bio::Path::Find::ProgressBar->new(
-    name   => 'finding files',
-    count  => scalar @$lanes,
-    silent => $self->no_progress_bars,
-  );
+  my $pb = $self->config->{no_progress_bars}
+         ? 0
+         : Term::ProgressBar::Simple->new( {
+             name   => 'finding files',
+             count  => scalar @$lanes,
+             remove => 1,
+           } );
 
   # collect the lane stats as we go along. Store the headers for the stats
   # report as the first row
@@ -554,10 +556,8 @@ sub _collect_filenames {
     # store the stats for this lane
     push @stats, $lane->stats;
 
-    $progress_bar->update($i++);
+    $pb++;
   }
-
-  $progress_bar->finished;
 
   return ( \@filenames, \@stats );
 }
@@ -571,18 +571,18 @@ sub _build_tar_archive {
 
   my $tar = Archive::Tar->new;
 
-  my $progress_bar = Bio::Path::Find::ProgressBar->new(
-    name   => 'adding files',
-    count  => scalar @$filenames,
-    silent => $self->no_progress_bars,
-  );
+  my $pb = $self->config->{no_progress_bars}
+         ? 0
+         : Term::ProgressBar::Simple->new( {
+             name   => 'adding files',
+             count  => scalar @$filenames,
+             remove => 1,
+           } );
 
-  my $i = 0;
   foreach my $filename ( @$filenames ) {
     $tar->add_files($filename);
-    $progress_bar->update($i++);
+    $pb++;
   }
-  $progress_bar->finished;
 
   # the files are added with their full paths. We want them to be relative,
   # so we'll go through the archive and rename them all. If the "-rename"
@@ -615,13 +615,14 @@ sub _build_zip_archive {
 
   my $zip = Archive::Zip->new;
 
-  my $progress_bar = Bio::Path::Find::ProgressBar->new(
-    name   => 'adding files',
-    count  => scalar @$filenames,
-    silent => $self->no_progress_bars,
-  );
+  my $pb = $self->config->{no_progress_bars}
+         ? 0
+         : Term::ProgressBar::Simple->new( {
+             name   => 'adding files',
+             count  => scalar @$filenames,
+             remove => 1,
+           } );
 
-  my $i = 0;
   foreach my $orig_filename ( @$filenames ) {
     my $zip_filename  = $self->_rename_file($orig_filename);
 
@@ -630,10 +631,8 @@ sub _build_zip_archive {
     # the Path::Class::File object going into the zip archive
     $zip->addFile($orig_filename->stringify, $zip_filename->stringify);
 
-    $progress_bar->update($i++);
+    $pb++;
   }
-
-  $progress_bar->finished;
 
   return $zip;
 }
@@ -679,15 +678,16 @@ sub _compress_data {
   my $chunk_size = int( $max / 100 );
 
   # set up the progress bar
-  my $progress_bar = Bio::Path::Find::ProgressBar->new(
-    name   => 'gzipping',
-    count  => $max,
-    silent => $self->no_progress_bars,
-  );
+  my $pb = $self->config->{no_progress_bars}
+         ? 0
+         : Term::ProgressBar::Simple->new( {
+             name   => 'gzipping',
+             count  => $max,
+             remove => 1,
+           } );
 
   my $compressed_data;
   my $offset      = 0;
-  my $next_update = 0;
   my $remaining   = $max;
   my $z           = IO::Compress::Gzip->new( \$compressed_data );
   while ( $remaining > 0 ) {
@@ -700,13 +700,10 @@ sub _compress_data {
 
     $offset    += $chunk_size;
     $remaining -= $chunk_size;
-    $progress_bar->update($offset);
+    $pb++;
   }
 
   $z->close;
-
-  # tidy up; push the progress bar to 100% so that it will actually be removed
-  $progress_bar->finished;
 
   return $compressed_data;
 }
@@ -723,11 +720,13 @@ sub _write_data {
   my $max        = length $data;
   my $chunk_size = int( $max / 100 );
 
-  my $progress_bar = Bio::Path::Find::ProgressBar->new(
-    name   => 'writing',
-    count  => $max,
-    silent => $self->no_progress_bars,
-  );
+  my $pb = $self->config->{no_progress_bars}
+         ? 0
+         : Term::ProgressBar::Simple->new( {
+             name   => 'writing',
+             count  => $max,
+             remove => 1,
+           } );
 
   open ( FILE, '>', $filename )
     or Bio::Path::Find::Exception->throw( msg =>  "ERROR: couldn't write output file ($filename): $!" );
@@ -736,18 +735,15 @@ sub _write_data {
 
   my $written;
   my $offset      = 0;
-  my $next_update = 0;
   my $remaining   = $max;
   while ( $remaining > 0 ) {
     $written = syswrite FILE, $data, $chunk_size, $offset;
     $offset    += $written;
     $remaining -= $written;
-    $progress_bar->update($offset);
+    $pb++;
   }
 
   close FILE;
-
-  $progress_bar->finished;
 }
 
 #-------------------------------------------------------------------------------
@@ -774,18 +770,18 @@ sub _make_stats {
     $lanes->[0]->stats_headers,
   );
 
-  my $pb = Bio::Path::Find::ProgressBar->new(
-    name   => 'finding stats',
-    count  => scalar @$lanes,
-    silent => $self->no_progress_bars,
-  );
+  my $pb = $self->config->{no_progress_bars}
+         ? 0
+         : Term::ProgressBar::Simple->new( {
+             name   => 'finding stats',
+             count  => scalar @$lanes,
+             remove => 1,
+           } );
 
-  for ( my $i = 0; $i < scalar @$lanes; $i++ ) {
-    push @stats, $lanes->[$i]->stats;
-    $pb->update($i);
+  foreach my $lane ( @$lanes ) {
+    push @stats, $lane->stats;
+    $pb++;
   }
-
-  $pb->finished;
 
   $self->_write_stats_csv(\@stats, $filename);
 }

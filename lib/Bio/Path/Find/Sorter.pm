@@ -13,8 +13,7 @@ use Type::Params qw( compile );
 use Types::Standard qw( Object slurpy Dict ArrayRef );
 use Bio::Path::Find::Types qw( BioPathFindLane );
 
-with 'Bio::Path::Find::Role::HasEnvironment',
-     'Bio::Path::Find::Role::HasConfig';
+with 'Bio::Path::Find::Role::HasConfig';
 
 =head1 CONTACT
 
@@ -28,9 +27,7 @@ path-help@sanger.ac.uk
 
 =head1 ATTRIBUTES
 
-Inherits C<config> and C<environment> from the roles
-L<Bio::Path::Find::Role::HasConfig> and
-L<Bio::Path::Find::Role::HasEnvironment>.
+Inherits C<config> from L<Bio::Path::Find::Role::HasConfig>.
 
 =cut
 

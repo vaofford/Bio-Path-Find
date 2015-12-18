@@ -14,6 +14,8 @@ use Path::Class;
 use File::Basename;
 use Try::Tiny;
 
+use Term::ProgressBar::Simple;
+
 use Type::Params qw( compile );
 use Types::Standard qw(
   Object
@@ -37,11 +39,9 @@ use Bio::Path::Find::Types qw(
 use Bio::Path::Find::DatabaseManager;
 use Bio::Path::Find::Lane;
 use Bio::Path::Find::Sorter;
-use Bio::Path::Find::ProgressBar;
 use Bio::Path::Find::Exception;
 
-with 'Bio::Path::Find::Role::HasEnvironment',
-     'Bio::Path::Find::Role::HasConfig',
+with 'Bio::Path::Find::Role::HasConfig',
      'MooseX::Log::Log4perl';
 
 =head1 CONTACT
@@ -56,9 +56,7 @@ path-help@sanger.ac.uk
 
 =head1 ATTRIBUTES
 
-Inherits C<config> and C<environment> from the roles
-L<Bio::Path::Find::Role::HasConfig> and
-L<Bio::Path::Find::Role::HasEnvironment>.
+Inherits C<config> from L<Bio::Path::Find::Role::HasConfig>.
 
 =attr lane_role
 
@@ -119,10 +117,7 @@ has '_db_manager' => (
 
 sub _build_db_manager {
   my $self = shift;
-  return Bio::Path::Find::DatabaseManager->new(
-    environment => $self->environment,
-    config      => $self->config,
-  );
+  return Bio::Path::Find::DatabaseManager->new( config => $self->config );
 }
 
 #---------------------------------------
@@ -133,10 +128,7 @@ has '_sorter' => (
   lazy    => 1,
   default => sub {
     my $self = shift;
-    Bio::Path::Find::Sorter->new(
-      environment => $self->environment,
-      config      => $self->config,
-    );
+    Bio::Path::Find::Sorter->new( config => $self->config );
   },
 );
 
@@ -223,16 +215,17 @@ sub _find_lanes {
 
   # set up the progress bar
   my $max = scalar( @db_names ) * scalar( @$ids );
-  my $progress_bar = Bio::Path::Find::ProgressBar->new(
-    name   => 'finding lanes',
-    count  => $max,
-    silent => $self->config->{no_progress_bars},
-  );
+  my $pb = $self->config->{no_progress_bars}
+         ? 0
+         : Term::ProgressBar::Simple->new( {
+             name   => 'finding lanes',
+             count  => $max,
+             remove => 1,
+           } );
 
   # walk over the list of available databases and, for each ID, search for
   # lanes matching the specified ID
   my @lanes;
-  my $i = 0;
   DB: foreach my $db_name ( @db_names ) {
     $self->log->debug(qq(searching "$db_name"));
 
@@ -240,8 +233,6 @@ sub _find_lanes {
 
     ID: foreach my $id ( @$ids ) {
       $self->log->debug( qq(looking for ID "$id") );
-
-      $progress_bar->update($i++);
 
       my $rs = $database->schema->get_lanes_by_id($id, $type);
       next ID unless $rs; # no matching lanes
@@ -269,11 +260,11 @@ sub _find_lanes {
 
         push @lanes, $lane;
       }
+
+      $pb++;
     }
 
   }
-
-  $progress_bar->finished;
 
   return \@lanes;
 }

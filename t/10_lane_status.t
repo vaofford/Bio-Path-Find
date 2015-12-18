@@ -16,7 +16,6 @@ use Bio::Path::Find::Lane;
 use Bio::Path::Find::DatabaseManager;
 
 my $dbm = Bio::Path::Find::DatabaseManager->new(
-  environment => 'test',
   config_file => 't/data/10_lane_status/test.conf',
 );
 

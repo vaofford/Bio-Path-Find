@@ -23,8 +23,6 @@ use Type::Library -base, -declare => qw(
   FileIDType
   QCState
   FileType
-  Environment
-  TermProgressBar
 );
 
 use Type::Utils -all;
@@ -42,7 +40,6 @@ class_type 'Bio::Path::Find::LaneStatus';
 class_type 'Bio::Path::Find::LaneStatusFile';
 class_type 'Path::Class::File';
 class_type 'Path::Class::Dir';
-class_type 'Term::ProgressBar';
 
 declare_coercion 'FileFromStr',
   to_type PathClassFile,
@@ -63,7 +60,6 @@ enum IDType,      [qw( lane sample database study file library species )];
 enum FileIDType,  [qw( lane sample study)];
 enum QCState,     [qw( passed failed pending )];
 enum FileType,    [qw( fastq bam pacbio corrected )];
-enum Environment, [qw( test prod )];
 
 1;
 

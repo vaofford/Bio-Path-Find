@@ -1,0 +1,5 @@
+---
+db_root: t/data
+subdir_mapping:
+    one: two
+

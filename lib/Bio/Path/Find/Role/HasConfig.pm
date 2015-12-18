@@ -10,8 +10,6 @@ use Config::Any;
 
 use Bio::Path::Find::Exception;
 
-with 'Bio::Path::Find::Role::HasEnvironment';
-
 =head1 CONTACT
 
 path-help@sanger.ac.uk
@@ -26,13 +24,12 @@ path-help@sanger.ac.uk
 
 =attr config_file
 
-Path to the configuration file.
+Path to the configuration file. If not specified, we'll look for a filename
+in the C<PATHFIND_CONFIG> environment variable.
 
-If C<environment> is 'C<test>', we look for a default configuration file in a
-directory within the test suite, otherwise the default is a Sanger-specific
-disk location.
-
-May be overridden by setting at instantiation.
+Throws an exception if the config file isn't specified and can't be found
+via C<PATHFIND_CONFIG>, or if the file doesn't exist where it's supposed to
+exist.
 
 =cut
 
@@ -42,19 +39,28 @@ has 'config_file' => (
   lazy    => 1,
   writer  => '_set_config_file',
   builder => '_build_config_file',
+  trigger => \&_check_config_file,
 );
 
 sub _build_config_file {
   my $self = shift;
 
-  my $config_file = $self->environment eq 'test'
-                  ? 't/data/04_has_config/test.conf'
-                  : '/software/pathogen/projects/PathFind/config/prod.yml';
+  my $config_file = $ENV{PATHFIND_CONFIG};
 
-  Bio::Path::Find::Exception->throw( msg =>  "ERROR: config file ($config_file) does not exist" )
+  Bio::Path::Find::Exception->throw( msg => "ERROR: can't determine config file" )
+    unless defined $config_file;
+
+  Bio::Path::Find::Exception->throw( msg => "ERROR: default config file ($config_file) doesn't exist (or isn't a file)" )
     unless -f $config_file;
 
   return $config_file;
+}
+
+sub _check_config_file {
+  my ( $self, $config_file, $old_config_file ) = @_;
+
+  Bio::Path::Find::Exception->throw( msg => "ERROR: config file ($config_file) doesn't exist" )
+    unless -f $config_file;
 }
 
 #---------------------------------------

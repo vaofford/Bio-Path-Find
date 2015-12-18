@@ -14,7 +14,7 @@ Log::Log4perl->easy_init( $FATAL );
 use_ok('Bio::Path::Find::Finder');
 
 my $f;
-lives_ok { $f = Bio::Path::Find::Finder->new(environment => 'test', config_file => 't/data/07_finder/test.conf') }
+lives_ok { $f = Bio::Path::Find::Finder->new(config_file => 't/data/07_finder/test.conf') }
   'got a finder';
 
 # testing the script role feature
@@ -28,7 +28,9 @@ throws_ok { $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
 
 # now, with the real name of this script present in the <lane_roles> mapping
 # in the new config, there should be no exception
-$f = Bio::Path::Find::Finder->new(environment => 'test', config_file => 't/data/07_finder/test_with_lane_role.conf');
+$f = Bio::Path::Find::Finder->new(
+  config_file => 't/data/07_finder/test_with_lane_role.conf'
+);
 
 lives_ok { $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
   'no exception when script named in script_roles';
@@ -39,7 +41,6 @@ lives_ok { $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
 # instantiate the Finder, which allows it to correctly set a default role
 # using the mapping
 $f = Bio::Path::Find::Finder->new(
-  environment  => 'test',
   config_file  => 't/data/07_finder/test.conf',
   _script_name => 'pathfind',
 );
@@ -50,7 +51,6 @@ lives_ok { $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
 # check that we get an exception from Moose when we try to apply a role
 # that doesn't exist
 $f = Bio::Path::Find::Finder->new(
-  environment => 'test',
   config_file => 't/data/07_finder/test.conf',
   lane_role   => 'Some::Non::Existent::Role',
 );
@@ -61,7 +61,6 @@ throws_ok { $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
 
 # and finally, check that we can explicitly set the name of the role
 $f = Bio::Path::Find::Finder->new(
-  environment => 'test',
   config_file => 't/data/07_finder/test.conf',
   lane_role   => 'Bio::Path::Find::Lane::Role::PathFind',
 );
@@ -82,20 +81,11 @@ $lanes = $f->find_lanes(
 is scalar @$lanes, 76, 'found 76 failed lanes with ID 10263_4';
 
 # look for lanes from a given study and check there's no progress bar
-stdout_unlike { $lanes = $f->find_lanes( ids  => [ 607 ], type => 'study' ) }
-  qr/finding lanes:/,
-  'no progress bar shown when no_progress_bar set true in config';
+stdout_is { $lanes = $f->find_lanes( ids  => [ 607 ], type => 'study' ) }
+  '',
+  'no progress bar shown';
 
 is scalar @$lanes, 50, 'found 50 lanes in study 607';
-
-# check we can turn on progress bars
-$f->config->{no_progress_bars} = 0;
-
-stderr_like { $lanes = $f->find_lanes( ids  => [ 607 ], type => 'study' ) }
-  qr/finding lanes:/,
-  'progress bar shown when finding lanes';
-
-is scalar @$lanes, 50, 'still 50 lanes in study 607';
 
 done_testing;
 

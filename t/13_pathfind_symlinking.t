@@ -31,7 +31,6 @@ chdir $temp_dir;
 
 # get some test lanes using the Finder directly
 my $f = Bio::Path::Find::Finder->new(
-  environment => 'test',
   config_file => 't/data/13_pathfind_symlinking/test.conf',
   lane_role   => 'Bio::Path::Find::Lane::Role::PathFind',
 );
@@ -43,7 +42,6 @@ is scalar @$lanes, 50, 'found 50 lanes with ID 10018_1 using Finder';
 
 # symlink attribute but no filename
 my %params = (
-  environment      => 'test',
   config_file      => 't/data/13_pathfind_symlinking/test.conf',
   id               => '10018_1',
   type             => 'lane',
@@ -83,9 +81,10 @@ $pf = Bio::Path::Find::App::PathFind->new(%params);
 
 $dest = dir( $temp_dir, 'my_link_dir' );
 
-stderr_like { $pf->_make_symlinks($lanes) }
-  qr/Creating links in 'my_link_dir'.*?linking/s,
-  'creating links in correct directory; progress bar shown';
+stderr_is { $pf->_make_symlinks($lanes) }
+  "Creating links in 'my_link_dir'
+", # IMPORTANT: we're looking for a newline here
+  'creating links in correct directory; no progress bar shown';
 
 ok -d $dest, 'found link directory';
 
