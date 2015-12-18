@@ -39,7 +39,6 @@ use Bio::Path::Find::Types qw(
 use Bio::Path::Find::DatabaseManager;
 use Bio::Path::Find::Lane;
 use Bio::Path::Find::Sorter;
-use Bio::Path::Find::ProgressBar;
 use Bio::Path::Find::Exception;
 
 with 'Bio::Path::Find::Role::HasConfig',
@@ -216,24 +215,17 @@ sub _find_lanes {
 
   # set up the progress bar
   my $max = scalar( @db_names ) * scalar( @$ids );
-  # my $progress_bar = Bio::Path::Find::ProgressBar->new(
-  #   name   => 'finding lanes',
-  #   count  => $max,
-  #   silent => $self->config->{no_progress_bars},
-  # );
-
-  my $pb = Term::ProgressBar::Simple->new( {
-    silent => $self->config->{no_progress_bars},
-    ETA    => 'linear',
-    count  => $max,
-    remove => 1,
-    name   => 'finding lanes'
-  });
+  my $pb = $self->config->{no_progress_bars}
+         ? 0
+         : Term::ProgressBar::Simple->new( {
+             name   => 'finding lanes',
+             count  => $max,
+             remove => 1,
+           } );
 
   # walk over the list of available databases and, for each ID, search for
   # lanes matching the specified ID
   my @lanes;
-  my $i = 0;
   DB: foreach my $db_name ( @db_names ) {
     $self->log->debug(qq(searching "$db_name"));
 
@@ -241,8 +233,6 @@ sub _find_lanes {
 
     ID: foreach my $id ( @$ids ) {
       $self->log->debug( qq(looking for ID "$id") );
-
-      # $progress_bar->update($i++);
 
       my $rs = $database->schema->get_lanes_by_id($id, $type);
       next ID unless $rs; # no matching lanes
@@ -270,12 +260,11 @@ sub _find_lanes {
 
         push @lanes, $lane;
       }
-      $pb++ unless $self->config->{no_progress_bars};
+
+      $pb++;
     }
 
   }
-
-  # $progress_bar->finished;
 
   return \@lanes;
 }

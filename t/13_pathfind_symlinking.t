@@ -81,9 +81,10 @@ $pf = Bio::Path::Find::App::PathFind->new(%params);
 
 $dest = dir( $temp_dir, 'my_link_dir' );
 
-stderr_like { $pf->_make_symlinks($lanes) }
-  qr/Creating links in 'my_link_dir'.*?linking/s,
-  'creating links in correct directory; progress bar shown';
+stderr_is { $pf->_make_symlinks($lanes) }
+  "Creating links in 'my_link_dir'
+", # IMPORTANT: we're looking for a newline here
+  'creating links in correct directory; no progress bar shown';
 
 ok -d $dest, 'found link directory';
 

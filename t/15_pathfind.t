@@ -60,7 +60,7 @@ chdir $temp_dir;
 
 # the basic params. These will stay unchanged for all of the subsequent runs
 my %params = (
-  config_file      => 't/data/16_pathfind/test.conf',
+  config_file      => 't/data/15_pathfind/test.conf',
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,

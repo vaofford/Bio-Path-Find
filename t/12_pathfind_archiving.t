@@ -83,14 +83,6 @@ is_deeply $got_filenames, \@expected_filenames,
 is_deeply $got_stats, \@expected_stats,
   'got expected stats from _collect_filenames';
 
-# check the progress bar, sort of
-$params{no_progress_bars} = 0;
-$pf = Bio::Path::Find::App::PathFind->new(%params);
-
-stderr_like { $pf->_collect_filenames($lanes) }
-  qr/finding files:\s+\d+\%/,
-  'got progress bar for _collect_filenames';
-
 # check the writing of CSV files
 my $filename = file( $temp_dir, 'written_stats.csv' );
 $pf->_write_stats_csv($got_stats, $filename);

@@ -18,6 +18,10 @@ package main;
 use Test::More;
 use Test::Exception;
 
+BEGIN {
+  delete $ENV{PATHFIND_CONFIG};
+}
+
 use_ok('Bio::Path::Find::TestClass');
 
 # config file not specified by environment variable
