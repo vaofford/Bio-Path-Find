@@ -36,8 +36,8 @@ class_type 'Bio::Path::Find::Database';
 class_type 'Bio::Path::Find::Finder';
 class_type 'Bio::Path::Find::Lane';
 class_type 'Bio::Path::Find::Sorter';
-class_type 'Bio::Path::Find::LaneStatus';
-class_type 'Bio::Path::Find::LaneStatusFile';
+class_type 'Bio::Path::Find::Lane::Status';
+class_type 'Bio::Path::Find::Lane::StatusFile';
 class_type 'Path::Class::File';
 class_type 'Path::Class::Dir';
 

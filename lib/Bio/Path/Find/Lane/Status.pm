@@ -1,5 +1,5 @@
 
-package Bio::Path::Find::LaneStatus;
+package Bio::Path::Find::Lane::Status;
 
 # ABSTRACT: a class for working with status information about lanes
 
@@ -7,7 +7,7 @@ use Moose;
 use namespace::autoclean;
 use MooseX::StrictConstructor;
 
-use Bio::Path::Find::LaneStatusFile;
+use Bio::Path::Find::Lane::StatusFile;
 
 use Types::Standard qw(
   ArrayRef
@@ -42,7 +42,7 @@ has 'lane' => (
 
 Reference to a hash containing a pipeline name as the key and an arrayref as
 the value. The array contains status file object(s)
-(L<Bio::Path::Find::LaneStatusFile>) for the named pipeline.
+(L<Bio::Path::Find::Lane::StatusFile>) for the named pipeline.
 
 In most cases there will be only a single status file for each pipeline, but
 some pipelines, e.g. mapping, may be run multiple times for a given sample,
@@ -68,7 +68,7 @@ sub _build_status_files {
   my $files = {};
 
   foreach my $status_file ( grep m/_job_status$/, $self->lane->symlink_path->children ) {
-    my $status_file_object = Bio::Path::Find::LaneStatusFile->new( status_file => $status_file );
+    my $status_file_object = Bio::Path::Find::Lane::StatusFile->new( status_file => $status_file );
     push @{ $files->{ $status_file_object->pipeline_name } }, $status_file_object;
   }
 
@@ -107,7 +107,7 @@ has 'processed_flags' => (
 
 =head2 all_status_files
 
-Returns a list of the L<Bio::Path::Find::LaneStatusFile> objects for this lane.
+Returns a list of the L<Bio::Path::Find::Lane::StatusFile> objects for this lane.
 
 =head2 has_status_files
 

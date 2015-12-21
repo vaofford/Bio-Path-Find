@@ -15,7 +15,7 @@ use File::Find::Rule;
 use Try::Tiny;
 use Cwd;
 
-use Bio::Path::Find::LaneStatus;
+use Bio::Path::Find::Lane::Status;
 use Bio::Path::Find::Exception;
 
 use Type::Params qw( compile );
@@ -250,7 +250,7 @@ has 'found_file_type' => (
 
 =attr status
 
-The L<Bio::Path::Find::LaneStatus> object for this lane.
+The L<Bio::Path::Find::Lane::Status> object for this lane.
 
 =cut
 
@@ -267,7 +267,7 @@ has 'status' => (
 sub _build_status {
   my $self = shift;
 
-  return Bio::Path::Find::LaneStatus->new( lane => $self );
+  return Bio::Path::Find::Lane::Status->new( lane => $self );
 }
 
 #-------------------------------------------------------------------------------

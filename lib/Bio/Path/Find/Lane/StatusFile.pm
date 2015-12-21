@@ -1,5 +1,5 @@
 
-package Bio::Path::Find::LaneStatusFile;
+package Bio::Path::Find::Lane::StatusFile;
 
 # ABSTRACT: a wrapper around job status files
 

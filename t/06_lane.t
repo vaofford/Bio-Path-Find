@@ -66,7 +66,7 @@ t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING
 ', 'printed expected paths';
 
 # status object
-isa_ok $lane->status, 'Bio::Path::Find::LaneStatus', 'lane status object';
+isa_ok $lane->status, 'Bio::Path::Find::Lane::Status', 'lane status object';
 is $lane->pipeline_status('stored'), 'Done', 'got pipeline status directly from the Lane';
 
 # symlinking
