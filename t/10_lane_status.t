@@ -31,15 +31,15 @@ my $lane = Bio::Path::Find::Lane->new( row => $lane_row );
 # quick check that the lane has the state we're expecting...
 is $lane_row->processed, 15, 'lane row has expected "processed" value';
 
-# and now test the LaneStatus class
+# and now test the Lane::Status class
 
-use_ok('Bio::Path::Find::LaneStatus');
+use_ok('Bio::Path::Find::Lane::Status');
 
 my $lane_status;
-lives_ok { $lane_status = Bio::Path::Find::LaneStatus->new( lane => $lane ) }
+lives_ok { $lane_status = Bio::Path::Find::Lane::Status->new( lane => $lane ) }
   'no exception when instantiating';
 
-isa_ok $lane_status, 'Bio::Path::Find::LaneStatus', 'status object';
+isa_ok $lane_status, 'Bio::Path::Find::Lane::Status', 'status object';
 
 ok $lane_status->has_status_files, 'loaded a status file';
 
@@ -59,7 +59,7 @@ is $lane_status->pipeline_status('no-such-pipeline'), 'NA', 'got pipeline status
 $lane_row = $lane_rows[1];
 $lane_row->database($database);
 $lane = Bio::Path::Find::Lane->new( row => $lane_row );
-$lane_status = Bio::Path::Find::LaneStatus->new( lane => $lane );
+$lane_status = Bio::Path::Find::Lane::Status->new( lane => $lane );
 
 is $lane_status->pipeline_status('stored'), 'Done', 'got correct status for "stored" pipeline';
 is $lane_status->pipeline_status('qc'),     'Done', 'got correct status for "qc" pipeline';
@@ -76,7 +76,7 @@ is $lane_status->pipeline_status('mapped'), 'Running (01-01-2015)', 'got correct
 # reverse the date order of the two files and check that we get a different status
 system( "touch -t 201001010000 $status_1" );
 system( "touch -t 201501010000 $status_2" );
-$lane_status = Bio::Path::Find::LaneStatus->new( lane => $lane );
+$lane_status = Bio::Path::Find::Lane::Status->new( lane => $lane );
 
 is $lane_status->pipeline_status('mapped'), 'Failed (01-01-2015)', 'got correct status for "mapped" pipeline';
 
