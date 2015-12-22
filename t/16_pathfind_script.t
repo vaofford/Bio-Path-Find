@@ -25,7 +25,6 @@ chdir $temp_dir;
 #-------------------------------------------------------------------------------
 
 my $script = "$orig_cwd/bin/pathfind";
-my $log    = file( $temp_dir, 'pathfind.log' );
 
 run_ok( $script, [ qw( -h ) ], 'script runs ok with help flag' );
 run_not_ok( $script, [ ], 'script exits with error status when run with no arguments' );
@@ -58,7 +57,7 @@ like $stdout, qr|prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/|,
 
 #---------------------------------------
 
-my @log_lines = $log->slurp;
+my @log_lines = file('pathfind.log')->slurp;
 
 is scalar @log_lines, 5, 'got expected number of log entries';
 
