@@ -225,8 +225,8 @@ option 'zip' => (
   is            => 'ro',
   isa           => Bool,
   cmd_aliases   => 'z',
-  depends       => [ 'archive' ],
 );
+
 #---------------------------------------
 
 # this option can be used as a simple switch ("-l") or with an argument
@@ -677,14 +677,15 @@ sub _compress_data {
   my ( $self, $data ) = @_;
 
   my $max        = length $data;
-  my $chunk_size = int( $max / 100 );
+  my $num_chunks = 100;
+  my $chunk_size = int( $max / $num_chunks );
 
   # set up the progress bar
   my $pb = $self->config->{no_progress_bars}
          ? 0
          : Term::ProgressBar::Simple->new( {
              name   => 'gzipping',
-             count  => $max,
+             count  => $num_chunks,
              remove => 1,
            } );
 
@@ -720,13 +721,14 @@ sub _write_data {
   my ( $self, $data, $filename ) = @_;
 
   my $max        = length $data;
-  my $chunk_size = int( $max / 100 );
+  my $num_chunks = 100;
+  my $chunk_size = int( $max / $num_chunks );
 
   my $pb = $self->config->{no_progress_bars}
          ? 0
          : Term::ProgressBar::Simple->new( {
              name   => 'writing',
-             count  => $max,
+             count  => $num_chunks,
              remove => 1,
            } );
 
@@ -775,7 +777,7 @@ sub _make_stats {
   my $pb = $self->config->{no_progress_bars}
          ? 0
          : Term::ProgressBar::Simple->new( {
-             name   => 'finding stats',
+             name   => 'collecting stats',
              count  => scalar @$lanes,
              remove => 1,
            } );
