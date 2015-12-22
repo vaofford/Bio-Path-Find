@@ -41,6 +41,7 @@ use Test::More;
 use Test::Exception;
 use Test::Output;
 use Path::Class;
+use File::Temp;
 use Cwd;
 
 use Bio::Path::Find::Finder;

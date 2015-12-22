@@ -67,16 +67,6 @@ isa_ok $tf, 'Bio::Path::Find::App::TestFind', 'pathfind app';
 is_deeply $tf->_ids, ['10018_1'], 'IDs set correctly with one ID';
 is $tf->type, 'lane', 'type set correctly with ID in parameters';
 
-$tf->run; # all this does is write a log entry
-
-ok -f $test_log, 'test log found';
-
-my @log_lines = $test_log->slurp( chomp => 1 );
-is scalar @log_lines, 1, 'got one log entry';
-
-my $username = ( getpwuid($<) )[0];
-like $log_lines[0], qr/$username/, 'found username in command log';
-
 # check that the renamed ID is generated correctly
 $params{id} = '10018_1#1';
 $tf = Bio::Path::Find::App::TestFind->new(%params);

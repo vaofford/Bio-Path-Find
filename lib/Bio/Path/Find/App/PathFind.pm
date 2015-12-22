@@ -344,9 +344,6 @@ Find files according to the input parameters.
 sub run {
   my $self = shift;
 
-  # log the command line to file
-  $self->_log_command;
-
   # set up the finder
 
   # build the parameters for the finder. Omit undefined options or Moose spits
