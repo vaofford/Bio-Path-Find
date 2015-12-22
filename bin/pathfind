@@ -29,6 +29,8 @@ my $log_fh = file($LOG_FILE)->opena;
 
 say $log_fh $command_line;
 
+close $log_fh;
+
 #-------------------------------------------------------------------------------
 
 # execute the command
