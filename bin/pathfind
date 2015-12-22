@@ -7,14 +7,42 @@ use v5.10; # for "say"
 use strict;
 use warnings;
 
+use DateTime;
+use Path::Class;
 use Try::Tiny;
 
 use Bio::Path::Find::App::PathFind;
 
+my $CONFIG_FILE = 'prod.conf';
+my $LOG_FILE    = 'pathfind.log';
+
+#-------------------------------------------------------------------------------
+
+# build the log line...
+my $username     = ( getpwuid($<) )[0];
+my $now          = DateTime->now;
+my $script_name  = $0;
+my $command_line = join ' ', $now, $username, $script_name, @ARGV;
+
+# and write it to file
+my $log_fh = file($LOG_FILE)->opena;
+
+say $log_fh $command_line;
+
+#-------------------------------------------------------------------------------
+
+# execute the command
 try {
-  # Bio::Path::Find::App::PathFind->new_with_options(config_file => 'prod.conf')->run;
-  Bio::Path::Find::App::PathFind->new_with_options->run;
+  # we need to pass in the location of the configuration
+
+  # ether get the config file name from the PATHFIND_CONFIG env variable:
+  # Bio::Path::Find::App::PathFind->new_with_options->run;
+
+  # or specify the config file name here:
+  Bio::Path::Find::App::PathFind->new_with_options(config_file => $CONFIG_FILE)->run;
 } catch {
   say STDERR $_;
 };
+
+exit 0;
 
