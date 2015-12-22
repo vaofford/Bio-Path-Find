@@ -9,6 +9,7 @@ use MooseX::App::Role;
 use Path::Class;
 use Text::CSV_XS;
 use Try::Tiny;
+use FileHandle;
 
 use Types::Standard qw(
   ArrayRef
@@ -119,23 +120,6 @@ has '_type' => ( is => 'rw', isa => IDType );
 
 #---------------------------------------
 
-# set the location of the log file. The file path is taken from the config and
-# is different depending on whether we're in test mode or not
-
-has '_log_file' => (
-  is      => 'ro',
-  isa     => PathClassFile,
-  lazy    => 1,
-  builder => '_build_log_file',
-);
-
-sub _build_log_file {
-  my $self = shift;
-  return file $self->config->{logfile};
-}
-
-#---------------------------------------
-
 # define the configuration for the Log::Log4perl logger
 
 has '_logger_config' => (
@@ -148,19 +132,11 @@ has '_logger_config' => (
 sub _build_logger_config {
   my $self = shift;
 
-  my $LOGFILE = $self->_log_file;
-  my $LEVEL   = $self->verbose ? 'DEBUG' : 'WARN';
+  my $LEVEL = $self->verbose ? 'DEBUG' : 'WARN';
 
   my $config_string = qq(
 
     # appenders
-
-    # an appender to log the command line to file
-    log4perl.appender.File                             = Log::Log4perl::Appender::File
-    log4perl.appender.File.layout                      = Log::Log4perl::Layout::PatternLayout
-    log4perl.appender.File.layout.ConversionPattern    = %d %m%n
-    log4perl.appender.File.filename                    = $LOGFILE
-    log4perl.appender.File.Threshold                   = INFO
 
     log4perl.appender.Screen                           = Log::Log4perl::Appender::Screen
     log4perl.appender.Screen.layout                    = Log::Log4perl::Layout::PatternLayout
@@ -168,15 +144,12 @@ sub _build_logger_config {
 
     # loggers
 
-    # general debugging
+    # set log levels for individual classes
     log4perl.logger.Bio.Path.Find.App.TestFind         = $LEVEL, Screen
     log4perl.logger.Bio.Path.Find.App.PathFind         = $LEVEL, Screen
     log4perl.logger.Bio.Path.Find.Finder               = $LEVEL, Screen
     log4perl.logger.Bio.Path.Find.Lane                 = $LEVEL, Screen
     log4perl.logger.Bio.Path.Find.DatabaseManager      = $LEVEL, Screen
-
-    # command line logging
-    log4perl.logger.command_log                        = INFO, File
 
     log4perl.oneMessagePerAppender                     = 1
   );
