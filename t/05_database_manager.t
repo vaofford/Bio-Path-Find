@@ -6,11 +6,20 @@ use Test::More;
 use Test::Exception;
 use Test::Warn;
 use Try::Tiny;
+use Path::Class;
 use Log::Log4perl qw( :easy );
 
 # initialise l4p to avoid warnings
 Log::Log4perl->easy_init( $FATAL );
 
+use lib 't';
+
+use Test::Setup;
+
+unless ( -d dir( qw( t data linked ) ) ) {
+  diag 'creating symlink directory';
+  Test::Setup::make_symlinks;
+}
 use_ok('Bio::Path::Find::DatabaseManager');
 
 #-------------------------------------------------------------------------------

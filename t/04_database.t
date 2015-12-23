@@ -6,6 +6,16 @@ use Test::More;
 use Test::Exception;
 use Test::Warn;
 use Try::Tiny;
+use Path::Class;
+
+use lib 't';
+
+use Test::Setup;
+
+unless ( -d dir( qw( t data linked ) ) ) {
+  diag 'creating symlink directory';
+  Test::Setup::make_symlinks;
+}
 
 use_ok('Bio::Path::Find::Database');
 
