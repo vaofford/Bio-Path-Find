@@ -7,13 +7,24 @@ use Moose;
 use namespace::autoclean;
 use MooseX::StrictConstructor;
 
-use Types::Standard qw( Str ArrayRef HashRef Undef );
 use Carp qw( carp );
 use DBI;
+use Path::Class;
+
+use Types::Standard qw(
+  Str
+  ArrayRef
+  HashRef
+  Undef
+);
+use Bio::Path::Find::Types qw(
+  BioTrackSchema
+  PathClassDir
+  DirFromStr
+);
 
 use Bio::Track::Schema;
 use Bio::Path::Find::Exception;
-use Bio::Path::Find::Types qw( BioTrackSchema );
 
 with 'Bio::Path::Find::Role::HasConfig';
 
@@ -118,7 +129,8 @@ B<Read-only>.
 
 has 'db_root' => (
   is       => 'ro',
-  isa      => Str,
+  isa      => PathClassDir->plus_coercions(DirFromStr),
+  coerce   => 1,
   lazy     => 1,
   writer   => '_set_db_root',
   builder  => '_build_db_root',
@@ -128,7 +140,7 @@ sub _build_db_root {
   my $self = shift;
 
   # find the root directory for the directory structure containing the data
-  my $db_root = $self->config->{db_root};
+  my $db_root = dir $self->config->{db_root};
 
   Bio::Path::Find::Exception->throw(
     msg => "ERROR: data hierarchy root directory is not defined in the configuration" )
