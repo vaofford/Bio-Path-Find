@@ -16,7 +16,7 @@ use Bio::Path::Find::Lane;
 use Bio::Path::Find::DatabaseManager;
 
 my $dbm = Bio::Path::Find::DatabaseManager->new(
-  config_file => 't/data/10_lane_status/test.conf',
+  config_file => file( qw( t data 10_lane_status test.conf ) ),
 );
 
 my $database     = $dbm->get_database('pathogen_prok_track');

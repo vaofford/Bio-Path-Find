@@ -23,7 +23,7 @@ use_ok('Bio::Path::Find::App::PathFind');
 my $temp_dir = File::Temp->newdir;
 dir( $temp_dir, 't' )->mkpath;
 my $orig_cwd = getcwd;
-symlink( "$orig_cwd/t/data", "$temp_dir/t/data") == 1
+symlink dir( $orig_cwd, qw( t data ) ), dir( $temp_dir, qw( t data ) )
   or die "ERROR: couldn't link data directory into temp directory";
 chdir $temp_dir;
 
@@ -31,7 +31,7 @@ chdir $temp_dir;
 
 # get some test lanes using the Finder directly
 my $f = Bio::Path::Find::Finder->new(
-  config_file => 't/data/13_pathfind_symlinking/test.conf',
+  config_file => file( qw( t data 13_pathfind_symlinking test.conf ) ),
   lane_role   => 'Bio::Path::Find::Lane::Role::PathFind',
 );
 
@@ -42,7 +42,7 @@ is scalar @$lanes, 50, 'found 50 lanes with ID 10018_1 using Finder';
 
 # symlink attribute but no filename
 my %params = (
-  config_file      => 't/data/13_pathfind_symlinking/test.conf',
+  config_file      => file( qw( t data 13_pathfind_symlinking test.conf ) ),
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
@@ -91,16 +91,21 @@ ok -d $dest, 'found link directory';
 @links = $dest->children;
 is scalar( @links ), 50, 'found all links';
 
-# see what happens when we can't mkdir the specified dir
+SKIP: {
+  skip "can't check mkdir except on unix", 1,
+    unless file( qw( t data linked ) ) eq 't/data/linked';
 
-$params{symlink} = '/var/my_link_dir'; # not very cross-platform...
-$pf = Bio::Path::Find::App::PathFind->new(%params);
+  # see what happens when we can't mkdir the specified dir
 
-$dest = dir( '/var/my_link_dir' );
+  $params{symlink} = '/var/my_link_dir'; # not very cross-platform...
+  $pf = Bio::Path::Find::App::PathFind->new(%params);
 
-throws_ok { $pf->_make_symlinks($lanes) }
-  qr/couldn't make link directory/,
-  'exception when trying to mkdir in /var';
+  $dest = dir( '/var/my_link_dir' );
+
+  throws_ok { $pf->_make_symlinks($lanes) }
+    qr/couldn't make link directory/,
+    'exception when trying to mkdir in /var';
+};
 
 # look for exception when directory already exists as a file
 file( $temp_dir, 'pre-existing-file' )->touch;

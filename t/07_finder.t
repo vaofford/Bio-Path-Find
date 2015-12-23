@@ -14,7 +14,7 @@ Log::Log4perl->easy_init( $FATAL );
 use_ok('Bio::Path::Find::Finder');
 
 my $f;
-lives_ok { $f = Bio::Path::Find::Finder->new(config_file => 't/data/07_finder/test.conf') }
+lives_ok { $f = Bio::Path::Find::Finder->new(config_file => file( qw( t data 07_finder test.conf ) )) }
   'got a finder';
 
 # testing the script role feature
@@ -29,7 +29,7 @@ throws_ok { $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
 # now, with the real name of this script present in the <lane_roles> mapping
 # in the new config, there should be no exception
 $f = Bio::Path::Find::Finder->new(
-  config_file => 't/data/07_finder/test_with_lane_role.conf'
+  config_file => file( qw( t data 07_finder test_with_lane_role.conf ) )
 );
 
 lives_ok { $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
@@ -41,7 +41,7 @@ lives_ok { $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
 # instantiate the Finder, which allows it to correctly set a default role
 # using the mapping
 $f = Bio::Path::Find::Finder->new(
-  config_file  => 't/data/07_finder/test.conf',
+  config_file  => file( qw( t data 07_finder test.conf ) ),
   _script_name => 'pathfind',
 );
 
@@ -51,7 +51,7 @@ lives_ok { $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
 # check that we get an exception from Moose when we try to apply a role
 # that doesn't exist
 $f = Bio::Path::Find::Finder->new(
-  config_file => 't/data/07_finder/test.conf',
+  config_file => file( qw( t data 07_finder test.conf ) ),
   lane_role   => 'Some::Non::Existent::Role',
 );
 
@@ -61,7 +61,7 @@ throws_ok { $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
 
 # and finally, check that we can explicitly set the name of the role
 $f = Bio::Path::Find::Finder->new(
-  config_file => 't/data/07_finder/test.conf',
+  config_file => file( qw( t data 07_finder test.conf ) ),
   lane_role   => 'Bio::Path::Find::Lane::Role::PathFind',
 );
 

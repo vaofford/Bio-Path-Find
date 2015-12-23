@@ -25,7 +25,7 @@ use_ok('Bio::Path::Find::App::PathFind');
 my $temp_dir = File::Temp->newdir;
 dir( $temp_dir, 't' )->mkpath;
 my $orig_cwd = getcwd;
-symlink( "$orig_cwd/t/data", "$temp_dir/t/data") == 1
+symlink dir( $orig_cwd, qw( t data ) ), dir( $temp_dir, qw( t data ) )
   or die "ERROR: couldn't link data directory into temp directory";
 chdir $temp_dir;
 
@@ -37,7 +37,7 @@ my @expected_stats              = $expected_stats_file->slurp( chomp => 1, split
 
 # get some test lanes using the Finder directly
 my $f = Bio::Path::Find::Finder->new(
-  config_file => 't/data/14_pathfind_stats/test.conf',
+  config_file => file( qw( t data 14_pathfind_stats test.conf ) ),
   lane_role   => 'Bio::Path::Find::Lane::Role::PathFind',
 );
 
@@ -49,7 +49,7 @@ is scalar @$lanes, 50, 'found 50 lanes with ID 10018_1 using Finder';
 # get a PathFind object
 
 my %params = (
-  config_file      => 't/data/14_pathfind_stats/test.conf',
+  config_file      => file( qw( t data 14_pathfind_stats test.conf ) ),
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
@@ -74,7 +74,7 @@ is_deeply $stats, \@expected_stats, 'written contents look right';
 $stats_file = file( $temp_dir, 'named_file.csv' );
 
 %params = (
-  config_file      => 't/data/14_pathfind_stats/test.conf',
+  config_file      => file( qw( t data 14_pathfind_stats test.conf ) ),
   id               => '10018_1',
   type             => 'lane',
   stats            => $stats_file->stringify,
