@@ -6,6 +6,16 @@ use Test::More;
 use Test::Exception;
 use Test::Warn;
 use Try::Tiny;
+use Path::Class;
+
+use lib 't';
+
+use Test::Setup;
+
+unless ( -d dir( qw( t data linked ) ) ) {
+  diag 'creating symlink directory';
+  Test::Setup::make_symlinks;
+}
 
 use_ok('Bio::Path::Find::Database');
 
@@ -18,12 +28,12 @@ my $db;
 lives_ok {
     $db = Bio::Path::Find::Database->new(
       name        => 'pathogen_prok_track',
-      config_file => 't/data/04_database/mysql.conf',
+      config_file => file( qw( t data 04_database mysql.conf ) ),
     )
   }
   'got a B::P::F::Database object for a MySQL connection using config file';
 
-is $db->db_root, 't/data/linked', 'got expected root directory';
+is $db->db_root, dir( qw( t data linked ) ), 'got expected root directory';
 is $db->_get_dsn, 'DBI:mysql:host=test_db_host;port=3306;database=pathogen_prok_track',
   'got expected MySQL DSN using config file';
 isa_ok $db->schema, 'Bio::Track::Schema', 'schema';
@@ -34,12 +44,12 @@ isa_ok $db->schema, 'Bio::Track::Schema', 'schema';
 lives_ok {
     $db = Bio::Path::Find::Database->new(
       name        => 'pathogen_prok_track',
-      config_file => 't/data/04_database/sqlite.conf',
+      config_file => file( qw( t data 04_database sqlite.conf ) ),
     )
   }
   'got a B::P::F::Database object for a SQLite connection using config file';
 
-is $db->_get_dsn, 'dbi:SQLite:dbname=t/data/pathogen_prok_track.db',
+is $db->_get_dsn, 'dbi:SQLite:dbname=' . file( qw( t data pathogen_prok_track.db ) ),
   'got expected SQLite DSN using config file';
 isa_ok $db->schema, 'Bio::Track::Schema', 'schema';
 
@@ -47,7 +57,7 @@ isa_ok $db->schema, 'Bio::Track::Schema', 'schema';
 
 # check we can use a config hash too
 my $config = {
-  db_root            => 't/data/linked',
+  db_root            => file( qw( t data linked ) ),
   hierarchy_template => 'genus:species:TRACKING:sample:lane',
   connection_params  => {
     driver => 'mysql',
@@ -82,7 +92,7 @@ $config = {
   hierarchy_template => 'genus:species:TRACKING:sample:lane',
   connection_params  => {
     driver => 'SQLite',
-    dbname => 't/data/pathogen_prok_track.db',
+    dbname => file( qw( t data pathogen_prok_track.db ) ),
   },
   db_subdirs => {
     pathogen_prok_track => 'prokaryotes',
@@ -103,11 +113,11 @@ is $db->hierarchy_template, $config->{hierarchy_template},
 
 # missing template
 $config = {
-  db_root            => 't/data/linked',
+  db_root            => file( qw( t data linked ) ),
   # no template
   connection_params  => {
     driver => 'SQLite',
-    dbname => 't/data/pathogen_prok_track.db',
+    dbname => file( qw( t data pathogen_prok_track.db ) ),
   },
   db_subdirs => {
     pathogen_prok_track => 'prokaryotes',
@@ -132,7 +142,7 @@ throws_ok { $db->hierarchy_template }
 
 # missing connection params
 $config = {
-  db_root            => 't/data/linked',
+  db_root            => file( qw( t data linked ) ),
   hierarchy_template => 'genus:species:TRACKING:sample:lane',
   # no connection params
   db_subdirs => {
@@ -150,7 +160,7 @@ throws_ok { $db->_get_dsn }
 
 # missing DB driver
 $config = {
-  db_root            => 't/data/linked',
+  db_root            => file( qw( t data linked ) ),
   hierarchy_template => 'genus:species:TRACKING:sample:lane',
   connection_params  => {
     # missing driver
@@ -184,11 +194,11 @@ throws_ok { $db->_get_dsn }
 
 # missing mapping
 $config = {
-  db_root            => 't/data/linked',
+  db_root            => file( qw( t data linked ) ),
   hierarchy_template => 'genus:species:TRACKING:sample:lane',
   connection_params  => {
     driver => 'SQLite',
-    dbname => 't/data/pathogen_prok_track.db',
+    dbname => file( qw( t data pathogen_prok_track.db ) ),
   },
   # no mapping
 };
@@ -200,7 +210,7 @@ warning_like { $root = $db->hierarchy_root_dir }
   qr/does not specify the mapping/,
   'got warning about missing mapping in config';
 
-is $root, 't/data/linked/prokaryotes/seq-pipelines',
+is $root, file( qw( t data linked prokaryotes seq-pipelines ) ),
   'got correct root dir without subdir';
 
 #-------------------------------------------------------------------------------
@@ -214,7 +224,7 @@ SKIP: {
              $ENV{TEST_MYSQL_USER} );
 
   $config = {
-    db_root            => 't/data/linked',
+    db_root            => file( qw( t data linked ) ),
     hierarchy_template => 'genus:species:TRACKING:sample:lane',
     connection_params  => {
       driver => 'mysql',

@@ -45,7 +45,7 @@ use_ok('Bio::Path::Find::App::TestFind');
 my $temp_dir = File::Temp->newdir;
 dir( $temp_dir, 't' )->mkpath;
 my $orig_cwd = getcwd;
-symlink( "$orig_cwd/t/data", "$temp_dir/t/data") == 1
+symlink dir( $orig_cwd, qw( t data ) ), dir( $temp_dir, qw( t data ) )
   or die "ERROR: couldn't link data directory into temp directory";
 chdir $temp_dir;
 
@@ -55,7 +55,7 @@ $test_log->remove;
 
 # simple find - get samples for a lane
 my %params = (
-  config_file => 't/data/11_approle/test.conf',
+  config_file => file( qw( t data 11_approle test.conf ) ),
   id          => '10018_1',
   type        => 'lane',
 );
@@ -75,8 +75,8 @@ is $tf->_renamed_id, '10018_1_1', 'renamed ID correctly generated';
 
 # more complicated - get samples for lane IDs in a file
 %params = (
-  config_file  => 't/data/11_approle/test.conf',
-  id           => 't/data/11_approle/ids.txt',
+  config_file  => file( qw( t data 11_approle test.conf ) ),
+  id           => file( qw( t data 11_approle ids.txt ) )->stringify,
   type         => 'file',
   file_id_type => 'lane',
   verbose      => 1,

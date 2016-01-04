@@ -10,6 +10,17 @@ use Path::Class;
 use File::Temp qw( tempdir );
 use Cwd;
 
+# set up the "linked" directory for the test suite
+use lib 't';
+
+use Test::Setup;
+
+unless ( -d dir( qw( t data linked ) ) ) {
+  diag 'creating symlink directory';
+  Test::Setup::make_symlinks;
+}
+use_ok('Bio::Path::Find::DatabaseManager');
+
 use Bio::Path::Find::DatabaseManager;
 
 use Log::Log4perl qw( :easy );
@@ -20,7 +31,7 @@ Log::Log4perl->easy_init( $FATAL );
 use_ok('Bio::Path::Find::Lane');
 
 my $dbm = Bio::Path::Find::DatabaseManager->new(
-  config_file => 't/data/06_lane/test.conf',
+  config_file => file( qw( t data 06_lane test.conf ) ),
 );
 
 my $database  = $dbm->get_database('pathogen_prok_track');
@@ -50,20 +61,25 @@ throws_ok { $lane->root_dir }
 
 $database->_set_hierarchy_root_dir($old_hrd);
 
-stdout_is { $lane->print_paths } 't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1
+SKIP: {
+  skip "can't check path printing except on unix", 3,
+    unless file( qw( t data linked ) ) eq 't/data/linked';
+
+  stdout_is { $lane->print_paths } 't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1
 ', 'printed expected path to directory for lane';
 
-# find some files with specific types...
-is $lane->find_files('fastq'), 1, 'found fastq file for lane';
+  # find some files with specific types...
+  is $lane->find_files('fastq'), 1, 'found fastq file for lane';
 
-# check print_files output
-stdout_is { $lane->print_paths } 't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/10018_1#1_1.fastq.gz
+  # check print_files output
+  stdout_is { $lane->print_paths } 't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/10018_1#1_1.fastq.gz
 ', 'printed expected path';
 
-is $lane->find_files('bam'),   2, 'found 2 bam files for lane';
-stdout_is { $lane->print_paths } 't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/544477.se.markdup.bam
+  is $lane->find_files('bam'),   2, 'found 2 bam files for lane';
+  stdout_is { $lane->print_paths } 't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/544477.se.markdup.bam
 t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/544477.se.raw.sorted.bam
 ', 'printed expected paths';
+};
 
 # status object
 isa_ok $lane->status, 'Bio::Path::Find::Lane::Status', 'lane status object';

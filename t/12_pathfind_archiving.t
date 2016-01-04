@@ -15,6 +15,17 @@ use Compress::Zlib;
 use Digest::MD5 qw( md5_hex );
 use Try::Tiny;
 
+# set up the "linked" directory for the test suite
+use lib 't';
+
+use Test::Setup;
+
+unless ( -d dir( qw( t data linked ) ) ) {
+  diag 'creating symlink directory';
+  Test::Setup::make_symlinks;
+}
+use_ok('Bio::Path::Find::DatabaseManager');
+
 use Bio::Path::Find::Finder;
 
 # don't initialise l4p here because we want to test that command line logging
@@ -26,7 +37,7 @@ use_ok('Bio::Path::Find::App::PathFind');
 my $temp_dir = File::Temp->newdir;
 dir( $temp_dir, 't' )->mkpath;
 my $orig_cwd = getcwd;
-symlink( "$orig_cwd/t/data", "$temp_dir/t/data") == 1
+symlink dir( $orig_cwd, qw( t data ) ), dir( $temp_dir, qw( t data ) )
   or die "ERROR: couldn't link data directory into temp directory";
 chdir $temp_dir;
 
@@ -35,7 +46,7 @@ chdir $temp_dir;
 # check filename collection
 
 my %params = (
-  config_file      => 't/data/12_pathfind_archiving/test.conf',
+  config_file      => file( qw( t data 12_pathfind_archiving test.conf ) ),
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
@@ -47,7 +58,7 @@ lives_ok { $pf = Bio::Path::Find::App::PathFind->new(%params) }
 
 # get the lanes using the Finder directly
 my $f = Bio::Path::Find::Finder->new(
-  config_file => 't/data/12_pathfind_archiving/test.conf',
+  config_file => file( qw( t data 12_pathfind_archiving test.conf ) ),
   lane_role   => 'Bio::Path::Find::Lane::Role::PathFind',
 );
 
@@ -99,7 +110,7 @@ is_deeply \@got_stats, \@expected_stats, 'written stats file looks correct';
 # check the creation of a tar archive
 
 %params = (
-  config_file      => 't/data/12_pathfind_archiving/test.conf',
+  config_file      => file( qw( t data 12_pathfind_archiving test.conf ) ),
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
@@ -151,7 +162,7 @@ pop @expected_filenames;
 
 # check renaming of files in the archive
 %params = (
-  config_file      => 't/data/12_pathfind_archiving/test.conf',
+  config_file      => file( qw( t data 12_pathfind_archiving test.conf ) ),
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
@@ -174,7 +185,7 @@ is scalar( grep(m/\#/, @archived_files) ), 0, 'filenames have been renamed';
 # check compression
 
 %params = (
-  config_file      => 't/data/12_pathfind_archiving/test.conf',
+  config_file      => file( qw( t data 12_pathfind_archiving test.conf ) ),
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
@@ -182,7 +193,7 @@ is scalar( grep(m/\#/, @archived_files) ), 0, 'filenames have been renamed';
 
 $pf = Bio::Path::Find::App::PathFind->new(%params);
 
-my $data = file('t/data/12_pathfind_archiving/test_data.txt')->slurp;
+my $data = file( qw( t data 12_pathfind_archiving test_data.txt ) )->slurp;
 my $compressed_data = $pf->_compress_data($data);
 my $compressed_data_copy = $compressed_data; # because memGunzip hoses its input...
 my $uncompressed_compressed_data = Compress::Zlib::memGunzip($compressed_data_copy);
@@ -218,7 +229,7 @@ is $uncompressed_slurped_data, $data, 'file written to disk matches original';
 # check creation of a zip archive
 
 %params = (
-  config_file      => 't/data/12_pathfind_archiving/test.conf',
+  config_file      => file( qw( t data 12_pathfind_archiving test.conf ) ),
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
@@ -256,7 +267,7 @@ is $zip_members[-1], '10018_1/stats.csv', 'last member has correct name';
 # first, make a tar archive
 
 %params = (
-  config_file      => 't/data/12_pathfind_archiving/test.conf',
+  config_file      => file( qw( t data 12_pathfind_archiving test.conf ) ),
   id               => '10018_1#1',
   type             => 'lane',
   no_progress_bars => 1,
@@ -296,7 +307,7 @@ output_like { $pf->_make_archive($lanes) }
 
 # check for errors when writing
 
-$params{archive} = '/non-existent-dir/test.tar.gz';
+$params{archive} = file( qw( non-existent-dir test.tar.gz ) );
 
 $pf = Bio::Path::Find::App::PathFind->new(%params);
 
@@ -337,7 +348,7 @@ is_deeply [ $zip->memberNames ], [ '10018_1_1/10018_1#1_1.fastq.gz', '10018_1_1/
 
 # check for errors when writing
 
-$params{archive} = file '/non-existent-dir/test.zip';
+$params{archive} = file( qw( non-existent-dir test.zip ) );
 
 $pf = Bio::Path::Find::App::PathFind->new(%params);
 

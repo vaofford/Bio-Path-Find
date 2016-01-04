@@ -4,6 +4,18 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Path::Class;
+
+# set up the "linked" directory for the test suite
+use lib 't';
+
+use Test::Setup;
+
+unless ( -d dir( qw( t data linked ) ) ) {
+  diag 'creating symlink directory';
+  Test::Setup::make_symlinks;
+}
+use_ok('Bio::Path::Find::DatabaseManager');
 
 use Bio::Path::Find::DatabaseManager;
 use Bio::Path::Find::Lane;
@@ -16,10 +28,10 @@ Log::Log4perl->easy_init( $FATAL );
 use_ok('Bio::Path::Find::Sorter');
 
 my $sorter;
-lives_ok { $sorter = Bio::Path::Find::Sorter->new(config_file => 't/data/08_sorter/test.conf') }
+lives_ok { $sorter = Bio::Path::Find::Sorter->new(config_file => file( qw( t data 08_sorter test.conf ) )) }
   'got a sorter';
 
-my $dbm = Bio::Path::Find::DatabaseManager->new(config_file => 't/data/08_sorter/test.conf');
+my $dbm = Bio::Path::Find::DatabaseManager->new(config_file => file( qw( t data 08_sorter test.conf ) ));
 
 my $schema = $dbm->get_database('pathogen_prok_track')->schema;
 # my $schema = $dbm->get_database('pathogen_track_test')->schema;

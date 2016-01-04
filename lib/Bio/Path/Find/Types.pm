@@ -3,7 +3,7 @@ package Bio::Path::Find::Types;
 
 # ABSTRACT: a type library for path find
 
-use Try::Tiny;
+use Path::Class;
 
 use Type::Library -base, -declare => qw(
   BioTrackSchema
@@ -43,11 +43,11 @@ class_type 'Path::Class::Dir';
 
 declare_coercion 'FileFromStr',
   to_type PathClassFile,
-  from    Str, q{ file $_ };
+  from    Str, q{ Path::Class::file $_ };
 
 declare_coercion 'DirFromStr',
   to_type PathClassDir,
-  from    Str, q{ dir $_ };
+  from    Str, q{ Path::Class::dir $_ };
 
 # (see https://metacpan.org/pod/release/TOBYINK/Type-Tiny-1.000005/lib/Type/Tiny/Manual/Libraries.pod)
 class_type 'Datetime', { class => 'DateTime' };

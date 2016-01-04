@@ -1,5 +1,6 @@
 #!/usr/bin/env perl
 
+# ABSTRACT: find data for sequencing runs
 # PODNAME: pathfind
 
 use v5.10; # for "say"

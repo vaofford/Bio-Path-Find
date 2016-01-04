@@ -6,11 +6,21 @@ use Test::More;
 use Test::Exception;
 use Test::Warn;
 use Try::Tiny;
+use Path::Class;
 use Log::Log4perl qw( :easy );
 
 # initialise l4p to avoid warnings
 Log::Log4perl->easy_init( $FATAL );
 
+# set up the "linked" directory for the test suite
+use lib 't';
+
+use Test::Setup;
+
+unless ( -d dir( qw( t data linked ) ) ) {
+  diag 'creating symlink directory';
+  Test::Setup::make_symlinks;
+}
 use_ok('Bio::Path::Find::DatabaseManager');
 
 #-------------------------------------------------------------------------------
@@ -20,7 +30,7 @@ use_ok('Bio::Path::Find::DatabaseManager');
 my $dbm;
 lives_ok {
     $dbm = Bio::Path::Find::DatabaseManager->new(
-      config_file => 't/data/05_database_manager/test.conf'
+      config_file => file( qw( t data 05_database_manager test.conf ) )->stringify,
     )
   }
   'no exception instantiating with valid config';
@@ -30,11 +40,11 @@ lives_ok {
 # use a config hash
 
 my $config = {
-  db_root => 't/data/05_database_manager/root_dir',
+  db_root => file( qw( t data 05_database_manager root_dir ) )->stringify,
   hierarchy_template => 'genus:species-subspecies:TRACKING:projectssid:sample:technology:library:lane',
   connection_params => {
     driver => 'SQLite',
-    dbname => 't/data/empty_tracking_database.db',
+    dbname => file( qw( t data empty_tracking_database.db ) )->stringify,
   },
   db_subdirs => {
     pathogen_virus_track => 'viruses',
@@ -58,7 +68,7 @@ throws_ok { Bio::Path::Find::DatabaseManager->new( config => $config )->connecti
 
 # missing driver
 $config->{connection_params} = {
-  dbname => 't/data/empty_tracking_database.db',
+  dbname => file( qw( t data empty_tracking_database.db ) )->stringify,
 };
 
 throws_ok { Bio::Path::Find::DatabaseManager->new( config => $config )->connection_params }
@@ -101,11 +111,11 @@ throws_ok { Bio::Path::Find::DatabaseManager->new( config => $config )->connecti
 # local SQLite DB
 
 $config = {
-  db_root => 't/data/05_database_manager/root_dir',
+  db_root => file( qw( t data 05_database_manager root_dir ) )->stringify,
   hierarchy_template => 'genus:species-subspecies:TRACKING:projectssid:sample:technology:library:lane',
   connection_params => {
     driver => 'SQLite',
-    dbname => 't/data/empty_tracking_database.db',
+    dbname => file( qw( t data empty_tracking_database.db ) )->stringify,
   },
   db_subdirs => {
     pathogen_virus_track => 'viruses',
@@ -136,7 +146,7 @@ SKIP: {
              $ENV{TEST_MYSQL_USER} );
 
   $config = {
-    db_root => 't/data/05_database_manager/root_dir',
+    db_root => file( qw( t data 05_database_manager root_dir ) )->stringify,
     hierarchy_template => 'genus:species-subspecies:TRACKING:projectssid:sample:technology:library:lane',
     connection_params => {
       driver => 'mysql',

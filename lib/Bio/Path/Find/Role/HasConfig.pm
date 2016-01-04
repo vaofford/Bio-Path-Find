@@ -5,7 +5,15 @@ package Bio::Path::Find::Role::HasConfig;
 
 use Moose::Role;
 
-use Types::Standard qw( Str HashRef );
+use Types::Standard qw(
+  HashRef
+);
+
+use Bio::Path::Find::Types qw( 
+  PathClassFile
+  FileFromStr
+);
+
 use Config::Any;
 
 use Bio::Path::Find::Exception;
@@ -35,7 +43,8 @@ exist.
 
 has 'config_file' => (
   is      => 'ro',
-  isa     => Str,
+  isa     => PathClassFile->plus_coercions(FileFromStr),
+  coerce  => 1,
   lazy    => 1,
   writer  => '_set_config_file',
   builder => '_build_config_file',

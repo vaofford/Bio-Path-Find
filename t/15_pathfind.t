@@ -44,6 +44,16 @@ use Path::Class;
 use File::Temp;
 use Cwd;
 
+# set up the "linked" directory for the test suite
+use lib 't';
+
+use Test::Setup;
+
+unless ( -d dir( qw( t data linked ) ) ) {
+  diag 'creating symlink directory';
+  Test::Setup::make_symlinks;
+}
+
 use Bio::Path::Find::Finder;
 
 # don't initialise l4p here because we want to test that command line logging
@@ -55,13 +65,13 @@ use_ok('Bio::Path::Find::App::TestFind');
 my $temp_dir = File::Temp->newdir;
 dir( $temp_dir, 't' )->mkpath;
 my $orig_cwd = getcwd;
-symlink( "$orig_cwd/t/data", "$temp_dir/t/data") == 1
+symlink dir( $orig_cwd, qw( t data ) ), dir( $temp_dir, qw( t data ) )
   or die "ERROR: couldn't link data directory into temp directory";
 chdir $temp_dir;
 
 # the basic params. These will stay unchanged for all of the subsequent runs
 my %params = (
-  config_file      => 't/data/15_pathfind/test.conf',
+  config_file      => file( qw( t data 15_pathfind test.conf ) ),
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
