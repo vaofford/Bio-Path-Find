@@ -10,6 +10,17 @@ use Path::Class;
 use File::Temp qw( tempdir );
 use Cwd;
 
+# set up the "linked" directory for the test suite
+use lib 't';
+
+use Test::Setup;
+
+unless ( -d dir( qw( t data linked ) ) ) {
+  diag 'creating symlink directory';
+  Test::Setup::make_symlinks;
+}
+use_ok('Bio::Path::Find::DatabaseManager');
+
 use Bio::Path::Find::DatabaseManager;
 
 use Log::Log4perl qw( :easy );

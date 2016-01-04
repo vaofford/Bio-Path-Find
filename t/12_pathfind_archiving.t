@@ -15,6 +15,17 @@ use Compress::Zlib;
 use Digest::MD5 qw( md5_hex );
 use Try::Tiny;
 
+# set up the "linked" directory for the test suite
+use lib 't';
+
+use Test::Setup;
+
+unless ( -d dir( qw( t data linked ) ) ) {
+  diag 'creating symlink directory';
+  Test::Setup::make_symlinks;
+}
+use_ok('Bio::Path::Find::DatabaseManager');
+
 use Bio::Path::Find::Finder;
 
 # don't initialise l4p here because we want to test that command line logging

@@ -12,6 +12,16 @@ use File::Copy;
 use Path::Class;
 use Cwd;
 
+# set up the "linked" directory for the test suite
+use lib 't';
+
+use Test::Setup;
+
+unless ( -d dir( qw( t data linked ) ) ) {
+  diag 'creating symlink directory';
+  Test::Setup::make_symlinks;
+}
+
 #-------------------------------------------------------------------------------
 
 # set up a temp dir

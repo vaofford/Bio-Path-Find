@@ -12,6 +12,7 @@ use Log::Log4perl qw( :easy );
 # initialise l4p to avoid warnings
 Log::Log4perl->easy_init( $FATAL );
 
+# set up the "linked" directory for the test suite
 use lib 't';
 
 use Test::Setup;

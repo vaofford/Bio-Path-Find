@@ -13,6 +13,17 @@ use Compress::Zlib;
 use Try::Tiny;
 use Text::CSV_XS qw( csv );
 
+# set up the "linked" directory for the test suite
+use lib 't';
+
+use Test::Setup;
+
+unless ( -d dir( qw( t data linked ) ) ) {
+  diag 'creating symlink directory';
+  Test::Setup::make_symlinks;
+}
+use_ok('Bio::Path::Find::DatabaseManager');
+
 use Bio::Path::Find::Finder;
 
 # initialise l4p to avoid warnings

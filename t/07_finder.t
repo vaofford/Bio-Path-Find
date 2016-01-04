@@ -11,6 +11,16 @@ use Path::Class;
 use Log::Log4perl qw( :easy );
 Log::Log4perl->easy_init( $FATAL );
 
+# set up the "linked" directory for the test suite
+use lib 't';
+
+use Test::Setup;
+
+unless ( -d dir( qw( t data linked ) ) ) {
+  diag 'creating symlink directory';
+  Test::Setup::make_symlinks;
+}
+
 use_ok('Bio::Path::Find::Finder');
 
 my $f;

@@ -44,6 +44,16 @@ use Path::Class;
 use File::Temp;
 use Cwd;
 
+# set up the "linked" directory for the test suite
+use lib 't';
+
+use Test::Setup;
+
+unless ( -d dir( qw( t data linked ) ) ) {
+  diag 'creating symlink directory';
+  Test::Setup::make_symlinks;
+}
+
 use Bio::Path::Find::Finder;
 
 # don't initialise l4p here because we want to test that command line logging
