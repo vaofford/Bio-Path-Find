@@ -5,7 +5,7 @@ package Bio::Path::Find::App::PathFind;
 
 use v5.10; # for "say"
 
-use MooseX::App::Simple qw( Depends Man );
+use MooseX::App::Simple qw( Man );
 # use namespace::autoclean; # leave out; messes with MooseX::App
 use MooseX::StrictConstructor;
 
@@ -37,6 +37,12 @@ use Bio::Path::Find::Types qw(
 
 with 'MooseX::Log::Log4perl',
      'Bio::Path::Find::App::Role::AppRole';
+
+# configure the application via MooseX::App calls
+
+# throw an exception if extra options or parameters are found on the command
+# line
+app_strict 1;
 
 #-------------------------------------------------------------------------------
 #- usage text ------------------------------------------------------------------
