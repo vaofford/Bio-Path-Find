@@ -49,10 +49,6 @@ symlink dir( $orig_cwd, qw( t data ) ), dir( $temp_dir, qw( t data ) )
   or die "ERROR: couldn't link data directory into temp directory";
 chdir $temp_dir;
 
-# create a test log file and make sure it isn't already there
-my $test_log = file($temp_dir, '_testfind.log');
-$test_log->remove;
-
 # simple find - get samples for a lane
 my %params = (
   config_file => file( qw( t data 11_approle test.conf ) ),
