@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 20;
+use Test::More tests => 19;
 use Test::Exception;
 use Test::Warn;
 use Try::Tiny;
@@ -205,12 +205,7 @@ $config = {
 
 $db = Bio::Path::Find::Database->new( name => 'pathogen_prok_track', config => $config );
 
-my $root;
-warning_like { $root = $db->hierarchy_root_dir }
-  qr/does not specify the mapping/,
-  'got warning about missing mapping in config';
-
-is $root, file( qw( t data linked prokaryotes seq-pipelines ) ),
+is $db->hierarchy_root_dir, file( qw( t data linked prokaryotes seq-pipelines ) ),
   'got correct root dir without subdir';
 
 #-------------------------------------------------------------------------------
