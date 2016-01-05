@@ -55,7 +55,8 @@ path-help@sanger.ac.uk
 # Lane objects that we return
 
 our $lane_roles = {
-  pathfind      => 'Bio::Path::Find::Lane::Role::PathFind',
+  pf       => 'Bio::Path::Find::Lane::Role::PathFind',
+  pathfind => 'Bio::Path::Find::Lane::Role::PathFind',
 };
 
 #-------------------------------------------------------------------------------

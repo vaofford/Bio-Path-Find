@@ -3,7 +3,6 @@ package Bio::Path::Find::App::Role::AppRole;
 
 # ABSTRACT: a role that carries most of the boilerplate for "finder" apps
 
-use Moose::Role;
 use MooseX::App::Role;
 
 use Path::Class;
