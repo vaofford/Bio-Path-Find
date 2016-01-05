@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More;
+use Test::More tests => 11;
 use Test::Exception;
 use Test::Output;
 use Path::Class;
@@ -97,5 +97,5 @@ stdout_is { $lanes = $f->find_lanes( ids  => [ 607 ], type => 'study' ) }
 
 is scalar @$lanes, 50, 'found 50 lanes in study 607';
 
-done_testing;
+# done_testing;
 

@@ -15,7 +15,7 @@ with 'Bio::Path::Find::Role::HasConfig';
 
 package main;
 
-use Test::More;
+use Test::More tests => 3;
 use Test::Exception;
 
 BEGIN {
@@ -33,5 +33,5 @@ throws_ok {$t->config_file}
   qr/can't determine config file/,
   'exception with accessor and config file unspecified';
 
-done_testing;
+# done_testing;
 

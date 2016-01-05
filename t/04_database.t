@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More;
+use Test::More tests => 20;
 use Test::Exception;
 use Test::Warn;
 use Try::Tiny;

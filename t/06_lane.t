@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More;
+use Test::More tests => 29;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -244,5 +244,5 @@ my $expected_stats = [
 
 is_deeply $lane->stats, $expected_stats, 'got expected stats for lane';
 
-done_testing;
+# done_testing;
 

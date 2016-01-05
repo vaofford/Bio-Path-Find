@@ -37,7 +37,7 @@ package main;
 use strict;
 use warnings;
 
-use Test::More;
+use Test::More tests => 6;
 use Test::Exception;
 use Test::Output;
 use Path::Class;
@@ -106,7 +106,7 @@ is $tf->run, 'called _make_stats', 'correctly called _make_stats';
 
 #-------------------------------------------------------------------------------
 
-done_testing;
+# done_testing;
 
 chdir $orig_cwd;
 
