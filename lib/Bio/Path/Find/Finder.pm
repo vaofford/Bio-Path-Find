@@ -50,6 +50,14 @@ path-help@sanger.ac.uk
 
 =cut
 
+# defaults for the mapping between a script name and a Role to apply to the
+# Lane objects that we return
+
+our $lane_roles = {
+  pf       => 'Bio::Path::Find::Lane::Role::PathFind',
+  pathfind => 'Bio::Path::Find::Lane::Role::PathFind',
+};
+
 #-------------------------------------------------------------------------------
 #- public attributes -----------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -82,7 +90,16 @@ has 'lane_role' => (
 sub _build_lane_role {
   my $self = shift;
 
-  my $role = $self->config->{lane_roles}->{ $self->{_script_name} };
+  # TODO this needs looking at if we stick with the git-style application,
+  # TODO because it's no longer sensible to use the name of the script to
+  # TODO decide what Role to apply
+  my $role;
+  if ( exists $self->config->{lane_roles} ) {
+    $role = $self->config->{lane_roles}->{ $self->{_script_name} };
+  }
+  else {
+    $role = $lane_roles->{ $self->{_script_name} };
+  }
 
   if ( not defined $role ) {
     Bio::Path::Find::Exception->throw(
@@ -99,6 +116,7 @@ sub _build_lane_role {
 #-------------------------------------------------------------------------------
 
 # this is only intended for use during testing
+# TODO this isn't true. It's used all the time...
 
 has '_script_name' => (
   is      => 'ro',
