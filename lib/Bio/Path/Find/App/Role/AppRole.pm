@@ -49,6 +49,7 @@ option 'id' => (
   is            => 'rw',
   isa           => Str,
   cmd_aliases   => 'i',
+  cmd_env       => 'PF_ID',
   required      => 1,
   trigger       => sub {
     my ( $self, $id ) = @_;
@@ -62,6 +63,7 @@ option 'type' => (
   is            => 'rw',
   isa           => IDType,
   cmd_aliases   => 't',
+  cmd_env       => 'PF_TYPE',
   required      => 1,
 );
 
@@ -88,6 +90,7 @@ option 'no_progress_bars' => (
   isa           => Bool,
   cmd_flag      => 'no-progress-bars',
   cmd_aliases   => 'n',
+  cmd_env       => 'PF_NO_PROGRESS_BARS',
   trigger       => sub {
     my ( $self, $flag ) = @_;
     # set a flag on the config object to tell interested objects whether they
@@ -101,12 +104,9 @@ option 'verbose' => (
   is            => 'rw',
   isa           => Bool,
   cmd_aliases   => 'v',
+  cmd_env       => 'PF_VERBOSE',
   default       => 0,
 );
-
-# these are "non-option" attributes
-# has 'config_file'  => ( is => 'rw', isa => Str, default => 'live.conf' );
-# TODO get rid of the hard-coded config file path somehow
 
 #-------------------------------------------------------------------------------
 #- private attributes ----------------------------------------------------------
@@ -219,7 +219,7 @@ sub BUILD {
     $ids  = [ $self->id ];
     $type = $self->type;
 
-    $self->log->debug(  qq(looking for single ID, "$ids", of type "$type") );
+    $self->log->debug( qq(looking for single ID, "$ids->[0]", of type "$type") );
   }
 
   $self->_ids($ids);
