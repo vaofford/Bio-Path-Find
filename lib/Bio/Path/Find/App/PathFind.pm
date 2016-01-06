@@ -3,7 +3,7 @@ package Bio::Path::Find::App::PathFind;
 
 # ABSTRACT: find data for sequencing lanes
 
-use MooseX::App qw( Man );
+use MooseX::App qw( Man BashCompletion );
 
 =head1 DESCRIPTION
 
