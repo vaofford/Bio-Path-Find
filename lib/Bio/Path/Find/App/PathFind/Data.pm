@@ -45,7 +45,7 @@ with 'Bio::Path::Find::App::Role::AppRole';
 
 =head1 USAGE
 
-pathfind data --id <id> --type <ID type> [options]
+pf data --id <id> --type <ID type> [options]
 
 =head1 DESCRIPTION
 
