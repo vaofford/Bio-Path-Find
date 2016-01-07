@@ -25,7 +25,7 @@ with 'Bio::Path::Find::App::Role::AppRole';
 
 =head1 USAGE
 
-pathfind accession --id <id> --type <ID type> [options]
+pf info --id <id> --type <ID type> [options]
 
 =head1 DESCRIPTION
 
