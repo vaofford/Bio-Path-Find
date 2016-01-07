@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 11;
+use Test::More tests => 20;
 use Test::Exception;
 use Test::Output;
 use Path::Class;
@@ -23,53 +23,41 @@ unless ( -d dir( qw( t data linked ) ) ) {
 
 use_ok('Bio::Path::Find::Finder');
 
+my $config = {
+  db_root => 't/data/linked',
+  connection_params => {
+    driver => 'SQLite',
+    dbname => 't/data/pathogen_prok_track.db',
+  },
+};
+
+#---------------------------------------
+
+# check the behaviour of the lane_role attribute
+
 my $f;
-lives_ok { $f = Bio::Path::Find::Finder->new(config_file => file( qw( t data 07_finder test.conf ) )) }
+lives_ok { $f = Bio::Path::Find::Finder->new( config => $config ) }
   'got a finder';
 
-# testing the script role feature
-#
-# first, there should be an exception when we haven't specified a script role
-# but the name of this script, which is used to determine a default, isn't found
-# in the <lane_roles> mapping in the config
+# first, we shouldn't have a value for lane_role because it's not specified in
+# the config and this script doesn't appear in the default mapping in the class
+# itself
+is $f->lane_role, undef, 'lane role undef';
+
+# next, we should get back the name of a lane_role when we hand it to the
+# constructor
+lives_ok { $f = Bio::Path::Find::Finder->new( config => $config, lane_role => 'my_role' ) }
+  'got a finder while specifying lane_role';
+
+is $f->lane_role, 'my_role', 'got expected value for lane_role';
+
+# check that we get an exception from Moose when we try to apply that role but
+# it doesn't exist
 throws_ok { $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
-  qr/couldn't find a lane role for the current script/,
-  'exception when lane_roles not passed and script name is not found in mapping';
+  qr/couldn't apply role "my_role"/,
+  'exception when lane_role specifies non-existent Role';
 
-# now, with the real name of this script present in the <lane_roles> mapping
-# in the new config, there should be no exception
-$f = Bio::Path::Find::Finder->new(
-  config_file => file( qw( t data 07_finder test_with_lane_role.conf ) )
-);
-
-lives_ok { $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
-  'no exception when script named in script_roles';
-
-# next, we revert to the original config, which has only the script named
-# "pathfind" in the <script_roles> mappings. We shouldn't get an exception
-# provided we cheat and explicitly set the name of the script when we
-# instantiate the Finder, which allows it to correctly set a default role
-# using the mapping
-$f = Bio::Path::Find::Finder->new(
-  config_file  => file( qw( t data 07_finder test.conf ) ),
-  _script_name => 'pathfind',
-);
-
-lives_ok { $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
-  'no exception getting default when script named in script_roles';
-
-# check that we get an exception from Moose when we try to apply a role
-# that doesn't exist
-$f = Bio::Path::Find::Finder->new(
-  config_file => file( qw( t data 07_finder test.conf ) ),
-  lane_role   => 'Some::Non::Existent::Role',
-);
-
-throws_ok { $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
-  qr/couldn't apply role "Some::Non::Existent::Role"/,
-  'exception when script_role not passed but role does not exist';
-
-# and finally, check that we can explicitly set the name of the role
+# check that we can set the name of the role correctly using lane_role
 $f = Bio::Path::Find::Finder->new(
   config_file => file( qw( t data 07_finder test.conf ) ),
   lane_role   => 'Bio::Path::Find::Lane::Role::PathFind',
@@ -77,11 +65,69 @@ $f = Bio::Path::Find::Finder->new(
 
 my $lanes;
 lives_ok { $lanes = $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
-  'no exception getting default when valid Role name provided';
+  'no exception getting lanes when valid lane_role specified';
+
+ok $lanes->[0]->does('Bio::Path::Find::Lane::Role::PathFind'),
+  'correct role applied to found lanes';
+
+#---------------------------------------
+
+# check the behaviour of the lane_roles section of the config
+
+# first, let's see if we can look up the Role to apply using the name of the
+# calling script. We set the name of the script to one that we know exists
+# in the default script name-to-Role name mapping that's hard coded into
+# the class
+$f = Bio::Path::Find::Finder->new(
+  config       => $config,
+  _script_name => 'pathfind',
+);
+
+lives_ok { $lanes = $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
+  'no exception getting lanes when script named in default lane_roles';
+
+ok $lanes->[0]->does('Bio::Path::Find::Lane::Role::PathFind'),
+  'correct role applied to lanes';
+
+# and make sure that we don't have any problems when we don't have
+# a Role to apply
+$f = Bio::Path::Find::Finder->new(
+  config       => $config,
+  _script_name => 'my_script',
+);
+
+lives_ok { $lanes = $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
+  'no exception getting lanes when script not named in default lane_roles';
+
+ok ! $lanes->[0]->does('Bio::Path::Find::Lane::Role::PathFind'),
+  'no roles applied to lanes';
+
+#---------------------------------------
+
+# next, if we specify the lane roles mapping in the config, we should get the
+# right value for lane_role and that Role should be applied to found lanes
+$config->{lane_roles} = {
+  '07_finder.t' => 'Bio::Path::Find::Lane::Role::PathFind',
+};
+
+lives_ok { $f = Bio::Path::Find::Finder->new( config => $config ) }
+  'got a finder with config having lane_roles section';
+
+is $f->lane_role, 'Bio::Path::Find::Lane::Role::PathFind', 'got correct lane role';
+
+lives_ok { $lanes = $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
+  'no exception finding lanes when script named in lane_roles';
+
+ok $lanes->[0]->does('Bio::Path::Find::Lane::Role::PathFind'),
+  'correct role applied to lane';
+
+#---------------------------------------
+
+# make sure the finding works as expected
 
 is scalar @$lanes, 87, 'found 87 lanes with ID 10263_4';
 
-# filter by QC status
+# check we can filter by QC status
 $lanes = $f->find_lanes(
   ids  => [ '10263_4' ],
   type => 'lane',
