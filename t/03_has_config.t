@@ -15,7 +15,7 @@ with 'Bio::Path::Find::Role::HasConfig';
 
 package main;
 
-use Test::More;
+use Test::More tests => 8;
 use Test::Exception;
 use Path::Class;
 
@@ -75,5 +75,5 @@ SKIP: {
     'no exception when using a string for config filename';
 };
 
-done_testing;
+# done_testing;
 

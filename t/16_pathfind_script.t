@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More;
+use Test::More tests => 10;
 use Test::Exception;
 use Test::Output;
 use Test::Script::Run;
@@ -83,7 +83,7 @@ like $log_lines[4], qr|bin/pathfind -t lane -i 10018_1#1$|, 'fourth log line is 
 
 #-------------------------------------------------------------------------------
 
-done_testing;
+# done_testing;
 
 chdir $orig_cwd;
 

@@ -160,8 +160,8 @@ sub _build_db_root {
 Template for the directory hierarchy where flat files are stored. Must be a
 colon-separated list of directory names.
 
-If C<hierarchy_template> is not specified in the configuration, a warning is
-issued and we use the following default:
+If C<hierarchy_template> is not specified in the configuration, we use the
+following default:
 
   genus:species-subspecies:TRACKING:projectssid:sample:technology:library:lane
 
@@ -232,8 +232,8 @@ It's possible for a given database to have a sub-directory with a different
 name in the data directories. This attribute specifies the mapping between
 database name and subdirectory name.
 
-If C<db_subdirs> is not found in the configuration, a warning is issued and we
-use the following default mapping:
+If C<db_subdirs> is not found in the configuration, we use the following
+default mapping:
 
   pathogen_virus_track    => 'viruses',
   pathogen_prok_track     => 'prokaryotes',
@@ -255,19 +255,17 @@ has 'db_subdirs' => (
 sub _build_db_subdirs {
   my $self = shift;
 
-  # try to find the mapping in the config
+  # try to find the mapping in the config...
   my $db_subdirs = $self->config->{db_subdirs};
 
-  if ( not defined $db_subdirs ) {
-    carp 'WARNING: configuration does not specify the mapping between database name and sub-directory ("db_subdirs"); using default';
-    $db_subdirs = {
-      pathogen_virus_track    => 'viruses',
-      pathogen_prok_track     => 'prokaryotes',
-      pathogen_euk_track      => 'eukaryotes',
-      pathogen_helminth_track => 'helminths',
-      pathogen_rnd_track      => 'rnd',
-    };
-  }
+  # ... or fall back on the hard-coded version
+  $db_subdirs ||= {
+    pathogen_virus_track    => 'viruses',
+    pathogen_prok_track     => 'prokaryotes',
+    pathogen_euk_track      => 'eukaryotes',
+    pathogen_helminth_track => 'helminths',
+    pathogen_rnd_track      => 'rnd',
+  };
 
   return $db_subdirs;
 }

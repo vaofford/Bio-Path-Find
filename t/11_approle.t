@@ -28,7 +28,7 @@ package main;
 use strict;
 use warnings;
 
-use Test::More;
+use Test::More tests => 16;
 use Test::Exception;
 use Test::Output;
 use Path::Class;
@@ -48,10 +48,6 @@ my $orig_cwd = getcwd;
 symlink dir( $orig_cwd, qw( t data ) ), dir( $temp_dir, qw( t data ) )
   or die "ERROR: couldn't link data directory into temp directory";
 chdir $temp_dir;
-
-# create a test log file and make sure it isn't already there
-my $test_log = file($temp_dir, '_testfind.log');
-$test_log->remove;
 
 # simple find - get samples for a lane
 my %params = (
@@ -129,7 +125,7 @@ lives_ok { $tf->_write_stats_csv(\@expected_stats, $stats_file) }
 $stats = csv( in => $stats_file->stringify, sep => "\t" );
 is_deeply $stats, \@expected_stats, 'tab-separated contents look right';
 
-done_testing;
+# done_testing;
 
 chdir $orig_cwd;
 

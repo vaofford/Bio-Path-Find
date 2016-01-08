@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More;
+use Test::More tests => 20;
 use Test::Exception;
 use Test::Warn;
 use Try::Tiny;
@@ -205,12 +205,7 @@ $config = {
 
 $db = Bio::Path::Find::Database->new( name => 'pathogen_prok_track', config => $config );
 
-my $root;
-warning_like { $root = $db->hierarchy_root_dir }
-  qr/does not specify the mapping/,
-  'got warning about missing mapping in config';
-
-is $root, file( qw( t data linked prokaryotes seq-pipelines ) ),
+is $db->hierarchy_root_dir, file( qw( t data linked prokaryotes seq-pipelines ) ),
   'got correct root dir without subdir';
 
 #-------------------------------------------------------------------------------
@@ -218,7 +213,7 @@ is $root, file( qw( t data linked prokaryotes seq-pipelines ) ),
 # see if we can perform tests on a test DB on a MySQL server
 
 SKIP: {
-  skip 'no credentials for live DB; set TEST_MYSQL_HOST, TEST_MYSQL_PORT, TEST_MYSQL_USER', 1
+  skip 'no credentials for live DB; set TEST_MYSQL_HOST, TEST_MYSQL_PORT, TEST_MYSQL_USER', 2
     unless ( $ENV{TEST_MYSQL_HOST} and
              $ENV{TEST_MYSQL_PORT} and
              $ENV{TEST_MYSQL_USER} );
@@ -248,5 +243,5 @@ SKIP: {
     'can count rows in lane table';
 }
 
-done_testing;
+# done_testing;
 

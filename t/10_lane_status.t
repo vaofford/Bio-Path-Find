@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More;
+use Test::More tests => 16;
 use Test::Exception;
 use Path::Class;
 
@@ -91,5 +91,5 @@ $lane_status = Bio::Path::Find::Lane::Status->new( lane => $lane );
 
 is $lane_status->pipeline_status('mapped'), 'Failed (01-01-2015)', 'got correct status for "mapped" pipeline';
 
-done_testing;
+# done_testing;
 

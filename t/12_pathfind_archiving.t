@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More;
+use Test::More tests => 41;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -365,7 +365,7 @@ ok $exception_thrown, 'exception with write failure';
 
 #-------------------------------------------------------------------------------
 
-done_testing;
+# done_testing;
 
 chdir $orig_cwd;
 

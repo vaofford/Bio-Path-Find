@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More;
+use Test::More tests => 13;
 use Test::Exception;
 use Test::Output;
 use Path::Class;
@@ -130,7 +130,7 @@ throws_ok { $pf->_make_symlinks($lanes) }
 
 #-------------------------------------------------------------------------------
 
-done_testing;
+# done_testing;
 
 # tidy up after ourselves...
 chdir $orig_cwd;

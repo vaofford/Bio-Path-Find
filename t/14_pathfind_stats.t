@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More;
+use Test::More tests => 10;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -103,7 +103,7 @@ is_deeply $stats, \@expected_stats, 'contents of named file look right';
 
 #-------------------------------------------------------------------------------
 
-done_testing;
+# done_testing;
 
 chdir $orig_cwd;
 
