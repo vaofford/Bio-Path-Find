@@ -213,7 +213,7 @@ is $db->hierarchy_root_dir, file( qw( t data linked prokaryotes seq-pipelines ) 
 # see if we can perform tests on a test DB on a MySQL server
 
 SKIP: {
-  skip 'no credentials for live DB; set TEST_MYSQL_HOST, TEST_MYSQL_PORT, TEST_MYSQL_USER', 1
+  skip 'no credentials for live DB; set TEST_MYSQL_HOST, TEST_MYSQL_PORT, TEST_MYSQL_USER', 2
     unless ( $ENV{TEST_MYSQL_HOST} and
              $ENV{TEST_MYSQL_PORT} and
              $ENV{TEST_MYSQL_USER} );
