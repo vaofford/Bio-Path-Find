@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 19;
+use Test::More tests => 20;
 use Test::Exception;
 use Test::Warn;
 use Try::Tiny;
@@ -243,5 +243,5 @@ SKIP: {
     'can count rows in lane table';
 }
 
-done_testing;
+# done_testing;
 
