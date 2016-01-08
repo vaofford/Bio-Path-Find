@@ -13,7 +13,7 @@ use DBI;
 use Path::Class;
 
 use Bio::Path::Find::Types qw( BioPathFindDatabase );
-use Bio::Track::Schema;
+use Bio::Track::ReducedSchema;
 use Bio::Path::Find::Database;
 use Bio::Path::Find::Exception;
 

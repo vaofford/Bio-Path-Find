@@ -18,12 +18,12 @@ use Types::Standard qw(
   Undef
 );
 use Bio::Path::Find::Types qw(
-  BioTrackSchema
+  BioTrackReducedSchema
   PathClassDir
   DirFromStr
 );
 
-use Bio::Track::Schema;
+use Bio::Track::ReducedSchema;
 use Bio::Path::Find::Exception;
 
 with 'Bio::Path::Find::Role::HasConfig';
@@ -85,7 +85,7 @@ B<Read only>.
 
 has 'schema' => (
   is      => 'ro',
-  isa     => BioTrackSchema,
+  isa     => BioTrackReducedSchema,
   lazy    => 1,
   builder => '_build_schema',
 );
@@ -101,10 +101,10 @@ sub _build_schema {
 
   my $schema;
   if ( $c->{driver} eq 'mysql' ) {
-    $schema = Bio::Track::Schema->connect($dsn, $user, $pass);
+    $schema = Bio::Track::ReducedSchema->connect($dsn, $user, $pass);
   }
   elsif ( $c->{driver} eq 'SQLite' ) {
-    $schema = Bio::Track::Schema->connect($dsn);
+    $schema = Bio::Track::ReducedSchema->connect($dsn);
   }
 
   return $schema;
