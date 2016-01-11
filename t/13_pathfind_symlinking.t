@@ -28,7 +28,7 @@ use Bio::Path::Find::Finder;
 use Log::Log4perl qw( :easy );
 Log::Log4perl->easy_init( $FATAL );
 
-use_ok('Bio::Path::Find::App::PathFind');
+use_ok('Bio::Path::Find::App::PathFind::Data');
 
 # set up a temp dir where we can write the archive
 my $temp_dir = File::Temp->newdir;
@@ -61,8 +61,8 @@ my %params = (
 );
 
 my $pf;
-lives_ok { $pf = Bio::Path::Find::App::PathFind->new(%params) }
-  'got a new pathfind app object';
+lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
+  'got a new pathfind data command object';
 
 my $dest = dir( $temp_dir, 'pathfind_10018_1' );
 
@@ -88,7 +88,7 @@ is scalar( @links ), 50, 'found all links';
 
 $params{no_progress_bars} = 0;
 $params{symlink}          = 'my_link_dir';
-$pf = Bio::Path::Find::App::PathFind->new(%params);
+$pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
 $dest = dir( $temp_dir, 'my_link_dir' );
 
@@ -109,7 +109,7 @@ SKIP: {
   # see what happens when we can't mkdir the specified dir
 
   $params{symlink} = '/var/my_link_dir'; # not very cross-platform...
-  $pf = Bio::Path::Find::App::PathFind->new(%params);
+  $pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
   $dest = dir( '/var/my_link_dir' );
 
@@ -122,7 +122,7 @@ SKIP: {
 file( $temp_dir, 'pre-existing-file' )->touch;
 
 $params{symlink} = 'pre-existing-file';
-$pf = Bio::Path::Find::App::PathFind->new(%params);
+$pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
 throws_ok { $pf->_make_symlinks($lanes) }
   qr/couldn't make link directory/,

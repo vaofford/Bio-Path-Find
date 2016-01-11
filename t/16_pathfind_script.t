@@ -34,7 +34,7 @@ chdir $temp_dir;
 
 #-------------------------------------------------------------------------------
 
-my $script = file( $orig_cwd, qw( bin pathfind ) );
+my $script = file( $orig_cwd, qw( bin pf ) );
 
 run_ok( $script, [ qw( -h ) ], 'script runs ok with help flag' );
 run_not_ok( $script, [ ], 'script exits with error status when run with no arguments' );
@@ -43,12 +43,12 @@ run_not_ok( $script, [ ], 'script exits with error status when run with no argum
 
 my ( $rv, $stdout, $stderr ) = run_script( $script, [] );
 
-like $stderr, qr/Required option 'id' missing/, 'got expected error message with no flags';
+like $stderr, qr/Missing command/, 'got expected error message with no flags';
 
 #---------------------------------------
 
 # valid command line but no config
-( $rv, $stdout, $stderr ) = run_script( $script, [ '-t', 'lane', '-i', '10018_1#1' ] );
+( $rv, $stdout, $stderr ) = run_script( $script, [ 'data', '-t', 'lane', '-i', '10018_1#1' ] );
 
 like $stderr, qr/ERROR: config file \(prod\.conf\) doesn't exist/,
   'error about missing config on STDERR';
@@ -59,7 +59,7 @@ like $stderr, qr/ERROR: config file \(prod\.conf\) doesn't exist/,
 # time it should work
 copy file( qw( t data 16_pathfind_script prod.conf ) ), $temp_dir;
 
-( $rv, $stdout, $stderr ) = run_script( $script, [ '-t', 'lane', '-i', '10018_1#1' ] );
+( $rv, $stdout, $stderr ) = run_script( $script, [ 'data', '-t', 'lane', '-i', '10018_1#1' ] );
 
 is $stderr, '', 'no output on STDERR';
 
@@ -77,9 +77,9 @@ my @log_lines = file('pathfind.log')->slurp;
 
 is scalar @log_lines, 5, 'got expected number of log entries';
 
-like $log_lines[0], qr|bin/pathfind -h$|, 'first log line is correct';
-like $log_lines[1], qr|bin/pathfind$|,    'second log line is correct';
-like $log_lines[4], qr|bin/pathfind -t lane -i 10018_1#1$|, 'fourth log line is correct';
+like $log_lines[0], qr|bin/pf -h$|, 'first log line is correct';
+like $log_lines[1], qr|bin/pf$|,    'second log line is correct';
+like $log_lines[4], qr|bin/pf data -t lane -i 10018_1#1$|, 'fourth log line is correct';
 
 #-------------------------------------------------------------------------------
 

@@ -30,7 +30,7 @@ use Bio::Path::Find::Finder;
 use Log::Log4perl qw( :easy );
 Log::Log4perl->easy_init( $FATAL );
 
-use_ok('Bio::Path::Find::App::PathFind');
+use_ok('Bio::Path::Find::App::PathFind::Data');
 
 # set up a temp dir where we can write the archive
 my $temp_dir = File::Temp->newdir;
@@ -67,8 +67,8 @@ my %params = (
 );
 
 my $pf;
-lives_ok { $pf = Bio::Path::Find::App::PathFind->new(%params) }
-  'got a new pathfind app object';
+lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
+  'got a new pathfind data command object';
 
 # write to automatically generated filename
 
@@ -92,7 +92,7 @@ $stats_file = file( $temp_dir, 'named_file.csv' );
   no_progress_bars => 1,
 );
 
-$pf = Bio::Path::Find::App::PathFind->new(%params);
+$pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
 lives_ok { $pf->_make_stats($lanes) } 'no exception when calling _make_stats';
 
