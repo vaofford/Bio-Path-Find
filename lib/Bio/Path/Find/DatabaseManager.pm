@@ -142,9 +142,9 @@ sub _build_data_sources {
   Bio::Path::Find::Exception->throw( msg => 'ERROR: failed to retrieve a list of data sources' )
     unless scalar @sources;
 
-  {
-    local $, = "\n";
-    $self->log->debug("list of data sources from database:\n", \@sources);
+  if ( $self->log->is_debug ) {
+    require Data::Dump;
+    $self->log->debug("list of data sources from database:\n", Data::Dump::dd( \@sources ) );
   }
 
   return \@sources;
