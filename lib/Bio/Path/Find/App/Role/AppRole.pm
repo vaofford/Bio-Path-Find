@@ -206,12 +206,24 @@ sub BUILD {
   my ( $ids, $type );
 
   if ( $self->type eq 'file' ) {
-    # read multiple IDs from a file
-    $ids  = $self->_load_ids_from_file( file($self->id) );
+
     $type = $self->file_id_type;
 
-    $self->log->debug('found ' . scalar @$ids . qq( IDs from file "$ids")
-                      . qq(, of type "$type") );
+    if ( $self->id eq '-' ) {
+      # read IDs from STDIN
+      while ( <STDIN> ) {
+        chomp;
+        push @$ids, $_;
+      }
+      $self->log->debug('found ' . scalar @$ids . qq( IDs from STDIN)
+                        . qq(, of type "$type") );
+    }
+    else {
+      # read multiple IDs from a file
+      $ids  = $self->_load_ids_from_file( file($self->id) );
+      $self->log->debug('found ' . scalar @$ids . qq( IDs from file "$ids")
+                        . qq(, of type "$type") );
+    }
   }
   else {
     # use the single ID from the command line

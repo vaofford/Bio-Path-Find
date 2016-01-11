@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 10;
+use Test::More tests => 11;
 use Test::Exception;
 use Test::Output;
 use Test::Script::Run;
@@ -11,6 +11,7 @@ use File::Temp;
 use File::Copy;
 use Path::Class;
 use Cwd;
+use IPC::Open2;
 
 # set up the "linked" directory for the test suite
 use lib 't';
@@ -73,9 +74,33 @@ SKIP: {
 
 #---------------------------------------
 
+# this is really testing functionality in AppRole::BUILD, but we can't test it
+# without a wrapper script, so here it is
+
+# make sure we can pass in IDs via STDIN
+
+my ( $child_in, $child_out );
+my $pid = open2 $child_out, $child_in, $script, qw( data -t file --file-id-type lane -i - );
+
+print $child_in "10018_1\n";
+print $child_in "5477_6\n";
+
+close $child_in;
+
+waitpid( $pid, 0 );
+
+my $found = 0;
+while ( <$child_out> ) {
+  $found++ if m/10018_1|5477_6/;
+}
+
+is $found, 61, 'got expected paths on STDOUT with IDs on STDIN';
+
+#---------------------------------------
+
 my @log_lines = file('pathfind.log')->slurp;
 
-is scalar @log_lines, 5, 'got expected number of log entries';
+is scalar @log_lines, 6, 'got expected number of log entries';
 
 like $log_lines[0], qr|bin/pf -h$|, 'first log line is correct';
 like $log_lines[1], qr|bin/pf$|,    'second log line is correct';
