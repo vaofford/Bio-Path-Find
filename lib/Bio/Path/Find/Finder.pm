@@ -13,8 +13,9 @@ use Carp qw( carp );
 use Path::Class;
 use File::Basename;
 use Try::Tiny;
-
+use Parallel::ForkManager;
 use Term::ProgressBar::Simple;
+use Data::Printer;
 
 use Type::Params qw( compile );
 use Types::Standard qw(
@@ -81,7 +82,7 @@ name and Role name in the config, for example:
    pathfind       Bio::Path::Find::Lane::Role::PathFind
    infofind       Bio::Path::Find::Lane::Role::InfoFind
    accessionfind  Bio::Path::Find::Lane::Role::AccessionFind
- </lane_roles>
+ <_in_parallel/lane_roles>
 
 If the config doesn't contain a C<lane_roles> mapping, we use the default,
 hard-coded mapping in this class:
@@ -186,7 +187,8 @@ sub find_lanes {
                      . ' IDs of type "' . $params->{type} . q(") );
 
   # get a list of Bio::Path::Find::Lane objects
-  my $lanes = $self->_find_lanes( $params->{ids}, $params->{type} );
+  # my $lanes = $self->_find_lanes( $params->{ids}, $params->{type} );
+  my $lanes = $self->_find_lanes_in_parallel( $params->{ids}, $params->{type} );
 
   $self->log->debug('found ' . scalar @$lanes . ' lanes');
 
@@ -242,73 +244,137 @@ sub find_lanes {
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-sub _find_lanes {
+sub _find_lanes_in_parallel {
   my ( $self, $ids, $type ) = @_;
 
   my @db_names = $self->_db_manager->database_names;
 
   # set up the progress bar
-  my $max = scalar( @db_names ) * scalar( @$ids );
-  my $pb = $self->config->{no_progress_bars}
-         ? 0
-         : Term::ProgressBar::Simple->new( {
-             name   => 'finding lanes',
-             count  => $max,
-             remove => 1,
-           } );
+  # my $max = scalar( @db_names );
+  # my $pb = $self->config->{no_progress_bars}
+  #        ? 0
+  #        : Term::ProgressBar::Simple->new( {
+  #            name   => 'finding lanes',
+  #            count  => $max,
+  #            remove => 1,
+  #          } );
+  # TODO the progress bar isn't working properly; need to work out why it's
+  # TODO flashing when updating
 
-  # walk over the list of available databases and, for each ID, search for
-  # lanes matching the specified ID
-  my @lanes;
+  my %lane_ids;
+
+  # we want to parallelise the database searching, but there's no way to search
+  # in one fork and pass back DBIC objects to the main process, because
+  # Parallel::ForkManager serialised everything that it passes between parent
+  # and child processes using Storable. There's no easy way to freeze usable
+  # DBIC objects using Storable, so instead we search for lanes matching the
+  # search criteria in forks, but we return just a list of row_id values for
+  # the latest_lane table. Then, in the parent process we do a "find" on
+  # LatestLane and look up each row again, turning it into a
+  # Bio::Path::Find::Lane object with
+
+  my $pfm = Parallel::ForkManager->new(10); # use 10 children
+
+  # run this sub once for every fork after it returns
+  $pfm->run_on_finish(
+    sub {
+      my ( $pid, $exit_code, $ident, $exit_signal, $core_dump, $lane_ids ) = @_;
+
+      # $pb++;
+      return unless defined $lane_ids;
+
+      # merge the IDs from this fork into the global results
+      foreach my $db_name ( keys %$lane_ids ) {
+        push @{ $lane_ids{$db_name} }, @{ $lane_ids->{$db_name} };
+      }
+    }
+  );
+
+  #---------------------------------------
+
+  # search each DB in a separate fork
   DB: foreach my $db_name ( @db_names ) {
-    $self->log->debug(qq(searching "$db_name"));
+    $pfm->start and next DB;
+    my $lane_ids = { $db_name => $self->_get_lane_ids( $db_name, $ids, $type ) };
+    $pfm->finish(0, $lane_ids );
+  }
+  $pfm->wait_all_children;
+
+  #---------------------------------------
+
+  # the searching returns a hash containing database name as the key and
+  # a list of row_id values for the latest_lane table. Now go and look up
+  # those IDs and build back proper Bio::Path::Find::Lane objects.
+
+  my @lanes;
+  DB_NAME: foreach my $db_name ( keys %lane_ids ) {
 
     my $database = $self->_db_manager->get_database($db_name);
 
-    ID: foreach my $id ( @$ids ) {
-      $self->log->debug( qq(looking for ID "$id") );
+    ID: foreach my $lane_id ( @{ $lane_ids{$db_name} } ) {
+      $self->log->debug( qq(looking for ID "$lane_id") );
 
-      my $rs = $database->schema->get_lanes_by_id($id, $type);
-      next ID unless $rs; # no matching lanes
+      my $lane_row = $database->schema->resultset('LatestLane')->find( { row_id => $lane_id } );
 
-      $self->log->debug('found ' . $rs->count . ' lanes');
+      # tell every result (a Bio::Track::Schema::Result object) which
+      # database it comes from. We need this later to generate paths on disk
+      # for the files associated with each result
+      $lane_row->database($database);
 
-      while ( my $lane_row = $rs->next ) {
+      # build a lightweight object to hold all of the data about a particular
+      # row
+      my $lane;
 
-        # tell every result (a Bio::Track::Schema::Result object) which
-        # database it comes from. We need this later to generate paths on disk
-        # for the files associated with each result
-        $lane_row->database($database);
-
-        # build a lightweight object to hold all of the data about a particular
-        # row
-        my $lane;
-
-        # if we have the name of a Role to apply, try to do that. Otherwise just
-        # hand back the bare Lane, with no Roles applied
-        if ( $self->lane_role ) {
-          try {
-            $lane = Bio::Path::Find::Lane->with_traits( $self->lane_role )
-                                         ->new( row => $lane_row );
-          } catch {
-            Bio::Path::Find::Exception->throw(
-              msg => q(ERROR: couldn't apply role ") . $self->lane_role . qq(" to lanes: $_)
-            );
-          };
-        }
-        else {
-          $lane = Bio::Path::Find::Lane->new( row => $lane_row );
-        }
-
-        push @lanes, $lane;
+      # if we have the name of a Role to apply, try to do that. Otherwise just
+      # hand back the bare Lane, with no Roles applied
+      if ( $self->lane_role ) {
+        try {
+          $lane = Bio::Path::Find::Lane->with_traits( $self->lane_role )
+                                       ->new( row => $lane_row );
+        } catch {
+          Bio::Path::Find::Exception->throw(
+            msg => q(ERROR: couldn't apply role ") . $self->lane_role . qq(" to lanes: $_)
+          );
+        };
+      }
+      else {
+        $lane = Bio::Path::Find::Lane->new( row => $lane_row );
       }
 
-      $pb++;
+      push @lanes, $lane;
     }
 
   }
 
   return \@lanes;
+}
+
+#-------------------------------------------------------------------------------
+
+# for a given database and list of IDs, retrieve the row_id values for matching
+# lanes
+sub _get_lane_ids {
+  my ( $self, $db_name, $ids, $type ) = @_;
+
+  $self->log->debug(qq(searching "$db_name"));
+
+  my $database = $self->_db_manager->get_database($db_name);
+
+  my @lane_ids;
+  ID: foreach my $id ( @$ids ) {
+    $self->log->debug( qq($db_name: looking for ID "$id") );
+
+    my $rs = $database->schema->get_lanes_by_id($id, $type);
+    next ID unless $rs; # no matching lanes
+
+    $self->log->debug("$db_name: found " . $rs->count . ' lanes');
+
+    while ( my $lane_row = $rs->next ) {
+      push @lane_ids, $lane_row->row_id;
+    }
+  }
+
+  return \@lane_ids;
 }
 
 #-------------------------------------------------------------------------------
