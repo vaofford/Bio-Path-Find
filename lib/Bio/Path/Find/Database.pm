@@ -178,7 +178,7 @@ B<Read-only>.
 
 has 'db_root' => (
   is       => 'ro',
-  isa      => PathClassDir->plus_coercions(DirFromStr),
+  isa      => PathClassDir->plus_coercions(DirFromStr) | Undef,
   coerce   => 1,
   lazy     => 1,
   writer   => '_set_db_root',
@@ -187,6 +187,10 @@ has 'db_root' => (
 
 sub _build_db_root {
   my $self = shift;
+
+  # if "no_root_dir" is true, i.e. this is not a tracking database,  don't try
+  # to find a root dir
+  return undef if $self->config->{connection_params}->{$self->schema_name}->{no_db_root};
 
   # find the root directory for the directory structure containing the data
   my $db_root = dir $self->config->{db_root};
@@ -244,16 +248,16 @@ sub _build_hierarchy_template {
 
 =head2 hierarchy_root_dir
 
-The root of the directory hierarchy that is associated with the given tracking
-database. C<undef> if the directory does not exist. The generation of the
-hierarchy root directory path takes into account the sub-directory mapping.
-See L<db_subdirs>.
+A L<Path::Class::Dir> object specifying the root of the directory hierarchy
+that is associated with the given tracking database, or C<undef> if the
+directory does not exist. The generation of the hierarchy root directory path
+takes into account the sub-directory mapping. See L<db_subdirs>.
 
 =cut
 
 has 'hierarchy_root_dir' => (
   is      => 'ro',
-  isa     => Str | Undef,
+  isa     => PathClassDir->plus_coercions(DirFromStr) | Undef,
   lazy    => 1,
   writer  => '_set_hierarchy_root_dir',
   builder => '_build_hierarchy_root_dir',
@@ -266,7 +270,7 @@ sub _build_hierarchy_root_dir {
               ? $self->db_subdirs->{$self->name}
               : $self->name;
 
-  my $hierarchy_root_dir = $self->db_root . "/$sub_dir/seq-pipelines";
+  my $hierarchy_root_dir = dir( $self->db_root, $sub_dir, 'seq-pipelines' );
 
   return ( -d $hierarchy_root_dir )
          ? $hierarchy_root_dir

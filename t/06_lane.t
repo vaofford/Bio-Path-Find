@@ -54,7 +54,7 @@ ok ! $lane->has_files,    '"has_files" false';
 # we also check in the Lane object to make sure that the root directory is
 # visible. If it's not, there might be a probem with filesystem mounts
 my $old_hrd = $database->hierarchy_root_dir;
-$database->_set_hierarchy_root_dir('non-existent-dir');
+$database->_set_hierarchy_root_dir(dir 'non-existent-dir');
 
 throws_ok { $lane->root_dir }
   qr/can't see the filesystem root/,
