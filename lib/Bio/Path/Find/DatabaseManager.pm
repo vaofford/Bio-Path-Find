@@ -57,19 +57,23 @@ C<host>, C<port>, and C<user>. If a password is required it should be
 given using C<pass>.
 
   <connection_params>
-    driver mysql
-    host   mysql_database_host
-    port   3306
-    user   myuser
-    pass   mypass
+    <tracking>
+      driver mysql
+      host   mysql_database_host
+      port   3306
+      user   myuser
+      pass   mypass
+    </tracking>
   </connection_params>
 
 If the driver is "SQLite", the configuration must include C<dbname>, which
 gives the path to the SQLite database file:
 
   <connection_params>
-    driver SQLite
-    dbname /path/to/database.db
+    <tracking>
+      driver SQLite
+      dbname /path/to/database.db
+    </tracking>
   </connection_params>
 
 =cut
@@ -218,7 +222,10 @@ sub _build_database_objects {
       schema_name => $self->schema_name,
     );
 
-    next unless defined $database->hierarchy_root_dir;
+    next if ( not $self->connection_params->{no_db_root} and
+              not defined $database->hierarchy_root_dir );
+
+    # next unless defined $database->hierarchy_root_dir;
 
     $databases{$database_name} = $database;
   }
