@@ -15,6 +15,8 @@ use Try::Tiny;
 
 use Bio::Path::Find::Types qw(
   PathClassFile FileFromStr
+  BioPathFindDatabaseManager
+  BioPathFindDatabase
 );
 
 extends 'Bio::Path::Find::App::PathFind';
@@ -51,6 +53,41 @@ option 'outfile' => (
 );
 
 #-------------------------------------------------------------------------------
+#- private attributes ----------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+has '_ss_db_mgr' => (
+  is      => 'ro',
+  isa     => BioPathFindDatabaseManager,
+  lazy    => 1,
+  builder => '_build_ss_db_mgr',
+);
+
+sub _build_ss_db_mgr {
+  my $self = shift;
+
+  return Bio::Path::Find::DatabaseManager->new(
+    config      => $self->config,
+    schema_name => 'sequencescape',
+  );
+}
+
+#---------------------------------------
+
+has '_ss_db' => (
+  is      => 'ro',
+  isa     => BioPathFindDatabase,
+  lazy    => 1,
+  builder => '_build_ss_db',
+);
+
+sub _build_ss_db {
+  my $self = shift;
+
+  return $self->_ss_db_mgr->get_database('sequencescape_warehouse');
+}
+
+#-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
@@ -65,21 +102,28 @@ Find information about samples according to the input parameters.
 sub run {
   my $self = shift;
 
-  say 'finding info...';
+  my $lanes = $self->_finder->find_lanes(
+    ids  => $self->_ids,
+    type => $self->type,
+  );
 
-  # my $finder_params = (
-  #   ids  => $self->_ids,
-  #   type => $self->type,
-  # );
-  #
-  # my $lanes = $self->_finder->find_lanes(%finder_params);
-  #
-  # foreach my $lane ( @$lanes ) {
-  #   my $ssid = $lane->ssid;
-  #   my $rs = $self->_
-  #   
-  # }
+  foreach my $lane ( @$lanes ) {
+    # walk across the relationships between the latest_lane and latest_sample
+    # tables, to get the SSID
+    my $ssid = $lane->row
+                      ->latest_library
+                        ->latest_sample
+                          ->ssid;
 
+    # and get the corresponding row in sequencescape_warehouse.current_sample
+    my $row = $self->_ss_db->schema->resultset('CurrentSample')->find( { internal_id => $ssid } );
+
+    print $lane->row->name, "\t";
+    print $lane->row->latest_library->latest_sample->name, "\t";
+    print $row->supplier_name || 'na', "\t";
+    print $row->public_name || 'na', "\t";
+    print $row->strain || 'na', "\n";
+  }
 
 }
 
