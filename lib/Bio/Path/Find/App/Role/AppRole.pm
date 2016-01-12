@@ -80,6 +80,7 @@ option 'csv_separator' => (
   isa           => Str,
   cmd_flag      => 'csv-separator',
   cmd_aliases   => 'c',
+  cmd_env       => 'PF_CSV_SEP',
   default       => ',',
 );
 

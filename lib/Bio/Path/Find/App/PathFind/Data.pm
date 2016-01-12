@@ -53,10 +53,6 @@ Given a study ID, lane ID, or sample ID, or a file containing a list of IDs,
 this script will output the path(s) on disk to the data associated with the
 specified sequencing run(s).
 
-=head1 USAGE
-
- something like this
-
 =cut
 
 # old pathfind help text:
