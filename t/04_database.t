@@ -28,6 +28,7 @@ my $db;
 lives_ok {
     $db = Bio::Path::Find::Database->new(
       name        => 'pathogen_prok_track',
+      schema_name => 'tracking',
       config_file => file( qw( t data 04_database mysql.conf ) ),
     )
   }
@@ -44,6 +45,7 @@ isa_ok $db->schema, 'Bio::Track::Schema', 'schema';
 lives_ok {
     $db = Bio::Path::Find::Database->new(
       name        => 'pathogen_prok_track',
+      schema_name => 'tracking',
       config_file => file( qw( t data 04_database sqlite.conf ) ),
     )
   }
@@ -60,11 +62,13 @@ my $config = {
   db_root            => file( qw( t data linked ) ),
   hierarchy_template => 'genus:species:TRACKING:sample:lane',
   connection_params  => {
-    driver => 'mysql',
-    host   => 'my_db_host',
-    port   => 3306,
-    user   => 'username',
-    pass   => 'password',
+    tracking => {
+      driver => 'mysql',
+      host   => 'my_db_host',
+      port   => 3306,
+      user   => 'username',
+      pass   => 'password',
+    },
   },
   db_subdirs => {
     pathogen_prok_track => 'prokaryotes',
@@ -73,8 +77,9 @@ my $config = {
 
 lives_ok {
     $db = Bio::Path::Find::Database->new(
-      name   => 'pathogen_prok_track',
-      config => $config,
+      name        => 'pathogen_prok_track',
+      schema_name => 'tracking',
+      config      => $config,
     )
   }
   'got a B::P::F::Database object using config hash';
@@ -91,15 +96,22 @@ $config = {
   # no db_root
   hierarchy_template => 'genus:species:TRACKING:sample:lane',
   connection_params  => {
-    driver => 'SQLite',
-    dbname => file( qw( t data pathogen_prok_track.db ) ),
+    tracking => {
+      driver       => 'SQLite',
+      schema_class => 'Bio::Track::Schema',
+      dbname       => file(qw( t data pathogen_prok_track.db )),
+    },
   },
   db_subdirs => {
     pathogen_prok_track => 'prokaryotes',
   },
 };
 
-$db = Bio::Path::Find::Database->new( name => 'pathogen_prok_track', config => $config );
+$db = Bio::Path::Find::Database->new(
+  name        => 'pathogen_prok_track',
+  schema_name => 'tracking',
+  config      => $config
+);
 
 throws_ok { $db->db_root }
   qr/data hierarchy root directory is not defined/,
@@ -113,18 +125,25 @@ is $db->hierarchy_template, $config->{hierarchy_template},
 
 # missing template
 $config = {
-  db_root            => file( qw( t data linked ) ),
+  db_root => file(qw( t data linked )),
   # no template
-  connection_params  => {
-    driver => 'SQLite',
-    dbname => file( qw( t data pathogen_prok_track.db ) ),
+  connection_params => {
+    tracking => {
+      driver      => 'SQLite',
+      dbname      => file(qw( t data pathogen_prok_track.db )),
+      schema_name => 'Bio::Track::Schema',
+    },
   },
   db_subdirs => {
     pathogen_prok_track => 'prokaryotes',
   },
 };
 
-$db = Bio::Path::Find::Database->new( name => 'pathogen_prok_track', config => $config );
+$db = Bio::Path::Find::Database->new(
+  name        => 'pathogen_prok_track',
+  schema_name => 'tracking',
+  config      => $config
+);
 
 my $template = $db->hierarchy_template;
 is $template, 'genus:species-subspecies:TRACKING:projectssid:sample:technology:library:lane',
@@ -132,7 +151,11 @@ is $template, 'genus:species-subspecies:TRACKING:projectssid:sample:technology:l
 
 # invalid template
 $config->{hierarchy_template} = '*notavalidtemplate*';
-$db = Bio::Path::Find::Database->new( name => 'pathogen_prok_track', config => $config );
+$db = Bio::Path::Find::Database->new(
+  name        => 'pathogen_prok_track',
+  schema_name => 'tracking',
+  config      => $config
+);
 
 throws_ok { $db->hierarchy_template }
   qr/invalid directory hierarchy template/,
@@ -150,7 +173,11 @@ $config = {
   },
 };
 
-$db = Bio::Path::Find::Database->new( name => 'pathogen_prok_track', config => $config );
+$db = Bio::Path::Find::Database->new(
+  name        => 'pathogen_prok_track',
+  schema_name => 'tracking',
+  config      => $config
+);
 
 throws_ok { $db->_get_dsn }
   qr/must specify database connection parameters/,
@@ -163,18 +190,24 @@ $config = {
   db_root            => file( qw( t data linked ) ),
   hierarchy_template => 'genus:species:TRACKING:sample:lane',
   connection_params  => {
-    # missing driver
-    host     => 'test_db_host',
-    port     => 3308,
-    user     => 'username',
-    pass     => 'password',
+    tracking => {
+      # missing driver
+      host     => 'test_db_host',
+      port     => 3308,
+      user     => 'username',
+      pass     => 'password',
+    },
   },
   db_subdirs => {
     pathogen_prok_track => 'prokaryotes',
   },
 };
 
-$db = Bio::Path::Find::Database->new( name => 'pathogen_prok_track', config => $config );
+$db = Bio::Path::Find::Database->new(
+  name        => 'pathogen_prok_track',
+  schema_name => 'tracking',
+  config      => $config
+);
 
 throws_ok { $db->_get_dsn }
   qr/must specify a database driver/,
@@ -183,8 +216,12 @@ throws_ok { $db->_get_dsn }
 #---------------------------------------
 
 # bad driver
-$config->{connection_params}->{driver} = 'not-a-real-driver';
-$db = Bio::Path::Find::Database->new( name => 'pathogen_prok_track', config => $config );
+$config->{connection_params}->{tracking}->{driver} = 'not-a-real-driver';
+$db = Bio::Path::Find::Database->new(
+  name        => 'pathogen_prok_track',
+  schema_name => 'tracking',
+  config      => $config
+);
 
 throws_ok { $db->_get_dsn }
   qr/not a valid database driver/,
@@ -203,7 +240,11 @@ $config = {
   # no mapping
 };
 
-$db = Bio::Path::Find::Database->new( name => 'pathogen_prok_track', config => $config );
+$db = Bio::Path::Find::Database->new(
+  name        => 'pathogen_prok_track',
+  schema_name => 'tracking',
+  config      => $config
+);
 
 is $db->hierarchy_root_dir, file( qw( t data linked prokaryotes seq-pipelines ) ),
   'got correct root dir without subdir';
@@ -219,13 +260,16 @@ SKIP: {
              $ENV{TEST_MYSQL_USER} );
 
   $config = {
-    db_root            => file( qw( t data linked ) ),
+    db_root            => file(qw( t data linked )),
     hierarchy_template => 'genus:species:TRACKING:sample:lane',
     connection_params  => {
-      driver => 'mysql',
-      host   => $ENV{TEST_MYSQL_HOST},
-      port   => $ENV{TEST_MYSQL_PORT},
-      user   => $ENV{TEST_MYSQL_USER},
+      tracking => {
+        driver       => 'mysql',
+        host         => $ENV{TEST_MYSQL_HOST},
+        port         => $ENV{TEST_MYSQL_PORT},
+        user         => $ENV{TEST_MYSQL_USER},
+        schema_class => 'Bio::Track::Schema',
+      },
     },
     db_subdirs => {
       pathogen_prok_track => 'prokaryotes',
@@ -233,8 +277,9 @@ SKIP: {
   };
 
   $db = Bio::Path::Find::Database->new(
-    name   => 'pathogen_track_test',
-    config => $config,
+    name        => 'pathogen_track_test',
+    schema_name => 'tracking',
+    config      => $config,
   );
 
   isa_ok $db->schema, 'Bio::Track::Schema', 'schema';

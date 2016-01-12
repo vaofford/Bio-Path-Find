@@ -1,7 +1,7 @@
 
 package Bio::Path::Find::App::PathFind::Info;
 
-# ABSTRACT: find information about samples
+# ABSTRACT: Find information about samples
 
 use v5.10; # for "say"
 
@@ -9,7 +9,9 @@ use MooseX::App::Command;
 use namespace::autoclean;
 use MooseX::StrictConstructor;
 
+use Carp qw ( carp );
 use Path::Class;
+use Try::Tiny;
 
 use Bio::Path::Find::Types qw(
   PathClassFile FileFromStr
@@ -44,6 +46,7 @@ option 'outfile' => (
   is            => 'rw',
   isa           => PathClassFile->plus_coercions(FileFromStr),
   cmd_aliases   => 'o',
+  cmd_env       => 'PF_OUTFILE',
   default       => sub { file 'infofind.out' },
 );
 
@@ -62,7 +65,22 @@ Find information about samples according to the input parameters.
 sub run {
   my $self = shift;
 
-  say 'finding sample info...';
+  say 'finding info...';
+
+  # my $finder_params = (
+  #   ids  => $self->_ids,
+  #   type => $self->type,
+  # );
+  #
+  # my $lanes = $self->_finder->find_lanes(%finder_params);
+  #
+  # foreach my $lane ( @$lanes ) {
+  #   my $ssid = $lane->ssid;
+  #   my $rs = $self->_
+  #   
+  # }
+
+
 }
 
 #-------------------------------------------------------------------------------

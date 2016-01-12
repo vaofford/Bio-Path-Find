@@ -32,6 +32,7 @@ use_ok('Bio::Path::Find::Lane');
 
 my $dbm = Bio::Path::Find::DatabaseManager->new(
   config_file => file( qw( t data 06_lane test.conf ) ),
+  schema_name => 'tracking',
 );
 
 my $database  = $dbm->get_database('pathogen_prok_track');

@@ -56,28 +56,71 @@ has 'name' => (
 
 #---------------------------------------
 
+has 'schema_name' => (
+  is       => 'ro',
+  isa      => Str,
+  required => 1,
+);
+
+#---------------------------------------
+
 =attr schema
 
-The L<Bio::Track::Schema> object for the database handled by this object.
-Connection parameters are taken from the configuration.
+The L<DBIx::Class::Schema> object for the database handled by this
+L<Bio::Path::Find::Database|Database>. Connection parameters are taken from
+the configuration, with the flavour of schema object depending on the
+C<schema_class> parameter and the schema name specified when instantiating
+this object (see L<schema_name>).
 
-The configuration must contain the parameter C<dsn>, giving the L<DBI> DSN
-string for the database. If the connection requires a username and/or password,
-C<user> and C<pass> must also be given, e.g.
+For all databases, you must supply C<driver>, giving the name of the DBI driver
+that should be used. This class understands two DBI drivers, C<mysql> and
+C<SQLite>. The configuration is different for each of the two drivers.
+
+For SQLite databases, you must supply C<dbname>, giving the path to the
+database file, e.g.
 
   <connection_params>
-    dsn  dbi:SQLite:dbname=t/data/pathogen_prod_track.db
+    <tracking>
+      driver        SQLite
+      dbname        t/data/pathogen_prod_track.db
+      schema_class  Bio::Track::Schema
+    </tracking>
   </connection_params>
 
-for a SQLite database, or
+For MySQL databases, you must supply C<host>, C<port>, C<user>, and, if
+required C<pass>, e.g.
 
   <connection_params>
-    dsn  DBI:mysql=host=test_db_host;port=3306;database=pathogen_prok_track
-    user test_db_username
-    pass test_db_password
+    <tracking>
+      driver        mysql
+      host          test_db_host
+      port          3306
+      user          test_db_username
+      pass          test_db_password
+      schema_class  Bio::Track::Schema
+    </tracking>
   </connection_params>
 
-for a MySQL database.
+You can supply parameters for multiple schemas in the same config:
+
+  <connection_params>
+    <tracking>
+      driver        mysql
+      host          test_db_host
+      port          3306
+      user          test_db_username
+      pass          test_db_password
+      schema_class  Bio::Track::Schema
+    </tracking>
+    <sequencescape>
+      driver        mysql
+      host          other_db_host
+      port          3306
+      user          seqw_db_username
+      pass          seqw_db_password
+      schema_class  Bio::Sequencescape::Schema
+    </sequencescape>
+  </connection_params>
 
 B<Read only>.
 
@@ -93,7 +136,13 @@ has 'schema' => (
 sub _build_schema {
   my $self = shift;
 
-  my $c    = $self->config->{connection_params};
+  unless ( exists $self->config->{connection_params}->{$self->schema_name} ) {
+    Bio::Path::Find::Exception->throw(
+      msg => q(ERROR: cam't find connection params for schema name ") . $self->schema_name. q(")
+    );
+  }
+
+  my $c = $self->config->{connection_params}->{$self->schema_name};
 
   my $dsn  = $self->_get_dsn;
   my $user = $c->{user};
@@ -281,9 +330,9 @@ sub _get_dsn {
 
   Bio::Path::Find::Exception->throw(
     msg => 'ERROR: must specify database connection parameters in configuration' )
-    unless exists $self->config->{connection_params};
+    unless exists $self->config->{connection_params}->{$self->schema_name};
 
-  my $c = $self->config->{connection_params};
+  my $c = $self->config->{connection_params}->{$self->schema_name};
 
   Bio::Path::Find::Exception->throw(
     msg => 'ERROR: must specify a database driver in connection parameters configuration' )

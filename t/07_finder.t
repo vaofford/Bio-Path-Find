@@ -24,10 +24,13 @@ unless ( -d dir( qw( t data linked ) ) ) {
 use_ok('Bio::Path::Find::Finder');
 
 my $config = {
-  db_root => 't/data/linked',
+  db_root           => 't/data/linked',
   connection_params => {
-    driver => 'SQLite',
-    dbname => 't/data/pathogen_prok_track.db',
+    tracking => {
+      driver       => 'SQLite',
+      dbname       => 't/data/pathogen_prok_track.db',
+      schema_class => 'Bio::Track::Schema',
+    },
   },
 };
 

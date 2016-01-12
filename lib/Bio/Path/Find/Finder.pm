@@ -126,6 +126,33 @@ sub _build_lane_role {
   return $role;
 }
 
+#---------------------------------------
+
+=attr schema_name
+
+The name of the database schema to be used when searching for tracking data. The
+default is C<tracking>, which should correspond to a section in the
+C<connection_param> config block:
+
+  <connection_params>
+    <tracking
+      driver       SQLite
+      dbname       pathogens.db
+      schema_class Bio::Track::Schema
+    </tracking>
+  </connection_params>
+
+If you give a different value for C<schema_name>, make sure there is a
+corresponding section in the config.
+
+=cut
+
+has 'schema_name' => (
+  is      => 'ro',
+  isa     => Str,
+  default => 'tracking',
+);
+
 #-------------------------------------------------------------------------------
 #- private attributes ----------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -151,7 +178,10 @@ has '_db_manager' => (
 
 sub _build_db_manager {
   my $self = shift;
-  return Bio::Path::Find::DatabaseManager->new( config => $self->config );
+  return Bio::Path::Find::DatabaseManager->new(
+    config      => $self->config,
+    schema_name => $self->schema_name,
+  );
 }
 
 #---------------------------------------
