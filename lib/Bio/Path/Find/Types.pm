@@ -6,6 +6,7 @@ package Bio::Path::Find::Types;
 use Path::Class;
 
 use Type::Library -base, -declare => qw(
+  DBIxClassSchema
   BioTrackSchema
   BioTrackSchemaResultBase
   BioTrackSchemaResultLatestLane
@@ -28,6 +29,7 @@ use Type::Library -base, -declare => qw(
 use Type::Utils -all;
 use Types::Standard -types;
 
+class_type 'DBIx::Class::Schema';
 class_type 'Bio::Track::Schema';
 class_type 'Bio::Track::Schema::ResultBase';
 class_type 'Bio::Track::Schema::Result::LatestLane';
