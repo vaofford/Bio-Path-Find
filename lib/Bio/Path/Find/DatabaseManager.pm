@@ -97,8 +97,8 @@ sub _build_connection_params {
   my $params = $cp->{$self->schema_name};
 
   Bio::Path::Find::Exception->throw(
-    msg => 'ERROR: configuration does not specify connection parameters for schema name ('
-           . $self->schema_name . q(") )
+    msg => 'ERROR: configuration does not specify connection parameters for schema name ("'
+           . $self->schema_name . '")' )
     unless defined $params;
 
   Bio::Path::Find::Exception->throw(
