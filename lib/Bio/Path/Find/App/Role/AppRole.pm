@@ -280,18 +280,18 @@ sub _load_ids_from_file {
 # writes the supplied array of arrays in CSV format to the specified file.
 # Uses the separator specified by the "csv_separator" attribute
 
-sub _write_stats_csv {
-  my ( $self, $stats, $filename ) = @_;
+sub _write_csv {
+  my ( $self, $data, $filename ) = @_;
 
-  return unless ( defined $stats and scalar @$stats );
+  return unless ( defined $data and scalar @$data );
 
-  Bio::Path::Find::Exception->throw( msg => 'ERROR: must supply a filename for the stats report' )
+  Bio::Path::Find::Exception->throw( msg => 'ERROR: must supply a filename when writing a CSV file' )
     unless defined $filename;
 
   my $fh = FileHandle->new;
 
   # see if the supplied filename exists and complain if it does
-  Bio::Path::Find::Exception->throw( msg => 'ERROR: stats CSV file already exists; not overwriting existing file' )
+  Bio::Path::Find::Exception->throw( msg => qq(ERROR: CSV file "$filename" already exists; not overwriting existing file) )
     if -e $filename;
 
   $fh->open( $filename, '>' );
@@ -299,7 +299,7 @@ sub _write_stats_csv {
   my $csv = Text::CSV_XS->new;
   $csv->eol("\n");
   $csv->sep( $self->csv_separator );
-  $csv->print($fh, $_) for @$stats;
+  $csv->print($fh, $_) for @$data;
 
   $fh->close;
 }

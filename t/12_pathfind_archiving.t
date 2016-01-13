@@ -101,7 +101,7 @@ is_deeply $got_stats, \@expected_stats,
 
 # check the writing of CSV files
 my $filename = file( $temp_dir, 'written_stats.csv' );
-$pf->_write_stats_csv($got_stats, $filename);
+$pf->_write_csv($got_stats, $filename);
 
 @expected_stats = file( qw( t data 12_pathfind_archiving stats.csv ) )
                     ->slurp( chomp => 1, split => qr/,/ );

@@ -356,7 +356,7 @@ sub _make_archive {
   # will go into the archive
   my $temp_dir = File::Temp->newdir;
   my $stats_file = file( $temp_dir, 'stats.csv' );
-  $self->_write_stats_csv($stats, $stats_file);
+  $self->_write_csv($stats, $stats_file);
 
   push @$filenames, $stats_file;
 
@@ -677,7 +677,7 @@ sub _make_stats {
     $pb++;
   }
 
-  $self->_write_stats_csv(\@stats, $filename);
+  $self->_write_csv(\@stats, $self->_stats_file);
 }
 
 #-------------------------------------------------------------------------------
