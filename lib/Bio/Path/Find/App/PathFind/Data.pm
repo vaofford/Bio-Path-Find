@@ -216,8 +216,20 @@ sub _check_for_stats_value {
   }
 }
 
-has '_stats_file' => ( is => 'rw', isa => PathClassFile );
 has '_stats_flag' => ( is => 'rw', isa => Bool );
+# has '_stats_file' => ( is => 'rw', isa => PathClassFile );
+
+has '_stats_file' => (
+  is      => 'rw',
+  isa     => PathClassFile,
+  lazy    => 1,
+  builder => '_stats_file_builder',
+);
+
+sub _stats_file_builder {
+  my $self = shift;
+  return file( getcwd(), $self->_renamed_id . '.pathfind_stats.csv' );
+}
 
 #-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
@@ -233,6 +245,29 @@ Find files according to the input parameters.
 
 sub run {
   my $self = shift;
+
+  # some quick checks that will allow us to fail fast if things aren't going to
+  # let the command run to successfully
+
+  if ( $self->_symlink_flag and          # flag is set; we're making symlinks.
+       $self->_symlink_dir and           # destination is specified.
+       -e $self->_symlink_dir and        # the destintation path exists.
+       not -d $self->_symlink_dir ) {    # but it's not a directory.
+    Bio::Path::Find::Exception->throw(
+      msg => 'ERROR: symlink destination "' . $self->_symlink_dir
+             . q(" exists but isn't a directory)
+    );
+  }
+
+  if ( $self->_stats_flag and            # flag is set; we're writing stats.
+       $self->_stats_file and            # destination file is specified.
+       -e $self->_stats_file ) {         # output file already exists.
+    Bio::Path::Find::Exception->throw(
+      msg => 'ERROR: stats file "' . $self->_stats_file . q(" already exists)
+    );
+  }
+
+  #---------------------------------------
 
   # set up the finder
 
@@ -300,7 +335,7 @@ sub _make_symlinks {
   };
 
   # should be redundant, but...
-  Bio::Path::Find::Exception->throw( msg =>  "ERROR: not a directory ($dest)" )
+  Bio::Path::Find::Exception->throw( msg => "ERROR: not a directory ($dest)" )
     unless -d $dest;
 
   say STDERR "Creating links in '$dest'";
@@ -566,6 +601,8 @@ sub _rename_file {
 sub _compress_data {
   my ( $self, $data ) = @_;
 
+  $DB::single = 1;
+
   my $max        = length $data;
   my $num_chunks = 100;
   my $chunk_size = int( $max / $num_chunks );
@@ -623,7 +660,7 @@ sub _write_data {
            } );
 
   open ( FILE, '>', $filename )
-    or Bio::Path::Find::Exception->throw( msg =>  "ERROR: couldn't write output file ($filename): $!" );
+    or Bio::Path::Find::Exception->throw( msg => "ERROR: couldn't write output file ($filename): $!" );
 
   binmode FILE;
 
@@ -646,18 +683,6 @@ sub _write_data {
 
 sub _make_stats {
   my ( $self, $lanes ) = @_;
-
-  my $filename;
-
-  # get or build the filename for the output file
-  if ( $self->_stats_file ) {
-    $self->log->debug('stats attribute specifies a filename');
-    $filename = $self->_stats_file;
-  }
-  else {
-    $self->log->debug('stats attribute is a boolean; building a filename');
-    $filename = dir( getcwd(), $self->_renamed_id . '.pathfind_stats.csv' );
-  }
 
   # collect the stats for the supplied lanes
   my @stats = (
