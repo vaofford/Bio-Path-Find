@@ -58,7 +58,7 @@ like $stderr, qr/ERROR: config file \(prod\.conf\) doesn't exist/,
 
 # put the config in the expected location and try the same command again; this
 # time it should work
-copy file( qw( t data 16_pathfind_script prod.conf ) ), $temp_dir;
+copy file( qw( t data 16_pf_data_script prod.conf ) ), $temp_dir;
 
 ( $rv, $stdout, $stderr ) = run_script( $script, [ 'data', '-t', 'lane', '-i', '10018_1#1' ] );
 
