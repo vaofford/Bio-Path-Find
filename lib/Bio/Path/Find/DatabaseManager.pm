@@ -7,12 +7,20 @@ use Moose;
 use namespace::autoclean;
 use MooseX::StrictConstructor;
 
-use Types::Standard qw( Str ArrayRef HashRef );
 use Carp qw( carp );
 use DBI;
 use Path::Class;
 
-use Bio::Path::Find::Types qw( BioPathFindDatabase );
+use Types::Standard qw(
+  Str
+  ArrayRef
+  HashRef
+);
+
+use Bio::Path::Find::Types qw(
+  BioPathFindDatabase
+);
+
 use Bio::Track::Schema;
 use Bio::Path::Find::Database;
 use Bio::Path::Find::Exception;
@@ -80,7 +88,7 @@ gives the path to the SQLite database file:
 
 has 'connection_params' => (
   is      => 'ro',
-  isa     => HashRef[Str],
+  isa     => HashRef,
   lazy    => 1,
   builder => '_build_connection_params',
 );
@@ -98,7 +106,7 @@ sub _build_connection_params {
 
   Bio::Path::Find::Exception->throw(
     msg => 'ERROR: configuration does not specify connection parameters for schema name ('
-           . $self->schema_name . q(") )
+           . $self->schema_name . ')' )
     unless defined $params;
 
   Bio::Path::Find::Exception->throw(
@@ -204,6 +212,7 @@ has 'databases' => (
     all_databases  => 'values',
     database_names => 'keys',
     database_pairs => 'kv',
+    num_databases  => 'count',
   },
   builder => '_build_database_objects',
 );

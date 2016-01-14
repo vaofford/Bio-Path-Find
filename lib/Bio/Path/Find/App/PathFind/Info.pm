@@ -46,19 +46,19 @@ lane(s).
 =cut
 
 #-------------------------------------------------------------------------------
-#- public attributes -----------------------------------------------------------
+#- command line options --------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# option 'outfile' => (
-#   documentation => 'write output to file',
-#   is            => 'rw',
-#   isa           => PathClassFile->plus_coercions(FileFromStr),
-#   cmd_aliases   => 'o',
-#   cmd_env       => 'PF_OUTFILE',
-#   default       => sub { file 'infofind.out' },
-# );
+=attr outfile [<filename>]
 
-#---------------------------------------
+Write the information about lanes to a CSV file. If C<outfile> is specified as
+a command line option and an argument is given, use that as the name of the
+file to be written. If no argument is given, the information is written to
+C<infofind.csv> in the working directory.
+
+An exception is thrown if the output file already exists.
+
+=cut
 
 # this option can be used as a simple switch ("-l") or with an argument
 # ("-l mydir"). It's a bit fiddly to set that up...
@@ -103,6 +103,39 @@ has '_outfile'      => ( is => 'rw', isa => PathClassFile, default => sub { file
 has '_outfile_flag' => ( is => 'rw', isa => Bool );
 
 #-------------------------------------------------------------------------------
+#- public attributes -----------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+=attr sequencescape_schema_name
+
+The name of the sequencescape database in the config that defines the database
+connection parameters:
+
+  <connection_params>
+    <tracking>
+      ...
+    </tracking>
+    <sequencescape>
+      driver        SQLite
+      dbname        seqw.db
+      schema_class  Bio::Sequencescape::Schema
+      no_db_root    1
+    </sequencescape>
+  </connection_params>
+
+The default is C<sequencescape>. If you give a non-default value for
+C<sequencescape_schema_name>, make sure you name the corresponding section in
+the config the same.
+
+=cut;
+
+has 'sequencescape_schema_name' => (
+  is      => 'ro',
+  isa     => Str,
+  default => 'sequencescape',
+);
+
+#-------------------------------------------------------------------------------
 #- private attributes ----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
@@ -118,7 +151,9 @@ sub _build_ss_db_mgr {
 
   return Bio::Path::Find::DatabaseManager->new(
     config      => $self->config,
-    schema_name => 'sequencescape',
+    schema_name => $self->sequencescape_schema_name,
+    # this should match the name of the configuration section under
+    # "connection_params"
   );
 }
 
@@ -134,7 +169,44 @@ has '_ss_db' => (
 sub _build_ss_db {
   my $self = shift;
 
-  return $self->_ss_db_mgr->get_database('sequencescape_warehouse');
+  # the database manager builds a hash containing B::P::F::Database objects
+  # for each of the databases that it finds for a given set of connection
+  # parameters. For example, this config:
+  #
+  #  connection_params => {
+  #   track_db => {  ...  },
+  #   ss => { ... },
+  # }
+  #
+  # defines two sets of connection parameters. If we create a DB manager and
+  # set "sequencescape_schema_name" to "ss", it will build a hash containing
+  # all of the databases it can find using those connection params.
+  #
+  # If the DB manager is talking to a MySQL instance, there will be a
+  # B::P::F::Database for every database it finds in the instance, keyed on the
+  # database name. In that case we can ask for the database by name,
+  # "sequencescape_warehouse".
+  #
+  # If the DB manager is talking to an SQLite DB, there will be one
+  # B::P::F::Database, with the key being the basename of the DB file after the
+  # suffix is removed, i.e. a DB called t/data/sequencescape_warehouse.db will
+  # have the key "sequencescape_warehouse" in the hash returned by
+  # $db_manager->databases. In that case, we can't ask for it by name, because
+  # the name comes from the name of the database file, so instead we rely on
+  # the fact that there's only going to one sequencescape database if the drive
+  # is SQLite.
+
+  my $db;
+
+  if ( $self->config->{connection_params}->{$self->sequencescape_schema_name}->{driver} eq 'SQLite' ) {
+    # (checking against the config like this is still pretty ugly)
+    ( $db ) = $self->_ss_db_mgr->all_databases;
+  }
+  else {
+    $db = $self->_ss_db_mgr->get_database('sequencescape_warehouse');
+  }
+
+  return $db;
 }
 
 #-------------------------------------------------------------------------------
@@ -151,6 +223,8 @@ Find information about samples according to the input parameters.
 
 sub run {
   my $self = shift;
+
+  $DB::single = 1;
 
   # if we're writing to file, check that the output file doesn't exist. If we
   # leave it to _write_csv to check, we could end up searching for lanes for
@@ -194,7 +268,10 @@ sub run {
                           ->ssid;
 
     # and get the corresponding row in sequencescape_warehouse.current_sample
-    my $row = $self->_ss_db->schema->resultset('CurrentSample')->find( { internal_id => $ssid } );
+    my $row = $self->_ss_db
+                     ->schema
+                       ->resultset('CurrentSample')
+                         ->find( { internal_id => $ssid } );
 
     push @info, [
       $lane->row->name,
@@ -214,8 +291,9 @@ sub run {
   }
   else {
     # fix the formats of the columns so that everything lines up
-    # (printf format taken from the old pathfind)
-    printf "%-15s %-25s %-25s %-25s %-20s\n", @$_ for @info;
+    # (printf format patterned on the one from the old pathfind;
+    # ditched the trailing spaces...)
+    printf "%-15s %-25s %-25s %-25s %s\n", @$_ for @info;
   }
 
 }
