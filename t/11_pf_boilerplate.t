@@ -1,34 +1,8 @@
 
-#-------------------------------------------------------------------------------
-#- test class ------------------------------------------------------------------
-#-------------------------------------------------------------------------------
-
-package Bio::Path::Find::App::TestFind;
-
-use Moose;
-use namespace::autoclean;
-use MooseX::StrictConstructor;
-
-with 'Bio::Path::Find::App::Role::AppRole';
-
-sub run {
-  my $self = shift;
-
-  $self->log->debug('debug message');
-
-  $self->_log_command;
-};
-
-#-------------------------------------------------------------------------------
-#- main test package -----------------------------------------------------------
-#-------------------------------------------------------------------------------
-
-package main;
-
 use strict;
 use warnings;
 
-use Test::More tests => 16;
+use Test::More tests => 15;
 use Test::Exception;
 use Test::Output;
 use Path::Class;
@@ -37,9 +11,9 @@ use Log::Log4perl;
 use Text::CSV_XS qw( csv );
 
 # don't initialise l4p here because we want to test that command line logging
-# is correctly set up by the AppRole
+# is correctly set up by the module
 
-use_ok('Bio::Path::Find::App::TestFind');
+use_ok('Bio::Path::Find::App::PathFind');
 
 # set up a temp dir where we can write the archive
 my $temp_dir = File::Temp->newdir;
@@ -51,48 +25,42 @@ chdir $temp_dir;
 
 # simple find - get samples for a lane
 my %params = (
-  config_file => file( qw( t data 11_approle test.conf ) ),
+  config_file => file( qw( t data 11_pf_boilerplate test.conf ) ),
   id          => '10018_1',
   type        => 'lane',
 );
 
 my $tf;
-lives_ok { $tf = Bio::Path::Find::App::TestFind->new(%params) } 'got a new pathfind app object';
-isa_ok $tf, 'Bio::Path::Find::App::TestFind', 'pathfind app';
+lives_ok { $tf = Bio::Path::Find::App::PathFind->new(%params) } 'got a new pathfind app object';
+isa_ok $tf, 'Bio::Path::Find::App::PathFind', 'pathfind app';
 
 is_deeply $tf->_ids, ['10018_1'], 'IDs set correctly with one ID';
 is $tf->type, 'lane', 'type set correctly with ID in parameters';
 
 # check that the renamed ID is generated correctly
 $params{id} = '10018_1#1';
-$tf = Bio::Path::Find::App::TestFind->new(%params);
+$tf = Bio::Path::Find::App::PathFind->new(%params);
 
 is $tf->_renamed_id, '10018_1_1', 'renamed ID correctly generated';
 
 # more complicated - get samples for lane IDs in a file
 %params = (
-  config_file  => file( qw( t data 11_approle test.conf ) ),
-  id           => file( qw( t data 11_approle ids.txt ) )->stringify,
+  config_file  => file( qw( t data 11_pf_boilerplate test.conf ) ),
+  id           => file( qw( t data 11_pf_boilerplate ids.txt ) )->stringify,
   type         => 'file',
   file_id_type => 'lane',
   verbose      => 1,
 );
 
-$tf = Bio::Path::Find::App::TestFind->new(%params);
+$tf = Bio::Path::Find::App::PathFind->new(%params);
 
 # check that the IDs and type have been set correctly
 is_deeply $tf->_ids, [ '10018_1', '10263' ], 'got ID list from file';
 is $tf->_type, 'lane', 'got ID type as "lane"';
 
-# cheat and re-initialize Log4perl, otherwise the config that we used
-# originally won't be overwritten with the new one that has debugging turned on
-Log::Log4perl->init($tf->_logger_config);
-
-stderr_like { $tf->run } qr/debug message/, 'found debug message';
-
 # check CSV writing
 
-my $expected_stats_file         = file(qw( t data 11_approle expected_stats.tsv ));
+my $expected_stats_file         = file(qw( t data 11_pf_boilerplate expected_stats.tsv ));
 my $expected_stats_file_content = $expected_stats_file->slurp;
 my @expected_stats              = $expected_stats_file->slurp( chomp => 1, split => qr|\t| );
 
