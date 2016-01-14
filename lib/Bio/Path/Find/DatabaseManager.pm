@@ -7,12 +7,20 @@ use Moose;
 use namespace::autoclean;
 use MooseX::StrictConstructor;
 
-use Types::Standard qw( Str ArrayRef HashRef );
 use Carp qw( carp );
 use DBI;
 use Path::Class;
 
-use Bio::Path::Find::Types qw( BioPathFindDatabase );
+use Types::Standard qw(
+  Str
+  ArrayRef
+  HashRef
+);
+
+use Bio::Path::Find::Types qw(
+  BioPathFindDatabase
+);
+
 use Bio::Track::Schema;
 use Bio::Path::Find::Database;
 use Bio::Path::Find::Exception;
@@ -32,6 +40,18 @@ path-help@sanger.ac.uk
 
 =head1 ATTRIBUTES
 
+=attr schema_name
+
+=cut
+
+has 'schema_name' => (
+  is       => 'ro',
+  isa      => Str,
+  required => 1,
+);
+
+#---------------------------------------
+
 =attr connection_params
 
 A reference to a hash containing database connection parameters from the
@@ -45,26 +65,30 @@ C<host>, C<port>, and C<user>. If a password is required it should be
 given using C<pass>.
 
   <connection_params>
-    driver mysql
-    host   mysql_database_host
-    port   3306
-    user   myuser
-    pass   mypass
+    <tracking>
+      driver mysql
+      host   mysql_database_host
+      port   3306
+      user   myuser
+      pass   mypass
+    </tracking>
   </connection_params>
 
 If the driver is "SQLite", the configuration must include C<dbname>, which
 gives the path to the SQLite database file:
 
   <connection_params>
-    driver SQLite
-    dbname /path/to/database.db
+    <tracking>
+      driver SQLite
+      dbname /path/to/database.db
+    </tracking>
   </connection_params>
 
 =cut
 
 has 'connection_params' => (
   is      => 'ro',
-  isa     => HashRef[Str],
+  isa     => HashRef,
   lazy    => 1,
   builder => '_build_connection_params',
 );
@@ -72,34 +96,41 @@ has 'connection_params' => (
 sub _build_connection_params {
   my $self = shift;
 
-  my $c = $self->config->{connection_params};
+  my $cp = $self->config->{connection_params};
 
   Bio::Path::Find::Exception->throw(
     msg => "ERROR: configuration does not specify any database connection parameters ('connection_params')" )
-    unless ( defined $c and ref $c eq 'HASH' );
+    unless ( defined $cp and ref $cp eq 'HASH' );
+
+  my $params = $cp->{$self->schema_name};
+
+  Bio::Path::Find::Exception->throw(
+    msg => 'ERROR: configuration does not specify connection parameters for schema name ("'
+           . $self->schema_name . '")' )
+    unless defined $params;
 
   Bio::Path::Find::Exception->throw(
     msg => 'ERROR: configuration does not specify the database driver ("driver")' )
-    unless exists $c->{driver};
+    unless exists $params->{driver};
 
-  if ( $c->{driver} eq 'mysql' ) {
+  if ( $params->{driver} eq 'mysql' ) {
     foreach my $param ( qw( host port user ) ) {
       Bio::Path::Find::Exception->throw(
         msg => "ERROR: configuration does not specify a required database connection parameter, $param" )
-        unless $c->{$param};
+        unless $params->{$param};
     }
   }
-  elsif ( $c->{driver} eq 'SQLite' ) {
+  elsif ( $params->{driver} eq 'SQLite' ) {
     Bio::Path::Find::Exception->throw(
       msg => 'ERROR: configuration does not specify a required database connection parameter, dbname' )
-      unless $c->{dbname};
+      unless $params->{dbname};
   }
   else {
     Bio::Path::Find::Exception->throw(
       msg => "ERROR: configuration does not specify a valid database driver; must be either 'mysql' or 'SQLite'" )
   }
 
-  return $c;
+  return $params;
 }
 
 #---------------------------------------
@@ -181,6 +212,7 @@ has 'databases' => (
     all_databases  => 'values',
     database_names => 'keys',
     database_pairs => 'kv',
+    num_databases  => 'count',
   },
   builder => '_build_database_objects',
 );
@@ -195,10 +227,14 @@ sub _build_database_objects {
     # attribute)
     my $database = Bio::Path::Find::Database->new(
       name        => $database_name,
-      config      => $self->config
+      config      => $self->config,
+      schema_name => $self->schema_name,
     );
 
-    next unless defined $database->hierarchy_root_dir;
+    next if ( not $self->connection_params->{no_db_root} and
+              not defined $database->hierarchy_root_dir );
+
+    # next unless defined $database->hierarchy_root_dir;
 
     $databases{$database_name} = $database;
   }

@@ -51,7 +51,7 @@ chdir $temp_dir;
 # check filename collection
 
 my %params = (
-  config_file      => file( qw( t data 12_pathfind_archiving test.conf ) ),
+  config_file      => file( qw( t data 12_pf_data_archiving test.conf ) ),
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
@@ -59,7 +59,7 @@ my %params = (
 
 # get the lanes using the Finder directly
 my $f = Bio::Path::Find::Finder->new(
-  config_file => file( qw( t data 12_pathfind_archiving test.conf ) ),
+  config_file => file( qw( t data 12_pf_data_archiving test.conf ) ),
   lane_role   => 'Bio::Path::Find::Lane::Role::PathFind',
 );
 
@@ -75,8 +75,8 @@ is scalar @$lanes, 50, 'found 50 lanes with ID 10018_1 using Finder';
 # }
 # but it's safer to read them from a file in the test suite
 
-my @expected_filenames = file( qw( t data 12_pathfind_archiving expected_filenames.txt ) )->slurp(chomp => 1);
-my @expected_stats     = file( qw( t data 12_pathfind_archiving expected_stats.txt ) )->slurp(chomp => 1, split => qr|\t| );
+my @expected_filenames = file( qw( t data 12_pf_data_archiving expected_filenames.txt ) )->slurp(chomp => 1);
+my @expected_stats     = file( qw( t data 12_pf_data_archiving expected_stats.txt ) )->slurp(chomp => 1, split => qr|\t| );
 
 # turn all of the expected filenames into Path::Class::File objects...
 for ( my $i = 0; $i < scalar @expected_filenames; $i++ ) {
@@ -101,9 +101,9 @@ is_deeply $got_stats, \@expected_stats,
 
 # check the writing of CSV files
 my $filename = file( $temp_dir, 'written_stats.csv' );
-$pf->_write_stats_csv($got_stats, $filename);
+$pf->_write_csv($got_stats, $filename);
 
-@expected_stats = file( qw( t data 12_pathfind_archiving stats.csv ) )
+@expected_stats = file( qw( t data 12_pf_data_archiving stats.csv ) )
                     ->slurp( chomp => 1, split => qr/,/ );
 my @got_stats   = file($filename)
                     ->slurp( chomp => 1, split => qr/,/ );
@@ -115,7 +115,7 @@ is_deeply \@got_stats, \@expected_stats, 'written stats file looks correct';
 # check the creation of a tar archive
 
 %params = (
-  config_file      => file( qw( t data 12_pathfind_archiving test.conf ) ),
+  config_file      => file( qw( t data 12_pf_data_archiving test.conf ) ),
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
@@ -125,7 +125,7 @@ lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
   'got a new pathfind data command object';
 
 # add the stats file to the archive
-push @expected_filenames, file( qw( t data 12_pathfind_archiving stats.csv ) );
+push @expected_filenames, file( qw( t data 12_pf_data_archiving stats.csv ) );
 
 my $archive;
 lives_ok { $archive = $pf->_build_tar_archive(\@expected_filenames) }
@@ -142,7 +142,7 @@ my $gzipped_data = $archive->get_content('10018_1/10018_1#1_1.fastq.gz');
 my $raw_data = Compress::Zlib::memGunzip($gzipped_data);
 is $raw_data, "some data\n", 'first file has expected content';
 
-my $expected_stats_file = file( qw( t data 12_pathfind_archiving stats.csv ) )->slurp;
+my $expected_stats_file = file( qw( t data 12_pf_data_archiving stats.csv ) )->slurp;
 my $got_stats_file = $archive->get_content('10018_1/stats.csv');
 
 is $got_stats_file, $expected_stats_file, 'extracted stats file looks right';
@@ -167,7 +167,7 @@ pop @expected_filenames;
 
 # check renaming of files in the archive
 %params = (
-  config_file      => file( qw( t data 12_pathfind_archiving test.conf ) ),
+  config_file      => file( qw( t data 12_pf_data_archiving test.conf ) ),
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
@@ -190,7 +190,7 @@ is scalar( grep(m/\#/, @archived_files) ), 0, 'filenames have been renamed';
 # check compression
 
 %params = (
-  config_file      => file( qw( t data 12_pathfind_archiving test.conf ) ),
+  config_file      => file( qw( t data 12_pf_data_archiving test.conf ) ),
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
@@ -198,7 +198,7 @@ is scalar( grep(m/\#/, @archived_files) ), 0, 'filenames have been renamed';
 
 $pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
-my $data = file( qw( t data 12_pathfind_archiving test_data.txt ) )->slurp;
+my $data = file( qw( t data 12_pf_data_archiving test_data.txt ) )->slurp;
 my $compressed_data = $pf->_compress_data($data);
 my $compressed_data_copy = $compressed_data; # because memGunzip hoses its input...
 my $uncompressed_compressed_data = Compress::Zlib::memGunzip($compressed_data_copy);
@@ -234,7 +234,7 @@ is $uncompressed_slurped_data, $data, 'file written to disk matches original';
 # check creation of a zip archive
 
 %params = (
-  config_file      => file( qw( t data 12_pathfind_archiving test.conf ) ),
+  config_file      => file( qw( t data 12_pf_data_archiving test.conf ) ),
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
@@ -244,8 +244,8 @@ is $uncompressed_slurped_data, $data, 'file written to disk matches original';
 $pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
 # set up the list of expected filenames again from scratch
-@expected_filenames = file( qw( t data 12_pathfind_archiving expected_filenames.txt ) )->slurp(chomp => 1);
-push @expected_filenames, file( qw( t data 12_pathfind_archiving stats.csv ) );
+@expected_filenames = file( qw( t data 12_pf_data_archiving expected_filenames.txt ) )->slurp(chomp => 1);
+push @expected_filenames, file( qw( t data 12_pf_data_archiving stats.csv ) );
 
 # turn all of the expected filenames into Path::Class::File objects...
 for ( my $i = 0; $i < scalar @expected_filenames; $i++ ) {
@@ -272,7 +272,7 @@ is $zip_members[-1], '10018_1/stats.csv', 'last member has correct name';
 # first, make a tar archive
 
 %params = (
-  config_file      => file( qw( t data 12_pathfind_archiving test.conf ) ),
+  config_file      => file( qw( t data 12_pf_data_archiving test.conf ) ),
   id               => '10018_1#1',
   type             => 'lane',
   no_progress_bars => 1,
