@@ -105,6 +105,10 @@ has 'lane_role' => (
   builder => '_build_lane_role',
 );
 
+# TODO this mechanism for picking lane roles won't work now that we've switched
+# TODO to a git-style app. Need to find a better way to determine which Role
+# TODO should be applied to Lane objects
+
 sub _build_lane_role {
   my $self = shift;
 
