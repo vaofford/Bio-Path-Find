@@ -55,7 +55,8 @@ path-help@sanger.ac.uk
 # Lane objects that we return
 
 our $lane_roles = {
-  pathfind      => 'Bio::Path::Find::Lane::Role::PathFind',
+  pf       => 'Bio::Path::Find::Lane::Role::PathFind',
+  pathfind => 'Bio::Path::Find::Lane::Role::PathFind',
 };
 
 #-------------------------------------------------------------------------------
@@ -93,7 +94,7 @@ hard-coded mapping in this class:
 
 Finally, if, at the end of that, we can't find the name of a Role to apply, the
 value of C<lane_role> is left as C<undef>, and later on when we find lanes,
-they simply won't have a Role applied to them before being returned.
+ simply won't have a Role applied to them before being returned.
 
 =cut
 
@@ -103,6 +104,10 @@ has 'lane_role' => (
   lazy    => 1,
   builder => '_build_lane_role',
 );
+
+# TODO this mechanism for picking lane roles won't work now that we've switched
+# TODO to a git-style app. Need to find a better way to determine which Role
+# TODO should be applied to Lane objects
 
 sub _build_lane_role {
   my $self = shift;
@@ -124,6 +129,33 @@ sub _build_lane_role {
 
   return $role;
 }
+
+#---------------------------------------
+
+=attr schema_name
+
+The name of the database schema to be used when searching for tracking data. The
+default is C<tracking>, which should correspond to a section in the
+C<connection_param> config block:
+
+  <connection_params>
+    <tracking>
+      driver       SQLite
+      dbname       pathogens.db
+      schema_class Bio::Track::Schema
+    </tracking>
+  </connection_params>
+
+If you give a different value for C<schema_name>, make sure there is a
+corresponding section in the config.
+
+=cut
+
+has 'schema_name' => (
+  is      => 'ro',
+  isa     => Str,
+  default => 'tracking',
+);
 
 #-------------------------------------------------------------------------------
 #- private attributes ----------------------------------------------------------
@@ -150,7 +182,10 @@ has '_db_manager' => (
 
 sub _build_db_manager {
   my $self = shift;
-  return Bio::Path::Find::DatabaseManager->new( config => $self->config );
+  return Bio::Path::Find::DatabaseManager->new(
+    config      => $self->config,
+    schema_name => $self->schema_name,
+  );
 }
 
 #---------------------------------------

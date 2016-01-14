@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 16;
+use Test::More tests => 17;
 use Test::Exception;
 use Test::Warn;
 use Try::Tiny;
@@ -31,6 +31,7 @@ my $dbm;
 lives_ok {
     $dbm = Bio::Path::Find::DatabaseManager->new(
       config_file => file( qw( t data 05_database_manager test.conf ) )->stringify,
+      schema_name => 'tracking',
     )
   }
   'no exception instantiating with valid config';
@@ -40,11 +41,15 @@ lives_ok {
 # use a config hash
 
 my $config = {
-  db_root => file( qw( t data 05_database_manager root_dir ) )->stringify,
-  hierarchy_template => 'genus:species-subspecies:TRACKING:projectssid:sample:technology:library:lane',
+  db_root => file(qw( t data 05_database_manager root_dir ))->stringify,
+  hierarchy_template =>
+    'genus:species-subspecies:TRACKING:projectssid:sample:technology:library:lane',
   connection_params => {
-    driver => 'SQLite',
-    dbname => file( qw( t data empty_tracking_database.db ) )->stringify,
+    tracking => {
+      driver       => 'SQLite',
+      dbname       => file(qw( t data empty_tracking_database.db ))->stringify,
+      schema_class => 'Bio::Track::Schema',
+    },
   },
   db_subdirs => {
     pathogen_virus_track => 'viruses',
@@ -52,55 +57,76 @@ my $config = {
   },
 };
 
-lives_ok { $dbm = Bio::Path::Find::DatabaseManager->new( config => $config ) }
+lives_ok { $dbm = Bio::Path::Find::DatabaseManager->new( config => $config, schema_name => 'tracking' ) }
   'no exception instantiating with valid config';
 
 #---------------------------------------
 
 # check exceptions with invalid configuration
 
-# missing params
+# no params for specified schema name
+throws_ok {
+    Bio::Path::Find::DatabaseManager->new( config => $config, schema_name => 'non-existent' )->connection_params
+  }
+  qr/does not specify connection parameters for schema name/,
+  'exception with missing connection params for named schema';
+
+# missing params entirely
 delete $config->{connection_params};
 
-throws_ok { Bio::Path::Find::DatabaseManager->new( config => $config )->connection_params }
+throws_ok {
+    Bio::Path::Find::DatabaseManager->new( config => $config, schema_name => 'tracking' )->connection_params
+  }
   qr/does not specify any database connection parameters/,
   'exception with missing connection params';
 
 # missing driver
-$config->{connection_params} = {
-  dbname => file( qw( t data empty_tracking_database.db ) )->stringify,
+$config->{connection_params}->{tracking} = {
+  # no driver
+  dbname       => file( qw( t data empty_tracking_database.db ) )->stringify,
+  schema_class => 'Bio::Track::Schema',
 };
 
-throws_ok { Bio::Path::Find::DatabaseManager->new( config => $config )->connection_params }
+throws_ok {
+    Bio::Path::Find::DatabaseManager->new( config => $config, schema_name => 'tracking' )->connection_params
+  }
   qr/does not specify the database driver/,
   'exception with missing driver';
 
 # missing driver
-$config->{connection_params}->{driver} = 'not-a-supported-driver';
+$config->{connection_params}->{tracking}->{driver} = 'not-a-supported-driver';
 
-throws_ok { Bio::Path::Find::DatabaseManager->new( config => $config )->connection_params }
+throws_ok {
+    Bio::Path::Find::DatabaseManager->new( config => $config, schema_name => 'tracking' )->connection_params
+  }
   qr/does not specify a valid database driver/,
   'exception with unsupported driver';
 
 # missing mysql param
-$config->{connection_params} = {
-  driver => 'mysql',
-  # host   => 'db_host',
-  port   => 3306,
-  user   => 'db_user',
+$config->{connection_params}->{tracking} = {
+  driver       => 'mysql',
+  # host       => 'db_host',
+  port         => 3306,
+  user         => 'db_user',
+  schema_class => 'Bio::Track::Schema',
 };
 
-throws_ok { Bio::Path::Find::DatabaseManager->new( config => $config )->connection_params }
+throws_ok {
+    Bio::Path::Find::DatabaseManager->new( config => $config, schema_name => 'tracking' )->connection_params
+  }
   qr/does not specify a required database connection parameter, host/,
   'exception with missing mysql param';
 
 # missing SQLite param
-$config->{connection_params} = {
-  driver => 'SQLite',
-  # dbname => 'database.db',
+$config->{connection_params}->{tracking} = {
+  driver       => 'SQLite',
+  # dbname     => 'database.db',
+  schema_class => 'Bio::Track::Schema',
 };
 
-throws_ok { Bio::Path::Find::DatabaseManager->new( config => $config )->connection_params }
+throws_ok {
+    Bio::Path::Find::DatabaseManager->new( config => $config, schema_name => 'tracking' )->connection_params
+  }
   qr/does not specify a required database connection parameter, dbname/,
   'exception with missing SQLite param';
 
@@ -114,8 +140,11 @@ $config = {
   db_root => file( qw( t data 05_database_manager root_dir ) )->stringify,
   hierarchy_template => 'genus:species-subspecies:TRACKING:projectssid:sample:technology:library:lane',
   connection_params => {
-    driver => 'SQLite',
-    dbname => file( qw( t data empty_tracking_database.db ) )->stringify,
+    tracking => {
+      driver       => 'SQLite',
+      dbname       => file( qw( t data empty_tracking_database.db ) )->stringify,
+      schema_class => 'Bio::Track::Schema',
+    },
   },
   db_subdirs => {
     pathogen_virus_track => 'viruses',
@@ -123,7 +152,7 @@ $config = {
   },
 };
 
-lives_ok { $dbm = Bio::Path::Find::DatabaseManager->new( config => $config ) }
+lives_ok { $dbm = Bio::Path::Find::DatabaseManager->new( config => $config, schema_name => 'tracking' ) }
   'no exception with valid SQLite config';
 
 is_deeply $dbm->data_sources, [ 'empty_tracking_database' ],
@@ -149,10 +178,13 @@ SKIP: {
     db_root => file( qw( t data 05_database_manager root_dir ) )->stringify,
     hierarchy_template => 'genus:species-subspecies:TRACKING:projectssid:sample:technology:library:lane',
     connection_params => {
-      driver => 'mysql',
-      host   => $ENV{TEST_MYSQL_HOST},
-      port   => $ENV{TEST_MYSQL_PORT},
-      user   => $ENV{TEST_MYSQL_USER},
+      tracking => {
+        driver       => 'mysql',
+        host         => $ENV{TEST_MYSQL_HOST},
+        port         => $ENV{TEST_MYSQL_PORT},
+        user         => $ENV{TEST_MYSQL_USER},
+        schema_class => 'Bio::Track::Schema',
+      },
     },
     db_subdirs => {
       pathogen_virus_track => 'viruses',
@@ -160,7 +192,7 @@ SKIP: {
     },
   };
 
-  lives_ok { $dbm = Bio::Path::Find::DatabaseManager->new( config => $config ) }
+  lives_ok { $dbm = Bio::Path::Find::DatabaseManager->new( config => $config, schema_name => 'tracking' ) }
     'no exception with valid live mysql config';
 
   my $can_connect;

@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 # ABSTRACT: find data for sequencing runs
-# PODNAME: pathfind
+# PODNAME: pf
 
 use v5.10; # for "say"
 
@@ -42,7 +42,7 @@ try {
   # Bio::Path::Find::App::PathFind->new_with_options->run;
 
   # or specify the config file name here:
-  Bio::Path::Find::App::PathFind->new_with_options(config_file => $CONFIG_FILE)->run;
+  Bio::Path::Find::App::PathFind->new_with_command(config_file => $CONFIG_FILE)->run;
 } catch {
   say STDERR $_;
 };

@@ -31,7 +31,10 @@ my $sorter;
 lives_ok { $sorter = Bio::Path::Find::Sorter->new(config_file => file( qw( t data 08_sorter test.conf ) )) }
   'got a sorter';
 
-my $dbm = Bio::Path::Find::DatabaseManager->new(config_file => file( qw( t data 08_sorter test.conf ) ));
+my $dbm = Bio::Path::Find::DatabaseManager->new(
+  config_file => file( qw( t data 08_sorter test.conf ) ),
+  schema_name => 'tracking',
+);
 
 my $schema = $dbm->get_database('pathogen_prok_track')->schema;
 # my $schema = $dbm->get_database('pathogen_track_test')->schema;

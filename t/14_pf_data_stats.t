@@ -30,7 +30,7 @@ use Bio::Path::Find::Finder;
 use Log::Log4perl qw( :easy );
 Log::Log4perl->easy_init( $FATAL );
 
-use_ok('Bio::Path::Find::App::PathFind');
+use_ok('Bio::Path::Find::App::PathFind::Data');
 
 # set up a temp dir where we can write the archive
 my $temp_dir = File::Temp->newdir;
@@ -40,7 +40,7 @@ symlink dir( $orig_cwd, qw( t data ) ), dir( $temp_dir, qw( t data ) )
   or die "ERROR: couldn't link data directory into temp directory";
 chdir $temp_dir;
 
-my $expected_stats_file         = file(qw( t data 14_pathfind_stats expected_stats.tsv ));
+my $expected_stats_file         = file(qw( t data 14_pf_data_stats expected_stats.tsv ));
 my $expected_stats_file_content = $expected_stats_file->slurp;
 my @expected_stats              = $expected_stats_file->slurp( chomp => 1, split => qr|\t| );
 
@@ -48,7 +48,7 @@ my @expected_stats              = $expected_stats_file->slurp( chomp => 1, split
 
 # get some test lanes using the Finder directly
 my $f = Bio::Path::Find::Finder->new(
-  config_file => file( qw( t data 14_pathfind_stats test.conf ) ),
+  config_file => file( qw( t data 14_pf_data_stats test.conf ) ),
   lane_role   => 'Bio::Path::Find::Lane::Role::PathFind',
 );
 
@@ -60,15 +60,15 @@ is scalar @$lanes, 50, 'found 50 lanes with ID 10018_1 using Finder';
 # get a PathFind object
 
 my %params = (
-  config_file      => file( qw( t data 14_pathfind_stats test.conf ) ),
+  config_file      => file( qw( t data 14_pf_data_stats test.conf ) ),
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
 );
 
 my $pf;
-lives_ok { $pf = Bio::Path::Find::App::PathFind->new(%params) }
-  'got a new pathfind app object';
+lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
+  'got a new pathfind data command object';
 
 # write to automatically generated filename
 
@@ -85,14 +85,14 @@ is_deeply $stats, \@expected_stats, 'written contents look right';
 $stats_file = file( $temp_dir, 'named_file.csv' );
 
 %params = (
-  config_file      => file( qw( t data 14_pathfind_stats test.conf ) ),
+  config_file      => file( qw( t data 14_pf_data_stats test.conf ) ),
   id               => '10018_1',
   type             => 'lane',
   stats            => $stats_file->stringify,
   no_progress_bars => 1,
 );
 
-$pf = Bio::Path::Find::App::PathFind->new(%params);
+$pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
 lives_ok { $pf->_make_stats($lanes) } 'no exception when calling _make_stats';
 

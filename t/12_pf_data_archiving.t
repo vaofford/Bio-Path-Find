@@ -15,6 +15,11 @@ use Compress::Zlib;
 use Digest::MD5 qw( md5_hex );
 use Try::Tiny;
 
+use Log::Log4perl qw( :easy );
+
+# initialise l4p to avoid warnings
+Log::Log4perl->easy_init( $FATAL );
+
 # set up the "linked" directory for the test suite
 use lib 't';
 
@@ -31,7 +36,7 @@ use Bio::Path::Find::Finder;
 # don't initialise l4p here because we want to test that command line logging
 # is correctly set up by the AppRole
 
-use_ok('Bio::Path::Find::App::PathFind');
+use_ok('Bio::Path::Find::App::PathFind::Data');
 
 # set up a temp dir where we can write the archive
 my $temp_dir = File::Temp->newdir;
@@ -46,19 +51,15 @@ chdir $temp_dir;
 # check filename collection
 
 my %params = (
-  config_file      => file( qw( t data 12_pathfind_archiving test.conf ) ),
+  config_file      => file( qw( t data 12_pf_data_archiving test.conf ) ),
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
 );
 
-my $pf;
-lives_ok { $pf = Bio::Path::Find::App::PathFind->new(%params) }
-  'got a new pathfind app object';
-
 # get the lanes using the Finder directly
 my $f = Bio::Path::Find::Finder->new(
-  config_file => file( qw( t data 12_pathfind_archiving test.conf ) ),
+  config_file => file( qw( t data 12_pf_data_archiving test.conf ) ),
   lane_role   => 'Bio::Path::Find::Lane::Role::PathFind',
 );
 
@@ -74,8 +75,8 @@ is scalar @$lanes, 50, 'found 50 lanes with ID 10018_1 using Finder';
 # }
 # but it's safer to read them from a file in the test suite
 
-my @expected_filenames = file( qw( t data 12_pathfind_archiving expected_filenames.txt ) )->slurp(chomp => 1);
-my @expected_stats     = file( qw( t data 12_pathfind_archiving expected_stats.txt ) )->slurp(chomp => 1, split => qr|\t| );
+my @expected_filenames = file( qw( t data 12_pf_data_archiving expected_filenames.txt ) )->slurp(chomp => 1);
+my @expected_stats     = file( qw( t data 12_pf_data_archiving expected_stats.txt ) )->slurp(chomp => 1, split => qr|\t| );
 
 # turn all of the expected filenames into Path::Class::File objects...
 for ( my $i = 0; $i < scalar @expected_filenames; $i++ ) {
@@ -83,6 +84,10 @@ for ( my $i = 0; $i < scalar @expected_filenames; $i++ ) {
 }
 
 # check against filenames from the app
+my $pf;
+lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
+  'got a new pathfind app object';
+
 my ( $got_filenames, $got_stats );
 stderr_unlike { ( $got_filenames, $got_stats ) = $pf->_collect_filenames($lanes) }
   qr/finding files:\s+\d+\%/,
@@ -96,9 +101,9 @@ is_deeply $got_stats, \@expected_stats,
 
 # check the writing of CSV files
 my $filename = file( $temp_dir, 'written_stats.csv' );
-$pf->_write_stats_csv($got_stats, $filename);
+$pf->_write_csv($got_stats, $filename);
 
-@expected_stats = file( qw( t data 12_pathfind_archiving stats.csv ) )
+@expected_stats = file( qw( t data 12_pf_data_archiving stats.csv ) )
                     ->slurp( chomp => 1, split => qr/,/ );
 my @got_stats   = file($filename)
                     ->slurp( chomp => 1, split => qr/,/ );
@@ -110,17 +115,17 @@ is_deeply \@got_stats, \@expected_stats, 'written stats file looks correct';
 # check the creation of a tar archive
 
 %params = (
-  config_file      => file( qw( t data 12_pathfind_archiving test.conf ) ),
+  config_file      => file( qw( t data 12_pf_data_archiving test.conf ) ),
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
 );
 
-lives_ok { $pf = Bio::Path::Find::App::PathFind->new(%params) }
-  'got a new pathfind app object';
+lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
+  'got a new pathfind data command object';
 
 # add the stats file to the archive
-push @expected_filenames, file( qw( t data 12_pathfind_archiving stats.csv ) );
+push @expected_filenames, file( qw( t data 12_pf_data_archiving stats.csv ) );
 
 my $archive;
 lives_ok { $archive = $pf->_build_tar_archive(\@expected_filenames) }
@@ -137,7 +142,7 @@ my $gzipped_data = $archive->get_content('10018_1/10018_1#1_1.fastq.gz');
 my $raw_data = Compress::Zlib::memGunzip($gzipped_data);
 is $raw_data, "some data\n", 'first file has expected content';
 
-my $expected_stats_file = file( qw( t data 12_pathfind_archiving stats.csv ) )->slurp;
+my $expected_stats_file = file( qw( t data 12_pf_data_archiving stats.csv ) )->slurp;
 my $got_stats_file = $archive->get_content('10018_1/stats.csv');
 
 is $got_stats_file, $expected_stats_file, 'extracted stats file looks right';
@@ -162,14 +167,14 @@ pop @expected_filenames;
 
 # check renaming of files in the archive
 %params = (
-  config_file      => file( qw( t data 12_pathfind_archiving test.conf ) ),
+  config_file      => file( qw( t data 12_pf_data_archiving test.conf ) ),
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
   rename           => 1,
 );
 
-lives_ok { $pf = Bio::Path::Find::App::PathFind->new(%params) }
+lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
   'no exception with "rename" option';
 
 lives_ok { $archive = $pf->_build_tar_archive(\@expected_filenames) }
@@ -185,15 +190,15 @@ is scalar( grep(m/\#/, @archived_files) ), 0, 'filenames have been renamed';
 # check compression
 
 %params = (
-  config_file      => file( qw( t data 12_pathfind_archiving test.conf ) ),
+  config_file      => file( qw( t data 12_pf_data_archiving test.conf ) ),
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
 );
 
-$pf = Bio::Path::Find::App::PathFind->new(%params);
+$pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
-my $data = file( qw( t data 12_pathfind_archiving test_data.txt ) )->slurp;
+my $data = file( qw( t data 12_pf_data_archiving test_data.txt ) )->slurp;
 my $compressed_data = $pf->_compress_data($data);
 my $compressed_data_copy = $compressed_data; # because memGunzip hoses its input...
 my $uncompressed_compressed_data = Compress::Zlib::memGunzip($compressed_data_copy);
@@ -229,18 +234,18 @@ is $uncompressed_slurped_data, $data, 'file written to disk matches original';
 # check creation of a zip archive
 
 %params = (
-  config_file      => file( qw( t data 12_pathfind_archiving test.conf ) ),
+  config_file      => file( qw( t data 12_pf_data_archiving test.conf ) ),
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
   zip              => 1,
 );
 
-$pf = Bio::Path::Find::App::PathFind->new(%params);
+$pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
 # set up the list of expected filenames again from scratch
-@expected_filenames = file( qw( t data 12_pathfind_archiving expected_filenames.txt ) )->slurp(chomp => 1);
-push @expected_filenames, file( qw( t data 12_pathfind_archiving stats.csv ) );
+@expected_filenames = file( qw( t data 12_pf_data_archiving expected_filenames.txt ) )->slurp(chomp => 1);
+push @expected_filenames, file( qw( t data 12_pf_data_archiving stats.csv ) );
 
 # turn all of the expected filenames into Path::Class::File objects...
 for ( my $i = 0; $i < scalar @expected_filenames; $i++ ) {
@@ -267,13 +272,13 @@ is $zip_members[-1], '10018_1/stats.csv', 'last member has correct name';
 # first, make a tar archive
 
 %params = (
-  config_file      => file( qw( t data 12_pathfind_archiving test.conf ) ),
+  config_file      => file( qw( t data 12_pf_data_archiving test.conf ) ),
   id               => '10018_1#1',
   type             => 'lane',
   no_progress_bars => 1,
 );
 
-$pf = Bio::Path::Find::App::PathFind->new(%params);
+$pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
 $lanes = $f->find_lanes( ids => [ '10018_1#1' ], type => 'lane', filetype => 'fastq' );
 
@@ -296,7 +301,7 @@ is_deeply [ $tar->list_files ], [ '10018_1_1/10018_1#1_1.fastq.gz', '10018_1_1/s
 # check we can write uncompressed tar files
 $params{no_tar_compression} = 1;
 
-$pf = Bio::Path::Find::App::PathFind->new(%params);
+$pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
 $lanes = $f->find_lanes( ids => [ '10018_1#1' ], type => 'lane', filetype => 'fastq' );
 
@@ -309,7 +314,7 @@ output_like { $pf->_make_archive($lanes) }
 
 $params{archive} = file( qw( non-existent-dir test.tar.gz ) );
 
-$pf = Bio::Path::Find::App::PathFind->new(%params);
+$pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
 my $exception_thrown = 0;
 try {
@@ -329,7 +334,7 @@ ok $exception_thrown, 'exception with write failure';
 delete $params{archive};
 $params{zip} = 1;
 
-$pf = Bio::Path::Find::App::PathFind->new(%params);
+$pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
 output_like { $pf->_make_archive($lanes) }
   qr/prokaryotes/,                                 # STDOUT
@@ -350,7 +355,7 @@ is_deeply [ $zip->memberNames ], [ '10018_1_1/10018_1#1_1.fastq.gz', '10018_1_1/
 
 $params{archive} = file( qw( non-existent-dir test.zip ) );
 
-$pf = Bio::Path::Find::App::PathFind->new(%params);
+$pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
 $exception_thrown = 0;
 try {

@@ -3,10 +3,10 @@
 #- wrapping class --------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# the idea of this class is to wrap up the original PathFind class and replace
-# the various _make_* methods, which are tested in separate test scripts, with
-# dummy "around" modifiers. That will allow us to test the run method without
-# actually calling the concrete methods.
+# the idea of this class is to wrap up the original PathFind::Data command
+# class and replace the various _make_* methods, which are tested in separate
+# test scripts, with dummy "around" modifiers. That will allow us to test the
+# run method without actually calling the concrete methods.
 
 package Bio::Path::Find::App::TestFind;
 
@@ -14,7 +14,7 @@ use Moose;
 use namespace::autoclean;
 use MooseX::StrictConstructor;
 
-extends 'Bio::Path::Find::App::PathFind';
+extends 'Bio::Path::Find::App::PathFind::Data';
 
 around '_make_symlinks' => sub {
   return 'called _make_symlinks';
@@ -71,7 +71,7 @@ chdir $temp_dir;
 
 # the basic params. These will stay unchanged for all of the subsequent runs
 my %params = (
-  config_file      => file( qw( t data 15_pathfind test.conf ) ),
+  config_file      => file( qw( t data 15_pf_data test.conf ) ),
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,

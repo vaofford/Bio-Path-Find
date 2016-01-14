@@ -1,802 +1,449 @@
 
 package Bio::Path::Find::App::PathFind;
 
-# ABSTRACT: find files and directories for sequencing lanes
+# ABSTRACT: find data for sequencing lanes
 
-use v5.10; # for "say"
+use MooseX::App qw( Man BashCompletion );
 
-use MooseX::App::Simple qw( Man );
-# use namespace::autoclean; # leave out; messes with MooseX::App
-use MooseX::StrictConstructor;
-
-use Carp qw( carp );
 use Path::Class;
-use Try::Tiny;
-use IO::Compress::Gzip;
-use File::Temp;
 use Text::CSV_XS;
-use Archive::Tar;
-use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
-use Cwd;
-use Term::ProgressBar::Simple;
-
-use Bio::Path::Find::Exception;
+use Try::Tiny;
+use FileHandle;
 
 use Types::Standard qw(
   ArrayRef
-  +Str
-  +Bool
+  Str
+  Bool
 );
 
 use Bio::Path::Find::Types qw(
-  FileType
-  QCState
-  +PathClassDir  DirFromStr
-  +PathClassFile FileFromStr
+  IDType
+  FileIDType
+  BioPathFindFinder
+  PathClassFile
 );
 
-with 'MooseX::Log::Log4perl',
-     'Bio::Path::Find::App::Role::AppRole';
+use Bio::Path::Find::Finder;
+use Bio::Path::Find::Exception;
 
-# configure the application via MooseX::App calls
+with 'MooseX::Log::Log4perl',
+     'Bio::Path::Find::Role::HasConfig';
+
+# configure the app
+
+# don't automatically run a guessed command; shows a "did you mean X" message
+# instead
+# app_fuzzy 0;
 
 # throw an exception if extra options or parameters are found on the command
 # line
 app_strict 1;
 
 #-------------------------------------------------------------------------------
-#- usage text ------------------------------------------------------------------
-#-------------------------------------------------------------------------------
 
-=head1 USAGE
+=head1 NAME
 
-pathfind --id <id> --type <ID type> [options]
+pf - Find data for sequencing runs
+
+=head1 SYNOPSIS
+
+  pf <command> --type <ID type> --id <ID or file> [options]
 
 =head1 DESCRIPTION
 
-Given a study ID, lane ID, or sample ID, or a file containing a list of IDs,
-this script will output the path(s) on disk to the data associated with the
-specified sequencing run(s).
+The pathfind commands find and display various kinds of information about
+sequencing projects.
 
-=head1 OPTIONS
+Run "pf man" to see full documentation for this main "pf" command. Run "pf man
+<command>" or "pf <command> --help" to see documentation for a particular
+sub-command.
+
+=head1 COMMANDS
+
+These are the available commands:
+
+=head2 accession
+
+Finds accessions associated with lanes. The default behaviour is to list
+the accessions, but the command can also show the URLs for retrieving
+FASTQ files from the ENA FTP archive, or for retrieving the submitted
+file from ENA.
+
+=head2 data
+
+Shows information about the files and directories that are associated with
+sequencing runs. Can also generate archives (tar or zip format) containing data
+files for found lanes, or create symbolic links to data files. Equivalent to
+the original C<pathfind> command.
+
+=head2 info
+
+Shows information about the samples associated with sequencing runs.
+Equivalent to the original C<infofind> command.
+
+=head1 COMMON OPTIONS
+
+The following options can be used with all of the pathfind commands.
 
 =head2 REQUIRED OPTIONS
 
+All commands have require two options:
+
 =over
 
-=item --id -i <ID>
+=item --id, -i <ID or filename>
 
-The ID for which to search, or the name of a file on disk from which the search
-IDs should be read.
+Specifies the ID for which to search. The ID can be given on the command line
+using C<--id> or C<-i> or, if you have lots of IDs to find, they can be read
+from a file or from STDIN. To read from file, set C<--id> to the name of the
+file containing the IDs. To read IDs from STDIN, set C<-id> to C<->.
 
-=item --type -t <ID type>
+When reading from file or STDIN, C<--type> must be set to C<file> and you must
+give the ID type using C<--file-id-type>.
 
-The type of ID specified by B<--id>, or B<file> to read IDs from disk. Must be
-one of B<lane>, B<sample>, B<study>, B<library>, B<species>, B<study> or
-B<file>.
+=item --type, -t <type>
 
-=item --file-id-type -ft <type of ID in file>
-
-The type of ID found in the specified file
+The type of ID(s) to look for, or C<file> to read IDs from a file. Type must
+be one of C<lane>, C<library>, C<sample>, C<species>, C<study>, or C<file>.
 
 =back
 
 =head2 FURTHER OPTIONS
 
-=head3 FILTERING
-
 =over
 
-=item --qc | -q <QC status>
+=item --file-id-type, --ft <ID type>
 
-Show information only for lanes with the specified quality control status. Must
-be one of B<passed>, B<failed>, or B<pending>.
+Specify the type ID that is found in a file of IDs. Required when C<--type>
+is set to C<file>.
 
-=item --filetype | -f <file type>
+=item --no-progress-bars, -n
 
-If set, the script will list only files of the specified type. If B<--filetype>
-is not provided, the default behaviour is to return the path to the directory
-containing all files for the given lane. Must be one of B<bam>, B<corrected>,
-B<fastq>, or B<pacbio>.
+Don't show progress bars.
 
-=back
+The default behaviour is to show progress bars, except when running in a
+non-interactive session, such as when called by a script.
 
-=head3 OUTPUT
+=item --csv-separator, -c <separator>
 
-pathfind can output data in various ways. The default behaviour is to list
-the directories containing data for the specified ID(s).
+When writing comma separated values (CSV) files (e.g. when writing statistics
+using C<pf data>), use the specified string as a separator. Defaults to comma
+(C<,>).
 
-=over
+=item --verbose, -v
 
-=item --archive | -a [<archive name>]
-
-If an archive name is given, the found data will be written as a tar archive
-with the specified name. If the C<--archive> option is given without a value,
-the archive will be named according to the search ID. See also C<--zip>.
-
-=item --zip | -z
-
-Write a zip archive instead of a tar archive. Must be used along with the
-C<--archive> option.
-
-=item --symlink | -l [<link dir>]
-
-Create symbolic links to the found data. If a link directory is specified,
-the links will be created in that directory. The directory itself will be
-created if it does not already exist. If a link directory is not specified,
-the links will be created in the current working directory.
-
-=item --stats | -s [<CSV file>]
-
-Create a comma-separated-values (CSV) file containing the statistics for
-the found lanes. If a filename is supplied, the CSV data will be written
-to that file. If no filename is given, a filename will be generated from
-the input ID. See also C<--csv-separator>.
-
-=item --csv-separator | -c <separator>
-
-Specify the separator that should be used when writing CSV data. The default is
-a comma (",") but an alternative would be a tab character ("	").
-
-=item --rename | -r
-
-When collecting files in archives or when symlinking data files, convert
-hashes ("#") in filenames into underscores ("_"). This conversion is
-always done when generating names for archives or stats CSV files.
-
-=back
-
-=head3 SWITCHES
-
-=item --no-progress-bars | -n
-
-Don't show progress bars when performing slow operations. Useful if using
-C<pathfind> as part of a larger script.
-
-=item --no-tar-compression | -u
-
-Don't compress tar archives. Since data files are already gzip compressed, the
-extra compression often won't achieve much. Leaving the archive uncompressed
-will speed up the archiving operation.
-
-=item --verbose | -v
-
-Show (lots of) debugging messages.
-
-=item --help | -h | -?
-
-Show the usage message.
+Show debugging information.
 
 =back
 
 =cut
 
-# old pathfind help text:
-#
-# Usage: /software/pathogen/internal/prod/bin/pathfind
-#                 -t|type         <study|lane|file|library|sample|species>
-#                 -i|id           <study id|study name|lane name|file of lane names>
-#         --file_id_type     <lane|sample> define ID types contained in file. default = lane
-#                 -h|help         <this help message>
-#                 -f|filetype     <fastq|bam|pacbio|corrected>
-#                 -l|symlink      <create sym links to the data and define output directory>
-#                 -a|archive      <name for archive containing the data>
-#                 -r|rename   <replace # in symlinks with _>
-#                 -s|stats        <output statistics>
-#                 -q|qc           <passed|failed|pending>
-#                 --prefix_with_library_name <prefix the symlink with the sample name>
-#
-#         Given a study, lane or a file containing a list of lanes or samples, this script will output the path (on pathogen disk) to the data associated with the specified study or lane.
-#         Using the option -qc (passed|failed|pending) will limit the results to data of the specified qc status.
-#         Using the option -filetype (fastq, bam, pacbio or corrected) will return the path to the files of this type for the given data.
-#         Using the option -symlink will create a symlink to the queried data in the current directory, alternativley an output directory can be specified in which the symlinks will be created.
-#         Similarly, the archive option will create and archive (.tar.gz) of the data under a default file name unless one is specified.
-# =cut
+=head1 CONFIGURATION VIA ENVIRONMENT VARIABLES
 
-#-------------------------------------------------------------------------------
-#- public attributes -----------------------------------------------------------
-#-------------------------------------------------------------------------------
+You can set defaults for several options using environment variables. These
+values will be overridden if the corresponding option is given on the command
+line.
 
-option 'filetype' => (
-  documentation => 'type of files to find',
-  is            => 'ro',
-  isa           => FileType,
-  cmd_aliases   => 'f',
-);
+=over
 
-option 'qc' => (
-  documentation => 'filter results by lane QC state',
-  is            => 'ro',
-  isa           => QCState,
-  cmd_aliases   => 'q',
-);
+=item PF_TYPE
 
-option 'rename' => (
-  documentation => 'replace hash (#) with underscore (_) in filenames',
-  is            => 'rw',
-  isa           => Bool,
-  cmd_aliases   => 'r',
-);
+Set a value for C<--type>. This can still be overridden using the C<--type>
+command line option, but setting it avoids the need to add the flag if you
+only ever search for one type of data.
 
-option 'no_tar_compression' => (
-  documentation => "don't compress tar archives",
-  is            => 'rw',
-  isa           => Bool,
-  cmd_flag      => 'no-tar-compression',
-  cmd_aliases   => 'u',
-);
+=item PF_NO_PROGESS_BARS
 
-option 'zip' => (
-  documentation => 'archive data in ZIP format',
-  is            => 'ro',
-  isa           => Bool,
-  cmd_aliases   => 'z',
-);
+Set to a true value to avoid showing progress bars, even when running
+interactively. Corresponds to C<--no-progress-bars>.
 
-#---------------------------------------
+=item PF_CSV_SEP
 
-# this option can be used as a simple switch ("-l") or with an argument
-# ("-l mydir"). It's a bit fiddly to set that up...
+Set the separator to be used when writing comma separated values (CSV) files.
+Corresponds to C<--csv-separator>.
 
-option 'symlink' => (
-  documentation => 'create symlinks for data files in the specified directory',
-  is            => 'ro',
-  cmd_aliases   => 'l',
-  trigger       => \&_check_for_symlink_value,
-  # no "isa" because we want to accept both Bool and Str and it doesn't seem to
-  # be possible to specify that using the combination of MooseX::App and
-  # Type::Tiny that we're using here
-);
+=item PF_VERBOSE
 
-# set up a trigger that checks for the value of the "symlink" command-line
-# argument and tries to decide if it's a boolean, in which case we'll generate
-# a directory name to hold links, or a string, in which case we'll treat that
-# string as a directory name.
-sub _check_for_symlink_value {
-  my ( $self, $new, $old ) = @_;
+Set to a true value to show debugging information. Corresponds to C<--verbose>.
 
-  if ( not defined $new ) {
-    # make links in a directory whose name we'll set ourselves
-    $self->_symlink_flag(1);
-  }
-  elsif ( not is_Bool($new) ) {
-    # make links in the directory specified by the user
-    $self->_symlink_flag(1);
-    $self->_symlink_dir( dir $new );
-  }
-  else {
-    # don't make links. Shouldn't ever get here
-    $self->_symlink_flag(0);
-  }
-}
-
-# private attributes to store the (optional) value of the "symlink" attribute.
-# When using all of this we can check for "_symlink_flag" being true or false,
-# and, if it's true, check "_symlink_dir" for a value
-has '_symlink_dir'  => ( is => 'rw', isa => PathClassDir );
-has '_symlink_flag' => ( is => 'rw', isa => Bool );
-
-#---------------------------------------
-
-# set up "archive" like we set up "symlink". No need to register a new
-# subtype again though
-
-option 'archive' => (
-  documentation => 'filename for archive',
-  is            => 'rw',
-  # no "isa" because we want to accept both Bool and Str
-  cmd_aliases   => 'a',
-  trigger       => \&_check_for_archive_value,
-);
-
-sub _check_for_archive_value {
-  my ( $self, $new, $old ) = @_;
-
-  if ( not defined $new ) {
-    $self->_archive_flag(1);
-  }
-  elsif ( not is_Bool($new) ) {
-    $self->_archive_flag(1);
-    $self->_archive_dir( dir $new );
-  }
-  else {
-    $self->_archive_flag(0);
-  }
-}
-
-has '_archive_dir'  => ( is => 'rw', isa => PathClassDir );
-has '_archive_flag' => ( is => 'rw', isa => Bool );
-
-#---------------------------------------
-
-option 'stats' => (
-  documentation => 'filename for statistics CSV output',
-  is            => 'rw',
-  # no "isa" because we want to accept both Bool and Str
-  cmd_aliases   => 's',
-  trigger       => \&_check_for_stats_value,
-);
-
-sub _check_for_stats_value {
-  my ( $self, $new, $old ) = @_;
-
-  if ( not defined $new ) {
-    $self->_stats_flag(1);
-  }
-  elsif ( not is_Bool($new) ) {
-    $self->_stats_flag(1);
-    $self->_stats_file( file $new );
-  }
-  else {
-    $self->_stats_flag(0);
-  }
-}
-
-has '_stats_file' => ( is => 'rw', isa => PathClassFile );
-has '_stats_flag' => ( is => 'rw', isa => Bool );
-
-#-------------------------------------------------------------------------------
-#- public methods --------------------------------------------------------------
-#-------------------------------------------------------------------------------
-
-=head1 METHODS
-
-=head2 run
-
-Find files according to the input parameters.
+=back
 
 =cut
 
-sub run {
+#-------------------------------------------------------------------------------
+#- common attributes -----------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+# these are attributes that are common to all roles. Attributes that are
+# specific to one particular application go in the concrete app class.
+
+# the values of these attributes are taken from the command line options, which
+# are set up by the "new_with_options" call that instantiates the *Find object
+# in the main script, e.g. pathfind
+
+option 'id' => (
+  documentation => 'ID or name of file containing IDs',
+  is            => 'rw',
+  isa           => Str,
+  cmd_aliases   => 'i',
+  cmd_env       => 'PF_ID',
+  required      => 1,
+  trigger       => sub {
+    my ( $self, $id ) = @_;
+    ( my $renamed_id = $id ) =~ s/\#/_/g;
+    $self->_renamed_id( $renamed_id );
+  },
+);
+
+option 'type' => (
+  documentation => 'ID type. Use "file" to read IDs from file',
+  is            => 'rw',
+  isa           => IDType,
+  cmd_aliases   => 't',
+  cmd_env       => 'PF_TYPE',
+  required      => 1,
+);
+
+option 'file_id_type' => (
+  documentation => 'type of IDs in the input file',
+  is            => 'rw',
+  isa           => FileIDType,
+  cmd_flag      => 'file-id-type',
+  cmd_aliases   => 'ft',
+);
+
+option 'csv_separator' => (
+  documentation => 'field separator to use when writing CSV files',
+  is            => 'rw',
+  isa           => Str,
+  cmd_flag      => 'csv-separator',
+  cmd_aliases   => 'c',
+  cmd_env       => 'PF_CSV_SEP',
+  default       => ',',
+);
+
+option 'no_progress_bars' => (
+  documentation => "don't show progress bars",
+  is            => 'ro',
+  isa           => Bool,
+  cmd_flag      => 'no-progress-bars',
+  cmd_aliases   => 'n',
+  cmd_env       => 'PF_NO_PROGRESS_BARS',
+  trigger       => sub {
+    my ( $self, $flag ) = @_;
+    # set a flag on the config object to tell interested objects whether they
+    # should show progress bars when doing work
+    $self->config->{no_progress_bars} = $flag;
+  },
+);
+
+option 'verbose' => (
+  documentation => 'show debugging messages',
+  is            => 'rw',
+  isa           => Bool,
+  cmd_aliases   => 'v',
+  cmd_env       => 'PF_VERBOSE',
+  default       => 0,
+);
+
+#-------------------------------------------------------------------------------
+#- private attributes ----------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+# these are just internal slots to hold the real list of IDs and the correct
+# ID type, after we've worked out what the user is handing us by examining the
+# input parameters in "sub BUILD"
+has '_ids' => (  is => 'rw', isa => ArrayRef[Str] );
+has '_type' => ( is => 'rw', isa => IDType );
+
+#---------------------------------------
+
+# define the configuration for the Log::Log4perl logger
+
+has '_logger_config' => (
+  is      => 'ro',
+  isa     => 'Ref',
+  lazy    => 1,
+  builder => '_build_logger_config',
+);
+
+sub _build_logger_config {
   my $self = shift;
 
-  # set up the finder
+  my $LEVEL = $self->verbose ? 'DEBUG' : 'WARN';
 
-  # build the parameters for the finder. Omit undefined options or Moose spits
-  # the dummy (by design)
-  my %finder_params = (
-    ids  => $self->_ids,
-    type => $self->_type,
+  my $config_string = qq(
+
+    # appenders
+
+    log4perl.appender.Screen                           = Log::Log4perl::Appender::Screen
+    log4perl.appender.Screen.layout                    = Log::Log4perl::Layout::PatternLayout
+    log4perl.appender.Screen.layout.ConversionPattern  = %M:%L %p: %m%n
+
+    # loggers
+
+    # set log levels for individual classes
+    log4perl.logger.Bio.Path.Find.App.TestFind         = $LEVEL, Screen
+    log4perl.logger.Bio.Path.Find.App.PathFind         = $LEVEL, Screen
+    log4perl.logger.Bio.Path.Find.Finder               = $LEVEL, Screen
+    log4perl.logger.Bio.Path.Find.Lane                 = $LEVEL, Screen
+    log4perl.logger.Bio.Path.Find.DatabaseManager      = $LEVEL, Screen
+
+    log4perl.oneMessagePerAppender                     = 1
   );
-  $finder_params{qc}       = $self->qc       if defined $self->qc;
-  $finder_params{filetype} = $self->filetype if defined $self->filetype;
 
-  # find lanes
-  my $lanes = $self->_finder->find_lanes(%finder_params);
+  return \$config_string;
+}
 
-  $self->log->debug( 'found ' . scalar @$lanes . ' lanes' );
+#---------------------------------------
 
-  if ( scalar @$lanes < 1 ) {
-    say STDERR 'No data found.';
-    exit;
-  }
+has '_finder' => (
+  is      => 'ro',
+  isa     => BioPathFindFinder,
+  lazy    => 1,
+  builder => '_build_finder',
+);
 
-  # do something with the found lanes
-  if ( $self->_symlink_flag ) {
-    $self->_make_symlinks($lanes);
-  }
-  elsif ( $self->_archive_flag ) {
-    $self->_make_archive($lanes);
-  }
-  elsif ( $self->_stats_flag ) {
-    $self->_make_stats($lanes);
+sub _build_finder {
+  my $self = shift;
+  return Bio::Path::Find::Finder->new(config => $self->config);
+}
+
+#---------------------------------------
+
+# a slot to store the ID, but with hashes converted to underscores. Written by
+# a trigger on the "id" attribute
+
+has '_renamed_id' => (
+  is => 'rw',
+  isa => Str,
+);
+
+#-------------------------------------------------------------------------------
+#- construction ----------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+sub BUILD {
+  my $self = shift;
+
+  # initialise the logger
+  Log::Log4perl->init_once($self->_logger_config);
+
+  $self->log->debug('verbose logging is on');
+  # (should only appear when "-verbose" is used)
+
+  # if "-verbose" is used multiple times, turn on DBIC query logging too
+  $ENV{DBIC_TRACE} = 1 if $self->verbose > 1;
+
+  # check for dependencies between parameters: if "type" is "file", we need to
+  # know what type of IDs we'll find in the file
+  Bio::Path::Find::Exception->throw( msg => q(ERROR: if "type" is "file", you must also specify "file_id_type") )
+    if ( $self->type eq 'file' and not $self->file_id_type );
+
+  # look at the input parameters and decide whether we're dealing with a single
+  # ID or many, and what the type of the ID(s) is/are
+  my ( $ids, $type );
+
+  if ( $self->type eq 'file' ) {
+
+    $type = $self->file_id_type;
+
+    if ( $self->id eq '-' ) {
+      # read IDs from STDIN
+      while ( <STDIN> ) {
+        chomp;
+        push @$ids, $_;
+      }
+      $self->log->debug('found ' . scalar @$ids . qq( IDs from STDIN)
+                        . qq(, of type "$type") );
+    }
+    else {
+      # read multiple IDs from a file
+      $ids  = $self->_load_ids_from_file( file($self->id) );
+      $self->log->debug('found ' . scalar @$ids . qq( IDs from file "$ids")
+                        . qq(, of type "$type") );
+    }
   }
   else {
-    $_->print_paths for ( @$lanes );
+    # use the single ID from the command line
+    $ids  = [ $self->id ];
+    $type = $self->type;
+
+    $self->log->debug( qq(looking for single ID, "$ids->[0]", of type "$type") );
   }
 
+  $self->_ids($ids);
+  $self->_type($type);
 }
 
 #-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# make symlinks for found lanes
+# logs the command line to file
 
-sub _make_symlinks {
-  my ( $self, $lanes ) = @_;
+sub _log_command {
+  my $self = shift;
 
-  my $dest;
+  my $username     = ( getpwuid($<) )[0];
+  my $command_line = join ' ', $username, $0, @ARGV;
 
-  if ( $self->_symlink_dir ) {
-    $self->log->debug('symlink attribute specifies a dir name');
-    $dest = $self->_symlink_dir;
-  }
-  else {
-    $self->log->debug('symlink attribute is a boolean; building a dir name');
-    $dest = dir( getcwd(), 'pathfind_' . $self->_renamed_id );
-  }
-
-  try {
-    $dest->mkpath unless -d $dest;
-  } catch {
-    Bio::Path::Find::Exception->throw(
-      msg => "ERROR: couldn't make link directory ($dest)"
-    );
-  };
-
-  # should be redundant, but...
-  Bio::Path::Find::Exception->throw( msg =>  "ERROR: not a directory ($dest)" )
-    unless -d $dest;
-
-  say STDERR "Creating links in '$dest'";
-
-  my $pb = $self->config->{no_progress_bars}
-         ? 0
-         : Term::ProgressBar::Simple->new( {
-             name   => 'linking',
-             count  => scalar @$lanes,
-             remove => 1,
-           } );
-
-  my $i = 0;
-  foreach my $lane ( @$lanes ) {
-    $lane->make_symlinks( dest => $dest, rename => $self->rename );
-    $pb++;
-  }
+  $self->log('command_log')->info($command_line);
 }
 
 #-------------------------------------------------------------------------------
 
-# make an archive of the data files for the found lanes, either tar or zip,
-# depending on the "zip" attribute
+# reads a list of IDs from the supplied filename. Treats lines beginning with
+# hash (#) as comments and ignores them
 
-sub _make_archive {
-  my ( $self, $lanes ) = @_;
+sub _load_ids_from_file {
+  my ( $self, $filename ) = @_;
 
-  my $archive_filename;
+  Bio::Path::Find::Exception->throw( msg => "ERROR: no such file ($filename)" )
+    unless -f $filename;
 
-  if ( $self->_archive_dir ) {
-    $self->log->debug('_archive_dir attribute is set; using it as a filename');
-    $archive_filename = $self->_archive_dir;
-  }
-  else {
-    $self->log->debug('_archive_dir attribute is not set; building a filename');
-    # we'll ALWAYS make a sensible name for the archive itself (use renamed_id)
-    if ( $self->zip ) {
-      $archive_filename = 'pathfind_' . $self->_renamed_id . '.zip';
-    }
-    else {
-      $archive_filename = 'pathfind_' . $self->_renamed_id
-                          . ( $self->no_tar_compression ? '.tar' : '.tar.gz' );
-    }
-  }
-  $archive_filename = file $archive_filename;
+  # TODO check if this will work with the expected usage. If users are used
+  # TODO to putting plex IDs as search terms, stripping lines starting with
+  # TODO "#" will break those searches
+  my @ids = grep ! m/^#/, $filename->slurp(chomp => 1);
 
-  say STDERR "Archiving lane data to '$archive_filename'";
+  Bio::Path::Find::Exception->throw( msg => "ERROR: no IDs found in file ($filename)" )
+    unless scalar @ids;
 
-  # collect the list of files to archive
-  my ( $filenames, $stats ) = $self->_collect_filenames($lanes);
-
-  # write a CSV file with the stats and add it to the list of files that
-  # will go into the archive
-  my $temp_dir = File::Temp->newdir;
-  my $stats_file = file( $temp_dir, 'stats.csv' );
-  $self->_write_stats_csv($stats, $stats_file);
-
-  push @$filenames, $stats_file;
-
-  #---------------------------------------
-
-  # zip or tar ?
-  if ( $self->zip ) {
-    # build the zip archive in memory
-    my $zip = $self->_build_zip_archive($filenames);
-
-    print STDERR 'Writing zip file... ';
-
-    # write it to file
-    try {
-      unless ( $zip->writeToFileNamed($archive_filename->stringify) == AZ_OK ) {
-        print STDERR "failed\n";
-        Bio::Path::Find::Exception->throw( msg => "ERROR: couldn't write zip file ($archive_filename)" );
-      }
-    } catch {
-      Bio::Path::Find::Exception->throw( msg => "ERROR: error while writing zip file ($archive_filename): $_" );
-    };
-
-    print STDERR "done\n";
-  }
-  else {
-    # build the tar archive in memory
-    my $tar = $self->_build_tar_archive($filenames);
-
-    # we could write the archive in a single call, like this:
-    #   $tar->write( $tar_filename, COMPRESS_GZIP );
-    # but it's nicer to have a progress bar. Since gzipping and writing can be
-    # performed as separate operations, we'll do progress bars for both of them
-
-    # get the contents of the tar file. This is a little slow but we can't
-    # break it down and use a progress bar, so at least tell the user what's
-    # going on
-    print STDERR 'Building tar file... ';
-    my $tar_contents = $tar->write;
-    print STDERR "done\n";
-
-    # gzip compress the archive ?
-    my $output = $self->no_tar_compression
-               ? $tar_contents
-               : $self->_compress_data($tar_contents);
-
-    # and write it out, gzip compressed
-    $self->_write_data( $output, $archive_filename );
-  }
-
-  #---------------------------------------
-
-  # list the contents of the archive
-  say $_ for @$filenames;
+  return \@ids;
 }
 
 #-------------------------------------------------------------------------------
 
-# retrieves the list of filenames associated with the supplied lanes
+# writes the supplied array of arrays in CSV format to the specified file.
+# Uses the separator specified by the "csv_separator" attribute
 
-sub _collect_filenames {
-  my ( $self, $lanes ) = @_;
-
-  my $pb = $self->config->{no_progress_bars}
-         ? 0
-         : Term::ProgressBar::Simple->new( {
-             name   => 'finding files',
-             count  => scalar @$lanes,
-             remove => 1,
-           } );
-
-  # collect the lane stats as we go along. Store the headers for the stats
-  # report as the first row
-  my @stats = ( $lanes->[0]->stats_headers );
-
-  my @filenames;
-  my $i = 0;
-  foreach my $lane ( @$lanes ) {
-
-    # if the Finder was set up to look for a specific filetype, we don't need
-    # to do a find here. If it was not given a filetype, it won't have looked
-    # for data files, just the directory for the lane, so we need to find data
-    # files here explicitly
-    $lane->find_files('fastq') if not $self->filetype;
-
-    foreach my $filename ( $lane->all_files ) {
-      push @filenames, $filename;
-    }
-
-    # store the stats for this lane
-    push @stats, $lane->stats;
-
-    $pb++;
-  }
-
-  return ( \@filenames, \@stats );
-}
-
-#-------------------------------------------------------------------------------
-
-# creates a tar archive containing the specified files
-
-sub _build_tar_archive {
-  my ( $self, $filenames ) = @_;
-
-  my $tar = Archive::Tar->new;
-
-  my $pb = $self->config->{no_progress_bars}
-         ? 0
-         : Term::ProgressBar::Simple->new( {
-             name   => 'adding files',
-             count  => scalar @$filenames,
-             remove => 1,
-           } );
-
-  foreach my $filename ( @$filenames ) {
-    $tar->add_files($filename);
-    $pb++;
-  }
-
-  # the files are added with their full paths. We want them to be relative,
-  # so we'll go through the archive and rename them all. If the "-rename"
-  # option is specified, we'll also rename the individual files to convert
-  # hashes to underscores
-  foreach my $orig_filename ( @$filenames ) {
-
-    my $tar_filename = $self->_rename_file($orig_filename);
-
-    # filenames in the archive itself are relative to the root directory, i.e.
-    # they lack a leading slash. Trim off that slash before trying to rename
-    # files in the archive, otherwise they're simply not found. Take a copy
-    # of the original filename before we trim it, to avoid stomping on the
-    # original
-    ( my $trimmed_filename = $orig_filename ) =~ s|^/||;
-
-    $tar->rename( $trimmed_filename, $tar_filename )
-      or carp "WARNING: couldn't rename '$trimmed_filename' in archive";
-  }
-
-  return $tar;
-}
-
-#-------------------------------------------------------------------------------
-
-# creates a ZIP archive containing the specified files
-
-sub _build_zip_archive {
-  my ( $self, $filenames ) = @_;
-
-  my $zip = Archive::Zip->new;
-
-  my $pb = $self->config->{no_progress_bars}
-         ? 0
-         : Term::ProgressBar::Simple->new( {
-             name   => 'adding files',
-             count  => scalar @$filenames,
-             remove => 1,
-           } );
-
-  foreach my $orig_filename ( @$filenames ) {
-    my $zip_filename  = $self->_rename_file($orig_filename);
-
-    # this might not be strictly necessary, but there were some strange things
-    # going on while testing this operation: stringify the filenames, to avoid
-    # the Path::Class::File object going into the zip archive
-    $zip->addFile($orig_filename->stringify, $zip_filename->stringify);
-
-    $pb++;
-  }
-
-  return $zip;
-}
-
-#-------------------------------------------------------------------------------
-
-# generates a new filename by converting hashes to underscores in the supplied
-# filename. Also converts the filename to unix format, for use with tar and
-# zip
-
-sub _rename_file {
-  my ( $self, $old_filename ) = @_;
-
-  my $new_basename = $old_filename->basename;
-
-  # honour the "-rename" option
-  $new_basename =~ s/\#/_/g if $self->rename;
-
-  # add on the folder to get the relative path for the file in the
-  # archive
-  ( my $folder_name = $self->id ) =~ s/\#/_/g;
-
-  my $new_filename = file( $folder_name, $new_basename );
-
-  # filenames in an archive are specified as Unix paths (see
-  # https://metacpan.org/pod/Archive::Tar#tar-rename-file-new_name)
-  $old_filename = file( $old_filename )->as_foreign('Unix');
-  $new_filename = file( $new_filename )->as_foreign('Unix');
-
-  $self->log->debug( "renaming |$old_filename| to |$new_filename|" );
-
-  return $new_filename;
-}
-
-#-------------------------------------------------------------------------------
-
-# gzips the supplied data and returns the compressed data
-
-sub _compress_data {
-  my ( $self, $data ) = @_;
-
-  my $max        = length $data;
-  my $num_chunks = 100;
-  my $chunk_size = int( $max / $num_chunks );
-
-  # set up the progress bar
-  my $pb = $self->config->{no_progress_bars}
-         ? 0
-         : Term::ProgressBar::Simple->new( {
-             name   => 'gzipping',
-             count  => $num_chunks,
-             remove => 1,
-           } );
-
-  my $compressed_data;
-  my $offset      = 0;
-  my $remaining   = $max;
-  my $z           = IO::Compress::Gzip->new( \$compressed_data );
-  while ( $remaining > 0 ) {
-    # write the data in chunks
-    my $chunk = ( $chunk_size > $remaining )
-              ? substr $data, $offset
-              : substr $data, $offset, $chunk_size;
-
-    $z->print($chunk);
-
-    $offset    += $chunk_size;
-    $remaining -= $chunk_size;
-    $pb++;
-  }
-
-  $z->close;
-
-  return $compressed_data;
-}
-
-#-------------------------------------------------------------------------------
-
-# writes the supplied data to the specified file. This method doesn't care what
-# form the data take, it just dumps the raw data to file, showing a progress
-# bar if required.
-
-sub _write_data {
+sub _write_csv {
   my ( $self, $data, $filename ) = @_;
 
-  my $max        = length $data;
-  my $num_chunks = 100;
-  my $chunk_size = int( $max / $num_chunks );
+  return unless ( defined $data and scalar @$data );
 
-  my $pb = $self->config->{no_progress_bars}
-         ? 0
-         : Term::ProgressBar::Simple->new( {
-             name   => 'writing',
-             count  => $num_chunks,
-             remove => 1,
-           } );
+  Bio::Path::Find::Exception->throw( msg => 'ERROR: must supply a filename when writing a CSV file' )
+    unless defined $filename;
 
-  open ( FILE, '>', $filename )
-    or Bio::Path::Find::Exception->throw( msg =>  "ERROR: couldn't write output file ($filename): $!" );
+  my $fh = FileHandle->new;
 
-  binmode FILE;
+  # see if the supplied filename exists and complain if it does
+  Bio::Path::Find::Exception->throw( msg => qq(ERROR: CSV file "$filename" already exists; not overwriting existing file) )
+    if -e $filename;
 
-  my $written;
-  my $offset      = 0;
-  my $remaining   = $max;
-  while ( $remaining > 0 ) {
-    $written = syswrite FILE, $data, $chunk_size, $offset;
-    $offset    += $written;
-    $remaining -= $written;
-    $pb++;
-  }
+  $fh->open( $filename, '>' );
 
-  close FILE;
+  my $csv = Text::CSV_XS->new;
+  $csv->eol("\n");
+  $csv->sep( $self->csv_separator );
+  $csv->print($fh, $_) for @$data;
+
+  $fh->close;
 }
 
 #-------------------------------------------------------------------------------
 
-# build a CSV file with the statistics for all lanes and write it to file
-
-sub _make_stats {
-  my ( $self, $lanes ) = @_;
-
-  my $filename;
-
-  # get or build the filename for the output file
-  if ( $self->_stats_file ) {
-    $self->log->debug('stats attribute specifies a filename');
-    $filename = $self->_stats_file;
-  }
-  else {
-    $self->log->debug('stats attribute is a boolean; building a filename');
-    $filename = dir( getcwd(), $self->_renamed_id . '.pathfind_stats.csv' );
-  }
-
-  # collect the stats for the supplied lanes
-  my @stats = (
-    $lanes->[0]->stats_headers,
-  );
-
-  my $pb = $self->config->{no_progress_bars}
-         ? 0
-         : Term::ProgressBar::Simple->new( {
-             name   => 'collecting stats',
-             count  => scalar @$lanes,
-             remove => 1,
-           } );
-
-  foreach my $lane ( @$lanes ) {
-    push @stats, $lane->stats;
-    $pb++;
-  }
-
-  $self->_write_stats_csv(\@stats, $filename);
-}
-
-#-------------------------------------------------------------------------------
 
 __PACKAGE__->meta->make_immutable;
 
