@@ -37,45 +37,187 @@ use Bio::Path::Find::Types qw(
 
 extends 'Bio::Path::Find::App::PathFind';
 
-with 'Bio::Path::Find::App::Role::AppRole';
-
 #-------------------------------------------------------------------------------
 #- usage text ------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-=head1 USAGE
+# this is used when the "pf" app class builds the list of available commands
+command_short_description 'Find files and directories';
 
-pf data --id <id> --type <ID type> [options]
+# the module POD is used when the users runs "pf man data"
+
+=head1 NAME
+
+pf data - Find files and directories
+
+=head1 SYNOPSIS
+
+  pf data --id <id> --type <ID type> [options]
 
 =head1 DESCRIPTION
 
-Given a study ID, lane ID, or sample ID, or a file containing a list of IDs,
-this script will output the path(s) on disk to the data associated with the
-specified sequencing run(s).
+This pathfind command will output the path(s) on disk to the data associated
+with sequencing run(s). Specify the type of data using C<--type> and give the
+accession, name or identifier for the data using C<--id>.
+
+You can search for data using several types of ID: lane, library, sample,
+study, or species. B<Note> that searching using C<study> or C<species> can
+produce a large number of results and can be very slow.
+
+=head1 EXAMPLES
+
+  # find the data directory containing files for a specific plex
+  pf data -t lane -i 12345_1#1
+
+  # find directories for lanes matching a lane name
+  pf data -t lane -i 12345_1
+
+  # find fastq files for a given plex
+  pf data -t lane -i 12345_1#1 -f fastq
+
+  # get statistics for a set of lanes
+  pf data -t lane -i 12345_1 -s stats.csv
+
+  # make symlinks to the data directory for a set of lanes
+  pf data -t lane -i 12345_1 -l my_links_dir
+
+  # make an tar archive of data for a lane (don't compress archive)
+  pf data -t lane -i 12345_1#1 -a my_data.tar.gz -u
+
+  # find data from a particular study
+  pf data -t study -i my_study_name
+
+=head1 OPTIONS
+
+These are the options that are specific to C<pf data>. Run C<pf man> to see
+details of the global C<pf> options.
+
+=over
+
+=item --qc, -q <status>
+
+Filter results on QC status. Show only lanes with the specified QC status.
+Status must be one of C<passed>, C<failed>, or C<pending>.
+
+=item --stats, -s [<stats filename>]
+
+Write a file with statistics about found lanes. Save to specified filename,
+if given.
+
+=item --symlink, -l [<symlink directory>]
+
+Create symlinks to found data. Create links in the specified directory, if
+given, or in the current working directory.
+
+=item --archive, -a [<archive filename>]
+
+Create archive containing data files for found lanes. Save to specified
+filename, if given.
+
+=item --no-tar-compression, -u
+
+Don't compress tar archives.
+
+=item --zip, -z
+
+When creating a data archive, create a zip file instead of a tar archive.
+Must be used in conjunction with C<--archive>.
+
+=item --rename, -r
+
+Rename filenames when creating archives or symlinks, replacing hashed (#)
+with underscores (_).
+
+=back
+
+=head1 SCENARIOS
+
+=head2 Finding files
+
+The default behaviour for C<pf data> is to return the path to the directory
+containing all data files for found lanes;
+
+  pf data -t lane -i 12345_1
+
+You can get the paths for data files by specifying the type of file to find
+using the C<--filetype> option (C<-f>):
+
+  pf data -t lane -i 12345_1 -f fastq
+
+You can choose to find C<fastq>, C<bam>, C<corrected> or C<pacbio> files.
+
+You can also filter the results to show only lanes with a specific QC status,
+using the C<--qc> (C<-q>) option:
+
+  pf data -t lane -i 12345_1 --qc passed
+
+The C<-q> option accepts three values: C<passed>, C<failed>, and C<pending>.
+
+=head2 Getting statistics
+
+You can create a CSV file containing statistics for the found lanes, using the
+C<--stats> (C<-s>) options. By default the file is named according to the
+search term, e.g. C<12345_1.pathfind_stats.csv>, but you can give an argument
+to C<-s> and specify the name of the stats file.
+
+  pf data -t lane -i 12345_1 -s my_stats.csv
+
+Note that you will see an error message if you try to write statistics to a
+file that already exists.
+
+=head2 Archiving data
+
+The C<pf data> command can create a tar or zip archive for found data, using
+the C<--archive> (C<-a>) option. If you have chosen to find a specific filetype,
+using the C<--filetype> (C<--ft> option, the archive will contain that type of
+file. The default is to archive fastq files for your found lanes.
+
+The default behaviour is to create a gzip-compressed tar archive:
+
+  pf data -t lane -i 12345_1 -a
+
+which writes a file  named C<pathfind_12345_1.tar.gz>. You can specify you own
+filename by adding it after the C<-a> option:
+
+  pf data -t lane -i 12345_1 -a my_data.tar.gz
+
+Note that compressing data files that are already compressed can be slow and
+will not result in any significant space saving. You can chose to create
+uncompressed tar archives using the C<--no-tar-compression> option (C<-u>):
+
+  pf data -t lane -i 12345_1 -a my_data.tar -u
+
+You can create a zip archive instead of a tar file by adding C<--zip> (C<-z>):
+
+  pf data -t lane -i 12345_1 -a my_data.zip -z
+
+Note that zip archives are always compressed.
+
+By default, files in the archive are named as they are named in the
+storage area. The original names contain hash characters (#), which can
+cause problems in some situations, so you can opt to have the hashes
+converted to underscores (_) using C<--rename> (C<-r>):
+
+  pf data -t lane -i 12345_1 -a my_data.tar -u -r
+
+Files may be renamed both when building the archive and when creating
+symlinks (see below).
+
+=head2 Creating symlinks
+
+You can use C<pf data> to create links to your data in a directory of your
+choice:
+
+  pf data -t lane -i 12345_1 -l my_linked_data
+
+If you do not specify a directory, the links are created in the current
+working directory. You will get an error message if you do not have the
+necessary permissions for creating files or links in the working directory.
+
+As when creating archives, you can rename filenames when creating symlinks
+using C<--rename> to convert hashes to underscores.
 
 =cut
-
-# old pathfind help text:
-#
-# Usage: /software/pathogen/internal/prod/bin/pathfind
-#                 -t|type         <study|lane|file|library|sample|species>
-#                 -i|id           <study id|study name|lane name|file of lane names>
-#         --file_id_type     <lane|sample> define ID types contained in file. default = lane
-#                 -h|help         <this help message>
-#                 -f|filetype     <fastq|bam|pacbio|corrected>
-#                 -l|symlink      <create sym links to the data and define output directory>
-#                 -a|archive      <name for archive containing the data>
-#                 -r|rename   <replace # in symlinks with _>
-#                 -s|stats        <output statistics>
-#                 -q|qc           <passed|failed|pending>
-#                 --prefix_with_library_name <prefix the symlink with the sample name>
-#
-#         Given a study, lane or a file containing a list of lanes or samples, this script will output the path (on pathogen disk) to the data associated with the specified study or lane.
-#         Using the option -qc (passed|failed|pending) will limit the results to data of the specified qc status.
-#         Using the option -filetype (fastq, bam, pacbio or corrected) will return the path to the files of this type for the given data.
-#         Using the option -symlink will create a symlink to the queried data in the current directory, alternativley an output directory can be specified in which the symlinks will be created.
-#         Similarly, the archive option will create and archive (.tar.gz) of the data under a default file name unless one is specified.
-# =cut
 
 #-------------------------------------------------------------------------------
 #- public attributes -----------------------------------------------------------
@@ -166,7 +308,7 @@ has '_symlink_flag' => ( is => 'rw', isa => Bool );
 # subtype again though
 
 option 'archive' => (
-  documentation => 'filename for archive',
+  documentation => 'archive data files',
   is            => 'rw',
   # no "isa" because we want to accept both Bool and Str
   cmd_aliases   => 'a',
@@ -234,14 +376,6 @@ sub _stats_file_builder {
 #-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
 #-------------------------------------------------------------------------------
-
-=head1 METHODS
-
-=head2 run
-
-Find files according to the input parameters.
-
-=cut
 
 sub run {
   my $self = shift;

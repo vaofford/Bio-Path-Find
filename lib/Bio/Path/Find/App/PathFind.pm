@@ -41,6 +41,10 @@ app_strict 1;
 
 #-------------------------------------------------------------------------------
 
+=head1 NAME
+
+pf - Find data for sequencing runs
+
 =head1 SYNOPSIS
 
   pf <command> --type <ID type> --id <ID or file> [options]
@@ -50,9 +54,9 @@ app_strict 1;
 The pathfind commands find and display various kinds of information about
 sequencing projects.
 
-Run "pf man" to see more documentation about this main "pf" command, or "pf
-<command> --help" to see documentation about a particular sub-command,
-particular the options that each command accepts.
+Run "pf man" to see full documentation for this main "pf" command. Run "pf man
+<command>" or "pf <command> --help" to see documentation for a particular
+sub-command.
 
 =head1 COMMANDS
 
@@ -68,16 +72,20 @@ file from ENA.
 =head2 data
 
 Shows information about the files and directories that are associated with
-sequencing runs. The command can also generate archives (tar or zip format)
-containing data files for found lanes, or create symbolic links to data files.
+sequencing runs. Can also generate archives (tar or zip format) containing data
+files for found lanes, or create symbolic links to data files. Equivalent to
+the original C<pathfind> command.
 
 =head2 info
 
-Shows information about the samples used for given sequencing runs.
+Shows information about the samples associated with sequencing runs.
+Equivalent to the original C<infofind> command.
 
 =head1 COMMON OPTIONS
 
-=head2 Required options
+The following options can be used with all of the pathfind commands.
+
+=head2 REQUIRED OPTIONS
 
 All commands have require two options:
 
@@ -85,25 +93,22 @@ All commands have require two options:
 
 =item --id, -i <ID or filename>
 
-The ID for which to search. The ID can be given on the command line using
-C<-i>, or, if you have lots of IDs to find, they can be read from a file or
-from STDIN. To read from file, set C<--id> to the name of the file containing
-the IDs, or to C<-> to read from STDIN.
+Specifies the ID for which to search. The ID can be given on the command line
+using C<--id> or C<-i> or, if you have lots of IDs to find, they can be read
+from a file or from STDIN. To read from file, set C<--id> to the name of the
+file containing the IDs. To read IDs from STDIN, set C<-id> to C<->.
 
-When reading from file or STDIN, C<--type> must be set to C<file>, and you
-must give the ID type using C<--file-id-type>.
+When reading from file or STDIN, C<--type> must be set to C<file> and you must
+give the ID type using C<--file-id-type>.
 
 =item --type, -t <type>
 
 The type of ID(s) to look for, or C<file> to read IDs from a file. Type must
-be one of C<lane>, C<file>, C<library>, C<sample>, C<species>, or C<study>.
+be one of C<lane>, C<library>, C<sample>, C<species>, C<study>, or C<file>.
 
 =back
 
-If C<--type> is C<file> then C<--file-id-type> must be specify the type of
-ID(s) found in the file..
-
-=head2 Further options
+=head2 FURTHER OPTIONS
 
 =over
 
@@ -114,9 +119,10 @@ is set to C<file>.
 
 =item --no-progress-bars, -n
 
-Don't show progress bars. The default behaviour is to show progress bars
-when running in an interactive session (progress bars are not shown when
-running non-interactively, as when called by a script).
+Don't show progress bars.
+
+The default behaviour is to show progress bars, except when running in a
+non-interactive session, such as when called by a script.
 
 =item --csv-separator, -c <separator>
 
@@ -126,7 +132,7 @@ using C<pf data>), use the specified string as a separator. Defaults to comma
 
 =item --verbose, -v
 
-Show debugging information
+Show debugging information.
 
 =back
 

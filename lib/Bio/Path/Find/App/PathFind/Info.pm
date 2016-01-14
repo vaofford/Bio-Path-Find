@@ -27,21 +27,91 @@ use Bio::Path::Find::Types qw(
 
 extends 'Bio::Path::Find::App::PathFind';
 
-with 'Bio::Path::Find::App::Role::AppRole';
-
 #-------------------------------------------------------------------------------
 #- usage text ------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-=head1 USAGE
+# this is used when the "pf" app class builds the list of available commands
+command_short_description 'Find information about samples';
 
-pf info --id <id> --type <ID type> [options]
+# the module POD is used when the users runs "pf man info"
+
+=head1 NAME
+
+pf info - Find information about samples
+
+=head1 SYNOPSIS
+
+  pf info --id <id> --type <ID type> [options]
 
 =head1 DESCRIPTION
 
-Given a study ID, lane ID, or sample ID, or a file containing a list of IDs,
-this script will return information about the samples for the specified
-lane(s).
+This pathfind command will return information about samples associated with
+sequencing runs. Specify the type of data using C<--type> and give the
+accession, name or identifier for the data using C<--id>.
+
+=head1 EXAMPLES
+
+  # get sample info for a set of lanes
+  pf info -t lane -i 10018_1
+
+  # write info to a CSV file
+  pf info -t lane -i 10018_1 -o info.csv
+
+=head1 OPTIONS
+
+These are the options that are specific to C<pf info>. Run C<pf man> to
+see information about the global C<pf> options.
+
+=over
+
+=item --outfile, -o [<output filename>]
+
+Write the information to a CSV-format file. If a filename is given, write info
+to that file, or to C<infofind.csv> otherwise.
+
+=back
+
+=head1 SCENARIOS
+
+=head2 Show info about samples
+
+The C<pf info> command prints five columns of data for each lane, showing data
+about each sample from the tracking and sequencescape databases:
+
+=over
+
+=item lane
+
+=item sample
+
+=item supplier name
+
+=item public name
+
+=item strain
+
+=back
+
+=head2 Write a CSV file
+
+By default C<pf info> simply prints the data that it finds. You can write out a
+comma-separated values file (CSV) instead, using the C<--outfile> (C<-o>)
+options:
+
+  pf info -t lane -i 10018_1 -o
+
+If you don't specify a filename, the default is C<infofind.csv>.
+
+=head2 Write a tab-separated file (TSV)
+
+You can also change the separator used when writing out data. By default we
+use comma (,), but you can change it to a tab-character in order to make the
+resulting file more readable:
+
+  pf info -t lane -i 10018_1 -o -c "<tab>"
+
+(To enter a tab character you might need to press ctrl-V followed by a tab.)
 
 =cut
 
@@ -49,19 +119,8 @@ lane(s).
 #- command line options --------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-=attr outfile [<filename>]
-
-Write the information about lanes to a CSV file. If C<outfile> is specified as
-a command line option and an argument is given, use that as the name of the
-file to be written. If no argument is given, the information is written to
-C<infofind.csv> in the working directory.
-
-An exception is thrown if the output file already exists.
-
-=cut
-
-# this option can be used as a simple switch ("-l") or with an argument
-# ("-l mydir"). It's a bit fiddly to set that up...
+# this option can be used as a simple switch ("-o") or with an argument
+# ("-o mydir"). It's a bit fiddly to set that up...
 
 option 'outfile' => (
   documentation => 'write info to a CSV file',
@@ -106,28 +165,24 @@ has '_outfile_flag' => ( is => 'rw', isa => Bool );
 #- public attributes -----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-=attr sequencescape_schema_name
-
-The name of the sequencescape database in the config that defines the database
-connection parameters:
-
-  <connection_params>
-    <tracking>
-      ...
-    </tracking>
-    <sequencescape>
-      driver        SQLite
-      dbname        seqw.db
-      schema_class  Bio::Sequencescape::Schema
-      no_db_root    1
-    </sequencescape>
-  </connection_params>
-
-The default is C<sequencescape>. If you give a non-default value for
-C<sequencescape_schema_name>, make sure you name the corresponding section in
-the config the same.
-
-=cut;
+# this is the name of the sequencescape database in the config that defines the
+# database connection parameters:
+#
+#   <connection_params>
+#     <tracking>
+#       ...
+#     </tracking>
+#     <sequencescape>
+#       driver        SQLite
+#       dbname        seqw.db
+#       schema_class  Bio::Sequencescape::Schema
+#       no_db_root    1
+#     </sequencescape>
+#   </connection_params>
+#
+# The default is "sequencescape". If you give a non-default value for
+# "sequencescape_schema_name", make sure you name the corresponding section in
+# the config the same.
 
 has 'sequencescape_schema_name' => (
   is      => 'ro',
@@ -212,14 +267,6 @@ sub _build_ss_db {
 #-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
 #-------------------------------------------------------------------------------
-
-=head1 METHODS
-
-=head2 run
-
-Find information about samples according to the input parameters.
-
-=cut
 
 sub run {
   my $self = shift;
