@@ -94,7 +94,7 @@ hard-coded mapping in this class:
 
 Finally, if, at the end of that, we can't find the name of a Role to apply, the
 value of C<lane_role> is left as C<undef>, and later on when we find lanes,
-they simply won't have a Role applied to them before being returned.
+ simply won't have a Role applied to them before being returned.
 
 =cut
 
@@ -135,7 +135,7 @@ default is C<tracking>, which should correspond to a section in the
 C<connection_param> config block:
 
   <connection_params>
-    <tracking
+    <tracking>
       driver       SQLite
       dbname       pathogens.db
       schema_class Bio::Track::Schema
