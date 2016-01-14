@@ -192,9 +192,15 @@ sub _build_schema {
     # dummy anyway.
     no warnings;
 
-    # use eval to avoid problems with the variable contents not being a bareword,
-    # as require expects. That means we can't use try/catch, so we have to check
-    # for exceptions the old school way
+    # use eval to avoid problems with the variable contents not being a
+    # bareword, as require expects. That means we can't use try/catch, so we
+    # have to check for exceptions the old school way
+
+    # do a bit of checking before we blithely eval something that we get from
+    # the configuration file...
+    Bio::Path::Find::Exception->throw( msg => "ERROR: doesn't look like a valid schema class name" )
+      unless $schema_class =~ m/^[A-za-z0-9:\-_]+$/;
+
     eval "require $schema_class";
     if ( $@ ) {
       Bio::Path::Find::Exception->throw(

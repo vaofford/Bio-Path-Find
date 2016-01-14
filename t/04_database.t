@@ -18,7 +18,7 @@ package main;
 use strict;
 use warnings;
 
-use Test::More tests => 28;
+use Test::More tests => 29;
 use Test::Exception;
 use Test::Warn;
 use Try::Tiny;
@@ -73,6 +73,16 @@ is $db->_get_dsn, 'DBI:mysql:host=my_db_host;port=3306;database=pathogen_prok_tr
 throws_ok { $db->schema }
   qr/"schema_class" not defined/,
   'exception when schema_class not defined in config';
+
+#---------------------------------------
+
+# check that we get an exception when we specify a dodgy schema class name in
+# the config
+$config->{connection_params}->{tracking}->{schema_class} = "x; print qq(hello\n)";
+
+throws_ok { $db->schema }
+  qr/doesn't look like a valid schema class name/,
+  'exception when schema_class is invalid';
 
 #---------------------------------------
 
