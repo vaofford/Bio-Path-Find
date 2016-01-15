@@ -1,0 +1,13 @@
+language: perl
+sudo: false
+addons:
+  apt:
+    packages:
+    - libssl-dev
+perl:
+  - "5.10"
+  - "5.14"
+  - "5.20"
+install:
+  - "source ./install-travis-dependencies.sh"
+script: "dzil test"
