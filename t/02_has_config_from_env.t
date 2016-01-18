@@ -17,6 +17,7 @@ package main;
 
 use Test::More tests => 3;
 use Test::Exception;
+use Config::General;
 
 BEGIN {
   $ENV{PATHFIND_CONFIG} = 'non-existent-file';

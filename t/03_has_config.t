@@ -18,6 +18,8 @@ package main;
 use Test::More tests => 8;
 use Test::Exception;
 use Path::Class;
+use Config::General;
+use YAML::Any;
 
 BEGIN {
   $ENV{BPF_TEST_VALUE}  = 'a_value';
