@@ -74,7 +74,7 @@ like $stderr, qr/ERROR: CSV file "infofind.csv" already exists; not overwriting 
 
 like $stderr, qr/Wrote info to "if.csv"/, 'expected output on STDERR when writing CSV';
 
-ok -f 'infofind.csv', 'found other CSV file';
+ok -f 'if.csv', 'found other CSV file';
 
 #-------------------------------------------------------------------------------
 
