@@ -21,7 +21,6 @@ use Bio::Path::Find::Types qw(
   BioPathFindDatabase
 );
 
-use Bio::Track::Schema;
 use Bio::Path::Find::Database;
 use Bio::Path::Find::Exception;
 
