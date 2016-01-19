@@ -271,8 +271,6 @@ sub _build_ss_db {
 sub run {
   my $self = shift;
 
-  $DB::single = 1;
-
   # if we're writing to file, check that the output file doesn't exist. If we
   # leave it to _write_csv to check, we could end up searching for lanes for
   # hours and THEN fail, which would leave the user mildly updset. Better to
@@ -289,13 +287,7 @@ sub run {
     type => $self->type,
   );
 
-  my $pb = $self->config->{no_progress_bars}
-         ? 0
-         : Term::ProgressBar::Simple->new( {
-             name   => 'collecting info',
-             count  => scalar @$lanes,
-             remove => 1,
-           } );
+  my $pb = $self->_build_pb('collecting info', scalar @$lanes);
 
   # gather the info. We could collect and print the info in the same loop, but
   # then we wouldn't be able to show the progress bar, which is probably worth
@@ -338,7 +330,7 @@ sub run {
   }
   else {
     # fix the formats of the columns so that everything lines up
-    # (printf format patterned on the one from the old pathfind;
+    # (printf format patterned on the one from the old infofind;
     # ditched the trailing spaces...)
     printf "%-15s %-25s %-25s %-25s %s\n", @$_ for @info;
   }
