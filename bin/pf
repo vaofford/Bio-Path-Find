@@ -14,8 +14,24 @@ use Try::Tiny;
 
 use Bio::Path::Find::App::PathFind;
 
-my $CONFIG_FILE = 'prod.conf';
-my $LOG_FILE    = 'pathfind.log';
+#-------------------------------------------------------------------------------
+
+# setup. Check for config files
+
+unless ( defined $ENV{PF_CONFIG_FILE} and
+         defined $ENV{PF_LOG_FILE} ) {
+
+  say STDERR 'ERROR: no config file defined.' if not defined $ENV{PF_CONFIG_FILE};
+  say STDERR 'ERROR: no log file defined.'    if not defined $ENV{PF_LOG_FILE};
+  say STDERR <<'EOF_noenv';
+
+Before using the "pf" commands you need to have the PF_CONFIG_FILE and
+PF_LOG_FILE environment variables configured for your shell. Email
+"path-help@sanger.ac.uk" for help with setting it up.
+EOF_noenv
+
+  exit 1;
+}
 
 #-------------------------------------------------------------------------------
 
@@ -26,7 +42,7 @@ my $script_name  = $0;
 my $command_line = join ' ', $now, $username, $script_name, @ARGV;
 
 # and write it to file
-my $log_fh = file($LOG_FILE)->opena;
+my $log_fh = file($ENV{PF_LOG_FILE})->opena;
 
 say $log_fh $command_line;
 
@@ -42,7 +58,7 @@ try {
   # Bio::Path::Find::App::PathFind->new_with_options->run;
 
   # or specify the config file name here:
-  Bio::Path::Find::App::PathFind->new_with_command(config_file => $CONFIG_FILE)->run;
+  Bio::Path::Find::App::PathFind->new_with_command(config_file => $ENV{PF_CONFIG_FILE})->run;
 } catch {
   say STDERR $_;
 };
