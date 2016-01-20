@@ -193,8 +193,7 @@ option 'outfile' => (
 
 # set up a trigger that checks for the value of the "outfile" command-line
 # argument and tries to decide if it's a boolean, in which case we'll generate
-# a directory name to hold links, or a string, in which case we'll treat that
-# string as a directory name.
+# a filename, or a string, in which case we'll treat that string as a filename.
 sub _check_for_outfile_value {
   my ( $self, $new, $old ) = @_;
 
