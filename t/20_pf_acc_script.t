@@ -35,10 +35,28 @@ chdir $temp_dir;
 
 #-------------------------------------------------------------------------------
 
-my $script = file( $orig_cwd, qw( bin pf ) );
+# explicitly unset environment variables
+delete $ENV{PF_CONFIG_FILE};
+delete $ENV{PF_LOG_FILE};
 
-# valid command line but no config
-my ( $rv, $stdout, $stderr ) = run_script( $script, [ 'accession', '-t', 'lane', '-i', '10018_1#1' ] );
+my $script = file( $orig_cwd, qw( bin pf ) );
+my ( $rv, $stdout, $stderr ) = run_script( $script );
+
+# no arguments but no config or log file path defined
+like $stderr, qr/ERROR: no config file defined/,
+  'error about missing config on STDERR';
+
+$ENV{PF_CONFIG_FILE} = 'prod.conf';
+( $rv, $stdout, $stderr ) = run_script( $script );
+
+like $stderr, qr/ERROR: no log file defined/,
+  'error about missing log on STDERR';
+
+#---------------------------------------
+
+# valid command line but non-existent config
+$ENV{PF_LOG_FILE} = 'pathfind.log';
+( $rv, $stdout, $stderr ) = run_script( $script, [ 'accession', '-t', 'lane', '-i', '10018_1#1' ] );
 
 like $stderr, qr/ERROR: config file \(prod\.conf\) doesn't exist/,
   'error about missing config on STDERR';
