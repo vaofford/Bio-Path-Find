@@ -24,8 +24,6 @@ use Bio::Path::Find::Types qw(
   DirFromStr
 );
 
-use Bio::Track::Schema;
-use Bio::Sequencescape::Schema;
 use Bio::Path::Find::Exception;
 
 with 'Bio::Path::Find::Role::HasConfig';

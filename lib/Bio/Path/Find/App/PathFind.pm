@@ -415,35 +415,77 @@ sub _load_ids_from_file {
 
 #-------------------------------------------------------------------------------
 
+# build a progress bar. If "no_progress_bar" is set to true in the config, we
+# don't create a progress bar but return zero, so that the caller can still
+# increment the progress bar without any ill effects. If we do create a
+# progress bar, "remove" is always set to true.
+
+sub _build_pb {
+  my ( $self, $name, $max ) = @_;
+
+  my $pb = $self->config->{no_progress_bars}
+         ? 0
+         : Term::ProgressBar::Simple->new( {
+             name   => $name,
+             count  => $max,
+             remove => 1,
+           } );
+
+  return $pb;
+}
+
+#-------------------------------------------------------------------------------
+
+# modifier for methods that write to file. Takes care of validating arguments
+# and opening a filehandle for writing
+around [ '_write_csv', '_write_list' ] => sub {
+  my $orig = shift;
+  my $self = shift;
+  my ( $data, $filename ) = @_;
+
+  Bio::Path::Find::Exception->throw( msg => 'ERROR: must supply some data when writing a file' )
+   unless ( defined $data and scalar @$data );
+
+  Bio::Path::Find::Exception->throw( msg => 'ERROR: must supply a filename when writing a file' )
+    unless defined $filename;
+
+  # see if the supplied filename exists and complain if it does
+  Bio::Path::Find::Exception->throw( msg => qq(ERROR: output file "$filename" already exists; not overwriting existing file) )
+    if -e $filename;
+
+  my $fh = FileHandle->new;
+
+  $fh->open( $filename, '>' );
+
+  # run the original "write_X" method
+  $self->$orig( $data, $fh );
+
+  $fh->close;
+};
+
+#-------------------------------------------------------------------------------
+
 # writes the supplied array of arrays in CSV format to the specified file.
 # Uses the separator specified by the "csv_separator" attribute
 
 sub _write_csv {
-  my ( $self, $data, $filename ) = @_;
-
-  return unless ( defined $data and scalar @$data );
-
-  Bio::Path::Find::Exception->throw( msg => 'ERROR: must supply a filename when writing a CSV file' )
-    unless defined $filename;
-
-  my $fh = FileHandle->new;
-
-  # see if the supplied filename exists and complain if it does
-  Bio::Path::Find::Exception->throw( msg => qq(ERROR: CSV file "$filename" already exists; not overwriting existing file) )
-    if -e $filename;
-
-  $fh->open( $filename, '>' );
+  my ( $self, $data, $fh ) = @_;
 
   my $csv = Text::CSV_XS->new;
   $csv->eol("\n");
   $csv->sep( $self->csv_separator );
   $csv->print($fh, $_) for @$data;
-
-  $fh->close;
 }
 
 #-------------------------------------------------------------------------------
 
+sub _write_list {
+  my ( $self, $data, $fh ) = @_;
+
+  print $fh "$_\n" for @$data;
+}
+
+#-------------------------------------------------------------------------------
 
 __PACKAGE__->meta->make_immutable;
 

@@ -24,6 +24,7 @@ use Type::Library -base, -declare => qw(
   FileIDType
   QCState
   FileType
+  URIURL
 );
 
 use Type::Utils -all;
@@ -42,6 +43,7 @@ class_type 'Bio::Path::Find::Lane::Status';
 class_type 'Bio::Path::Find::Lane::StatusFile';
 class_type 'Path::Class::File';
 class_type 'Path::Class::Dir';
+class_type 'URI::URL';
 
 declare_coercion 'FileFromStr',
   to_type PathClassFile,
@@ -50,6 +52,10 @@ declare_coercion 'FileFromStr',
 declare_coercion 'DirFromStr',
   to_type PathClassDir,
   from    Str, q{ Path::Class::dir $_ };
+
+declare_coercion 'URLFromStr',
+  to_type URIURL,
+  from    Str, q{ URI::URL->new($_) };
 
 # (see https://metacpan.org/pod/release/TOBYINK/Type-Tiny-1.000005/lib/Type/Tiny/Manual/Libraries.pod)
 class_type 'Datetime', { class => 'DateTime' };

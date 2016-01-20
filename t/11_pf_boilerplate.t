@@ -64,8 +64,9 @@ my $expected_stats_file         = file(qw( t data 11_pf_boilerplate expected_sta
 my $expected_stats_file_content = $expected_stats_file->slurp;
 my @expected_stats              = $expected_stats_file->slurp( chomp => 1, split => qr|\t| );
 
-lives_ok { $tf->_write_csv }
-  'no exception with no input';
+throws_ok { $tf->_write_csv }
+  qr/must supply some data/,
+  'exception with no input';
 
 throws_ok { $tf->_write_csv(\@expected_stats) }
   qr/must supply a filename/,

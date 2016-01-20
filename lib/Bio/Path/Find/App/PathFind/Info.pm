@@ -40,7 +40,7 @@ command_short_description 'Find information about samples';
 
 pf info - Find information about samples
 
-=head1 SYNOPSIS
+=head1 USAGE
 
   pf info --id <id> --type <ID type> [options]
 
@@ -60,8 +60,8 @@ accession, name or identifier for the data using C<--id>.
 
 =head1 OPTIONS
 
-These are the options that are specific to C<pf info>. Run C<pf man> to
-see information about the global C<pf> options.
+These are the options that are specific to C<pf info>. Run C<pf man> to see
+information about the options that are common to all C<pf> commands.
 
 =over
 
@@ -99,9 +99,13 @@ By default C<pf info> simply prints the data that it finds. You can write out a
 comma-separated values file (CSV) instead, using the C<--outfile> (C<-o>)
 options:
 
-  pf info -t lane -i 10018_1 -o
+  % pf info -t lane -i 10018_1 -o my_info.csv
+  Wrote info to "my_info.csv"
 
-If you don't specify a filename, the default is C<infofind.csv>.
+If you don't specify a filename, the default is C<infofind.csv>:
+
+  % pf info -t lane -i 10018_1 -o
+  Wrote info to "infofind.csv"
 
 =head2 Write a tab-separated file (TSV)
 
@@ -111,7 +115,7 @@ resulting file more readable:
 
   pf info -t lane -i 10018_1 -o -c "<tab>"
 
-(To enter a tab character you might need to press ctrl-V followed by a tab.)
+(To enter a tab character you might need to press ctrl-V followed by tab.)
 
 =cut
 
@@ -135,8 +139,7 @@ option 'outfile' => (
 
 # set up a trigger that checks for the value of the "outfile" command-line
 # argument and tries to decide if it's a boolean, in which case we'll generate
-# a directory name to hold links, or a string, in which case we'll treat that
-# string as a directory name.
+# a filename, or a string, in which case we'll treat that string as a filename.
 sub _check_for_outfile_value {
   my ( $self, $new, $old ) = @_;
 
@@ -271,8 +274,6 @@ sub _build_ss_db {
 sub run {
   my $self = shift;
 
-  $DB::single = 1;
-
   # if we're writing to file, check that the output file doesn't exist. If we
   # leave it to _write_csv to check, we could end up searching for lanes for
   # hours and THEN fail, which would leave the user mildly updset. Better to
@@ -289,13 +290,7 @@ sub run {
     type => $self->type,
   );
 
-  my $pb = $self->config->{no_progress_bars}
-         ? 0
-         : Term::ProgressBar::Simple->new( {
-             name   => 'collecting info',
-             count  => scalar @$lanes,
-             remove => 1,
-           } );
+  my $pb = $self->_build_pb('collecting info', scalar @$lanes);
 
   # gather the info. We could collect and print the info in the same loop, but
   # then we wouldn't be able to show the progress bar, which is probably worth
@@ -338,7 +333,7 @@ sub run {
   }
   else {
     # fix the formats of the columns so that everything lines up
-    # (printf format patterned on the one from the old pathfind;
+    # (printf format patterned on the one from the old infofind;
     # ditched the trailing spaces...)
     printf "%-15s %-25s %-25s %-25s %s\n", @$_ for @info;
   }
