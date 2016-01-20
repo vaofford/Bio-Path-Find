@@ -49,7 +49,7 @@ command_short_description 'Find files and directories';
 
 pf data - Find files and directories
 
-=head1 SYNOPSIS
+=head1 USAGE
 
   pf data --id <id> --type <ID type> [options]
 
@@ -89,7 +89,7 @@ produce a large number of results and can be very slow.
 =head1 OPTIONS
 
 These are the options that are specific to C<pf data>. Run C<pf man> to see
-details of the global C<pf> options.
+information about the options that are common to all C<pf> commands.
 
 =over
 
@@ -139,9 +139,9 @@ containing all data files for found lanes;
   pf data -t lane -i 12345_1
 
 You can get the paths for data files by specifying the type of file to find
-using the C<--filetype> option (C<-f>):
+using the C<--filetype> option (C<--ft>):
 
-  pf data -t lane -i 12345_1 -f fastq
+  pf data -t lane -i 12345_1 --ft fastq
 
 You can choose to find C<fastq>, C<bam>, C<corrected> or C<pacbio> files.
 

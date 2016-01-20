@@ -40,7 +40,7 @@ command_short_description 'Find information about samples';
 
 pf info - Find information about samples
 
-=head1 SYNOPSIS
+=head1 USAGE
 
   pf info --id <id> --type <ID type> [options]
 
@@ -60,8 +60,8 @@ accession, name or identifier for the data using C<--id>.
 
 =head1 OPTIONS
 
-These are the options that are specific to C<pf info>. Run C<pf man> to
-see information about the global C<pf> options.
+These are the options that are specific to C<pf info>. Run C<pf man> to see
+information about the options that are common to all C<pf> commands.
 
 =over
 
@@ -99,9 +99,13 @@ By default C<pf info> simply prints the data that it finds. You can write out a
 comma-separated values file (CSV) instead, using the C<--outfile> (C<-o>)
 options:
 
-  pf info -t lane -i 10018_1 -o
+  % pf info -t lane -i 10018_1 -o my_info.csv
+  Wrote info to "my_info.csv"
 
-If you don't specify a filename, the default is C<infofind.csv>.
+If you don't specify a filename, the default is C<infofind.csv>:
+
+  % pf info -t lane -i 10018_1 -o
+  Wrote info to "infofind.csv"
 
 =head2 Write a tab-separated file (TSV)
 
@@ -111,7 +115,7 @@ resulting file more readable:
 
   pf info -t lane -i 10018_1 -o -c "<tab>"
 
-(To enter a tab character you might need to press ctrl-V followed by a tab.)
+(To enter a tab character you might need to press ctrl-V followed by tab.)
 
 =cut
 
