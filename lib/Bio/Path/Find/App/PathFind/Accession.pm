@@ -31,6 +31,9 @@ extends 'Bio::Path::Find::App::PathFind';
 #- usage text ------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
+# this is used when the "pf" app class builds the list of available commands
+command_short_description 'Find accessions for sequencing runs';
+
 =head1 NAME
 
 pf accession - Find accessions for sequencing runs
