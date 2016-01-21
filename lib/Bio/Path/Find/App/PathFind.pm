@@ -1,7 +1,7 @@
 
 package Bio::Path::Find::App::PathFind;
 
-# ABSTRACT: find data for sequencing lanes
+# ABSTRACT: find data for sequencing runs
 
 use MooseX::App qw( Man BashCompletion );
 
@@ -47,7 +47,7 @@ pf - Find data for sequencing runs
 
 =head1 SYNOPSIS
 
-  pf <command> --type <ID type> --id <ID or file> [options]
+  pf <command> --id <ID or file> --type <ID type> [options]
 
 =head1 DESCRIPTION
 
@@ -87,7 +87,7 @@ The following options can be used with all of the pathfind commands.
 
 =head2 REQUIRED OPTIONS
 
-All commands have require two options:
+All commands have two required options:
 
 =over
 
