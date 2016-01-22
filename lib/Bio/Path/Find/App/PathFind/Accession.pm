@@ -337,14 +337,6 @@ sub _build_filereport_url {
 #- public methods --------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-=head1 METHODS
-
-=head2 run
-
-Find accessions according to the input parameters.
-
-=cut
-
 sub run {
   my $self = shift;
 

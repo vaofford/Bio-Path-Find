@@ -282,8 +282,8 @@ $pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
 $lanes = $f->find_lanes( ids => [ '10018_1#1' ], type => 'lane', filetype => 'fastq' );
 
-output_like { $pf->_make_archive($lanes) }
-  qr/prokaryotes/,                                    # STDOUT
+output_like { $pf->_make_tar($lanes) }
+  qr/prokaryotes/,                                      # STDOUT
   qr/pathfind_10018_1_1\.tar\.gz.*?Building tar file/s, # STDERR
   'stdout shows correct contents, stderr shows correct filename for tar archive';
 
@@ -305,8 +305,8 @@ $pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
 $lanes = $f->find_lanes( ids => [ '10018_1#1' ], type => 'lane', filetype => 'fastq' );
 
-output_like { $pf->_make_archive($lanes) }
-  qr/prokaryotes/,                                    # STDOUT
+output_like { $pf->_make_tar($lanes) }
+  qr/prokaryotes/,                                          # STDOUT
   qr/pathfind_10018_1_1\.tar(?!\.gz).*?Building tar file/s, # STDERR
   'stdout shows correct contents, stderr shows correct filename for tar archive';
 
@@ -336,7 +336,7 @@ $params{zip} = 1;
 
 $pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
-output_like { $pf->_make_archive($lanes) }
+output_like { $pf->_make_zip($lanes) }
   qr/prokaryotes/,                                 # STDOUT
   qr/pathfind_10018_1_1\.zip.*?Writing zip file/s, # STDERR
   'stdout shows correct contents, stderr shows correct filename for zip archive';
@@ -353,13 +353,13 @@ is_deeply [ $zip->memberNames ], [ '10018_1_1/10018_1#1_1.fastq.gz', '10018_1_1/
 
 # check for errors when writing
 
-$params{archive} = file( qw( non-existent-dir test.zip ) );
+$params{zip} = file( qw( non-existent-dir test.zip ) );
 
 $pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
 $exception_thrown = 0;
 try {
-  stderr_like { $pf->_make_archive($lanes) }
+  stderr_like { $pf->_make_zip($lanes) }
     qr|non-existent-dir.*?Can't open /non-existent-dir/test.zip|,
     'exception when writing zip to expected (broken) location';
 } catch {

@@ -379,7 +379,7 @@ sub print_paths {
 
 #-------------------------------------------------------------------------------
 
-=head2 make_symlinks(?$dest, ?$filetype)
+=head2 make_symlinks( dest => ?$dest, rename => $?rename, filetype => ?$filetype)
 
 Generate symlinks for files from this lane.
 
@@ -400,6 +400,9 @@ L<Bio::Path::Find::Lane> object.
 If the destination path already exists, either as a link or as a regular file,
 we issue a warning and skip the file. There is no option to overwrite existing
 files/links; move or delete them before trying to create new links.
+
+If C<$rename> is true, filenames will be created with hashes (#) converted into
+underscores (_).
 
 This method throws an exception if it cannot create symlinks, possibly because
 perl itself can't create links on the current platform.
@@ -559,7 +562,7 @@ sub _get_fastqs {
     # for illumina, the database stores the names of the fastq files directly.
     # For pacbio, however, the database stores the names of the bax files. Work
     # out the names of the fastq files from those bax filenames
-    $filename =~ s/\d{1}\.ba[xs]\.h5$/fastq.gz/
+    $filename =~ s/\d\.ba[xs]\.h5$/fastq.gz/
       if $self->row->database->name =~ m/pacbio/;
 
     my $filepath = file( $self->symlink_path, $filename );
