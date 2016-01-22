@@ -17,15 +17,19 @@ use MooseX::StrictConstructor;
 extends 'Bio::Path::Find::App::PathFind::Data';
 
 around '_make_symlinks' => sub {
-  return 'called _make_symlinks';
+  print STDERR 'called _make_symlinks';
 };
 
-around '_make_archive' => sub {
-  return 'called _make_archive';
+around '_make_tar' => sub {
+  print STDERR 'called _make_tar';
+};
+
+around '_make_zip' => sub {
+  print STDERR 'called _make_zip';
 };
 
 around '_make_stats' => sub {
-  return 'called _make_stats';
+  print STDERR 'called _make_stats';
 };
 
 #-------------------------------------------------------------------------------
@@ -37,7 +41,7 @@ package main;
 use strict;
 use warnings;
 
-use Test::More tests => 6;
+use Test::More tests => 8;
 use Test::Exception;
 use Test::Output;
 use Path::Class;
@@ -74,7 +78,6 @@ my %params = (
   config_file      => file( qw( t data 15_pf_data test.conf ) ),
   id               => '10018_1',
   type             => 'lane',
-  no_progress_bars => 1,
 );
 
 my $tf;
@@ -90,19 +93,34 @@ stdout_is { $tf->run }
 # make symlinks
 $params{symlink} = 'my_links_dir';
 $tf = Bio::Path::Find::App::TestFind->new(%params);
-is $tf->run, 'called _make_symlinks', 'correctly called _make_symlinks';
+stderr_is { $tf->run } 'called _make_symlinks', 'correctly called _make_symlinks';
 
-# make archive
+# make tar
 delete $params{symlink};
 $params{archive} = 'my_archive';
 $tf = Bio::Path::Find::App::TestFind->new(%params);
-is $tf->run, 'called _make_archive', 'correctly called _make_archive';
+stderr_is { $tf->run } 'called _make_tar', 'correctly called _make_tar';
+
+# make tar
+delete $params{archive};
+$params{zip} = 'my_zip';
+$tf = Bio::Path::Find::App::TestFind->new(%params);
+stderr_is { $tf->run } 'called _make_zip', 'correctly called _make_zip';
 
 # make stats
-delete $params{archive};
+delete $params{zip};
 $params{stats} = 'my_stats';
 $tf = Bio::Path::Find::App::TestFind->new(%params);
-is $tf->run, 'called _make_stats', 'correctly called _make_stats';
+stderr_is { $tf->run } 'called _make_stats', 'correctly called _make_stats';
+
+# multiple flags
+$params{archive} = 'my_tar';
+$params{stats}   = 'my_stats';
+$params{zip}     = 'my_zip';
+$tf = Bio::Path::Find::App::TestFind->new(%params);
+stderr_like { $tf->run }
+  qr/called _make_tar.*?_make_zip.*?_make_stats/,
+  'correctly called multiple _make_* methods';
 
 #-------------------------------------------------------------------------------
 

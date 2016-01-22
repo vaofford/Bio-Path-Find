@@ -108,19 +108,19 @@ if given.
 Create symlinks to found data. Create links in the specified directory, if
 given, or in the current working directory.
 
-=item --archive, -a [<archive filename>]
+=item --archive, -a [<tar filename>]
 
-Create archive containing data files for found lanes. Save to specified
+Create a tar archive containing data files for found lanes. Save to specified
 filename, if given.
 
 =item --no-tar-compression, -u
 
 Don't compress tar archives.
 
-=item --zip, -z
+=item --zip, -z [<zip filename>]
 
-When creating a data archive, create a zip file instead of a tar archive.
-Must be used in conjunction with C<--archive>.
+Create a zip archive containing data files for found lanes. Save to specified
+filename, if given.
 
 =item --rename, -r
 
@@ -167,9 +167,10 @@ file that already exists.
 =head2 Archiving data
 
 The C<pf data> command can create a tar or zip archive for found data, using
-the C<--archive> (C<-a>) option. If you have chosen to find a specific filetype,
-using the C<--filetype> (C<--ft> option, the archive will contain that type of
-file. The default is to archive fastq files for your found lanes.
+the C<--archive> (C<-a>) or C<--zip> (C<-z>) options. If you have chosen to
+find a specific filetype, using the C<--filetype> (C<--ft>) option, the archive
+will contain that type of file. The default is to archive fastq files for your
+found lanes.
 
 The default behaviour is to create a gzip-compressed tar archive:
 
@@ -181,14 +182,14 @@ filename by adding it after the C<-a> option:
   pf data -t lane -i 12345_1 -a my_data.tar.gz
 
 Note that compressing data files that are already compressed can be slow and
-will not result in any significant space saving. You can chose to create
+will not result in any significant space saving. You can choose to create
 uncompressed tar archives using the C<--no-tar-compression> option (C<-u>):
 
   pf data -t lane -i 12345_1 -a my_data.tar -u
 
-You can create a zip archive instead of a tar file by adding C<--zip> (C<-z>):
+You can create a zip archive instead of a tar file using C<--zip> (C<-z>):
 
-  pf data -t lane -i 12345_1 -a my_data.zip -z
+  pf data -t lane -i 12345_1 -z my_data.zip
 
 Note that zip archives are always compressed.
 
@@ -251,13 +252,6 @@ option 'no_tar_compression' => (
   cmd_aliases   => 'u',
 );
 
-option 'zip' => (
-  documentation => 'archive data in ZIP format',
-  is            => 'ro',
-  isa           => Bool,
-  cmd_aliases   => 'z',
-);
-
 #---------------------------------------
 
 # this option can be used as a simple switch ("-l") or with an argument
@@ -307,7 +301,7 @@ has '_symlink_flag' => ( is => 'rw', isa => Bool );
 # subtype again though
 
 option 'archive' => (
-  documentation => 'archive data files',
+  documentation => 'create a tar archive of data files',
   is            => 'rw',
   # no "isa" because we want to accept both Bool and Str
   cmd_aliases   => 'a',
@@ -318,19 +312,49 @@ sub _check_for_archive_value {
   my ( $self, $new, $old ) = @_;
 
   if ( not defined $new ) {
-    $self->_archive_flag(1);
+    $self->_tar_flag(1);
   }
   elsif ( not is_Bool($new) ) {
-    $self->_archive_flag(1);
-    $self->_archive_dir( dir $new );
+    $self->_tar_flag(1);
+    $self->_tar( file $new );
   }
   else {
-    $self->_archive_flag(0);
+    $self->_tar_flag(0);
   }
 }
 
-has '_archive_dir'  => ( is => 'rw', isa => PathClassDir );
-has '_archive_flag' => ( is => 'rw', isa => Bool );
+has '_tar'      => ( is => 'rw', isa => PathClassFile );
+has '_tar_flag' => ( is => 'rw', isa => Bool );
+
+#---------------------------------------
+
+# set up "zip" like we set up "symlink"
+
+option 'zip' => (
+  documentation => 'create a zip archive of data files',
+  is            => 'rw',
+  # no "isa" because we want to accept both Bool and Str
+  cmd_aliases   => 'z',
+  trigger       => \&_check_for_zip_value,
+);
+
+sub _check_for_zip_value {
+  my ( $self, $new, $old ) = @_;
+
+  if ( not defined $new ) {
+    $self->_zip_flag(1);
+  }
+  elsif ( not is_Bool($new) ) {
+    $self->_zip_flag(1);
+    $self->_zip( file $new );
+  }
+  else {
+    $self->_zip_flag(0);
+  }
+}
+
+has '_zip'      => ( is => 'rw', isa => PathClassFile );
+has '_zip_flag' => ( is => 'rw', isa => Bool );
 
 #---------------------------------------
 
@@ -424,14 +448,14 @@ sub run {
   }
 
   # do something with the found lanes
-  if ( $self->_symlink_flag ) {
-    $self->_make_symlinks($lanes);
-  }
-  elsif ( $self->_archive_flag ) {
-    $self->_make_archive($lanes);
-  }
-  elsif ( $self->_stats_flag ) {
-    $self->_make_stats($lanes);
+  if ( $self->_symlink_flag or
+       $self->_tar_flag or
+       $self->_zip_flag or
+       $self->_stats_flag ) {
+    $self->_make_symlinks($lanes) if $self->_symlink_flag;
+    $self->_make_tar($lanes)      if $self->_tar_flag;
+    $self->_make_zip($lanes)      if $self->_zip_flag;
+    $self->_make_stats($lanes)    if $self->_stats_flag;
   }
   else {
     $_->print_paths for ( @$lanes );
@@ -484,28 +508,84 @@ sub _make_symlinks {
 
 #-------------------------------------------------------------------------------
 
-# make an archive of the data files for the found lanes, either tar or zip,
-# depending on the "zip" attribute
+# make a tar archive of the data files for the found lanes
 
-sub _make_archive {
+sub _make_tar {
   my ( $self, $lanes ) = @_;
 
   my $archive_filename;
 
-  if ( $self->_archive_dir ) {
-    $self->log->debug('_archive_dir attribute is set; using it as a filename');
-    $archive_filename = $self->_archive_dir;
+  if ( $self->_tar ) {
+    $self->log->debug('_tar attribute is set; using it as a filename');
+    $archive_filename = $self->_tar;
   }
   else {
-    $self->log->debug('_archive_dir attribute is not set; building a filename');
+    $self->log->debug('_tar attribute is not set; building a filename');
     # we'll ALWAYS make a sensible name for the archive itself (use renamed_id)
-    if ( $self->zip ) {
-      $archive_filename = 'pathfind_' . $self->_renamed_id . '.zip';
-    }
-    else {
-      $archive_filename = 'pathfind_' . $self->_renamed_id
-                          . ( $self->no_tar_compression ? '.tar' : '.tar.gz' );
-    }
+    $archive_filename = 'pathfind_' . $self->_renamed_id
+                        . ( $self->no_tar_compression ? '.tar' : '.tar.gz' );
+  }
+  $archive_filename = file $archive_filename;
+
+  say STDERR "Archiving lane data to '$archive_filename'";
+
+  # collect the list of files to archive
+  my ( $filenames, $stats ) = $self->_collect_filenames($lanes);
+
+  # write a CSV file with the stats and add it to the list of files that
+  # will go into the archive
+  my $temp_dir = File::Temp->newdir;
+  my $stats_file = file( $temp_dir, 'stats.csv' );
+  $self->_write_csv($stats, $stats_file);
+
+  push @$filenames, $stats_file;
+
+  # build the tar archive in memory
+  my $tar = $self->_build_tar_archive($filenames);
+
+  # we could write the archive in a single call, like this:
+  #   $tar->write( $tar_filename, COMPRESS_GZIP );
+  # but it's nicer to have a progress bar. Since gzipping and writing can be
+  # performed as separate operations, we'll do progress bars for both of them
+
+  # get the contents of the tar file. This is a little slow but we can't
+  # break it down and use a progress bar, so at least tell the user what's
+  # going on
+  print STDERR 'Building tar file... ';
+  my $tar_contents = $tar->write;
+  print STDERR "done\n";
+
+  # gzip compress the archive ?
+  my $output = $self->no_tar_compression
+             ? $tar_contents
+             : $self->_compress_data($tar_contents);
+
+  # and write it out, gzip compressed
+  $self->_write_data( $output, $archive_filename );
+
+  #---------------------------------------
+
+  # list the contents of the archive
+  say $_ for @$filenames;
+}
+
+#-------------------------------------------------------------------------------
+
+# make a zip archive of the data files for the found lanes
+
+sub _make_zip {
+  my ( $self, $lanes ) = @_;
+
+  my $archive_filename;
+
+  if ( $self->_zip ) {
+    $self->log->debug('_zip attribute is set; using it as a filename');
+    $archive_filename = $self->_zip;
+  }
+  else {
+    $self->log->debug('_zip attribute is not set; building a filename');
+    # we'll ALWAYS make a sensible name for the archive itself (use renamed_id)
+    $archive_filename = 'pathfind_' . $self->_renamed_id . '.zip';
   }
   $archive_filename = file $archive_filename;
 
@@ -524,49 +604,22 @@ sub _make_archive {
 
   #---------------------------------------
 
-  # zip or tar ?
-  if ( $self->zip ) {
-    # build the zip archive in memory
-    my $zip = $self->_build_zip_archive($filenames);
+  # build the zip archive in memory
+  my $zip = $self->_build_zip_archive($filenames);
 
-    print STDERR 'Writing zip file... ';
+  print STDERR 'Writing zip file... ';
 
-    # write it to file
-    try {
-      unless ( $zip->writeToFileNamed($archive_filename->stringify) == AZ_OK ) {
-        print STDERR "failed\n";
-        Bio::Path::Find::Exception->throw( msg => "ERROR: couldn't write zip file ($archive_filename)" );
-      }
-    } catch {
-      Bio::Path::Find::Exception->throw( msg => "ERROR: error while writing zip file ($archive_filename): $_" );
-    };
+  # write it to file
+  try {
+    unless ( $zip->writeToFileNamed($archive_filename->stringify) == AZ_OK ) {
+      print STDERR "failed\n";
+      Bio::Path::Find::Exception->throw( msg => "ERROR: couldn't write zip file ($archive_filename)" );
+    }
+  } catch {
+    Bio::Path::Find::Exception->throw( msg => "ERROR: error while writing zip file ($archive_filename): $_" );
+  };
 
-    print STDERR "done\n";
-  }
-  else {
-    # build the tar archive in memory
-    my $tar = $self->_build_tar_archive($filenames);
-
-    # we could write the archive in a single call, like this:
-    #   $tar->write( $tar_filename, COMPRESS_GZIP );
-    # but it's nicer to have a progress bar. Since gzipping and writing can be
-    # performed as separate operations, we'll do progress bars for both of them
-
-    # get the contents of the tar file. This is a little slow but we can't
-    # break it down and use a progress bar, so at least tell the user what's
-    # going on
-    print STDERR 'Building tar file... ';
-    my $tar_contents = $tar->write;
-    print STDERR "done\n";
-
-    # gzip compress the archive ?
-    my $output = $self->no_tar_compression
-               ? $tar_contents
-               : $self->_compress_data($tar_contents);
-
-    # and write it out, gzip compressed
-    $self->_write_data( $output, $archive_filename );
-  }
+  print STDERR "done\n";
 
   #---------------------------------------
 
