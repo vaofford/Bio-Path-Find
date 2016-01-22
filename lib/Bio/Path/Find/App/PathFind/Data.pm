@@ -565,8 +565,10 @@ sub _make_tar {
 
   #---------------------------------------
 
-  # list the contents of the archive
-  say $_ for @$filenames;
+  # list the contents of the archive. Strip the path from stats.csv, since it's
+  # a file that we generate in a temp directory. That temp dir is deleted as
+  # soon as the file is archived, so it's meaningless to the user
+  say m|/stats.csv$| ? 'stats.csv' : $_ for @$filenames;
 }
 
 #-------------------------------------------------------------------------------
@@ -623,8 +625,10 @@ sub _make_zip {
 
   #---------------------------------------
 
-  # list the contents of the archive
-  say $_ for @$filenames;
+  # list the contents of the archive. Strip the path from stats.csv, since it's
+  # a file that we generate in a temp directory. That temp dir is deleted as
+  # soon as the file is archived, so it's meaningless to the user
+  say m|/stats.csv$| ? 'stats.csv' : $_ for @$filenames;
 }
 
 #-------------------------------------------------------------------------------
