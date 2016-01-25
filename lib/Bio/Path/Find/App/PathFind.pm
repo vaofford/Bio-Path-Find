@@ -69,6 +69,10 @@ the accessions, but the command can also show the URLs for retrieving
 FASTQ files from the ENA FTP archive, or for retrieving the submitted
 file from ENA.
 
+=head2 assembly
+
+Find genome assemblies.
+
 =head2 data
 
 Shows information about the files and directories that are associated with
@@ -378,19 +382,6 @@ sub BUILD {
 
 #-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------
-#-------------------------------------------------------------------------------
-
-# logs the command line to file
-
-sub _log_command {
-  my $self = shift;
-
-  my $username     = ( getpwuid($<) )[0];
-  my $command_line = join ' ', $username, $0, @ARGV;
-
-  $self->log('command_log')->info($command_line);
-}
-
 #-------------------------------------------------------------------------------
 
 # reads a list of IDs from the supplied filename. Treats lines beginning with
