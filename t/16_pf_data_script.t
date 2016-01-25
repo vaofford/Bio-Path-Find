@@ -35,35 +35,41 @@ chdir $temp_dir;
 
 #---------------------------------------
 
-# explicitly unset environment variables
+# explicitly unset environment variable pointing at config file
 delete $ENV{PF_CONFIG_FILE};
-delete $ENV{PF_LOG_FILE};
 
 my $script = file( $orig_cwd, qw( bin pf ) );
 my ( $rv, $stdout, $stderr ) = run_script( $script );
 
-# no arguments but no config or log file path defined
+# no arguments but no config file path defined
 like $stderr, qr/ERROR: no config file defined/,
   'error about missing config on STDERR';
 
+#---------------------------------------
+
+# config file specified, but non-existent
 $ENV{PF_CONFIG_FILE} = 'prod.conf';
 ( $rv, $stdout, $stderr ) = run_script( $script );
 
-like $stderr, qr/ERROR: no log file defined/,
-  'error about missing log on STDERR';
+like $stderr, qr/ERROR: specified config file \(prod\.conf\) does not exist/,
+  'error about non-existent config file on STDERR';
 
 #---------------------------------------
 
 # valid command line but non-existent config file
-$ENV{PF_CONFIG_FILE} = 'prod.conf';
-$ENV{PF_LOG_FILE}    = 'pathfind.log';
+copy file( qw( t data 16_pf_data_script no_log.conf ) ), $temp_dir;
+$ENV{PF_CONFIG_FILE} = 'no_log.conf';
 ( $rv, $stdout, $stderr ) = run_script( $script, [ 'data', '-t', 'lane', '-i', '10018_1#1' ] );
 
-like $stderr, qr/ERROR: config file \(.*?prod\.conf\) doesn't exist/,
-  'error about missing config on STDERR';
+like $stderr, qr/ERROR: no log file specified by config file/,
+  'error about missing log filename on STDERR';
 
 #-------------------------------------------------------------------------------
 
+# valid config, which includes path to log file
+
+copy file( qw( t data 16_pf_data_script prod.conf ) ), $temp_dir;
+$ENV{PF_CONFIG_FILE} = 'prod.conf';
 run_ok( $script, [ qw( -h ) ], 'script runs ok with help flag' );
 run_not_ok( $script, [ ], 'script exits with error status when run with no arguments' );
 
@@ -119,9 +125,9 @@ is $found, 61, 'got expected paths on STDOUT with IDs on STDIN';
 
 my @log_lines = file('pathfind.log')->slurp;
 
-is scalar @log_lines, 6, 'got expected number of log entries';
+is scalar @log_lines, 5, 'got expected number of log entries';
 
-like $log_lines[0], qr|bin/pf data -t lane -i 10018_1#1$|, 'log line is correct';
+like $log_lines[3], qr|bin/pf data -t lane -i 10018_1#1$|, 'log line is correct';
 
 #-------------------------------------------------------------------------------
 

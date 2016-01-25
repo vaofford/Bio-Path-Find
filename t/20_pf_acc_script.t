@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More;# tests => 9;
+use Test::More tests => 10;
 use Test::Exception;
 use Test::Output;
 use Test::Script::Run;
@@ -35,9 +35,8 @@ chdir $temp_dir;
 
 #-------------------------------------------------------------------------------
 
-# explicitly unset environment variables
+# explicitly unset environment variable
 delete $ENV{PF_CONFIG_FILE};
-delete $ENV{PF_LOG_FILE};
 
 my $script = file( $orig_cwd, qw( bin pf ) );
 my ( $rv, $stdout, $stderr ) = run_script( $script );
@@ -49,16 +48,13 @@ like $stderr, qr/ERROR: no config file defined/,
 $ENV{PF_CONFIG_FILE} = 'prod.conf';
 ( $rv, $stdout, $stderr ) = run_script( $script );
 
-like $stderr, qr/ERROR: no log file defined/,
-  'error about missing log on STDERR';
-
 #---------------------------------------
 
 # valid command line but non-existent config
 $ENV{PF_LOG_FILE} = 'pathfind.log';
 ( $rv, $stdout, $stderr ) = run_script( $script, [ 'accession', '-t', 'lane', '-i', '10018_1#1' ] );
 
-like $stderr, qr/ERROR: config file \(prod\.conf\) doesn't exist/,
+like $stderr, qr/ERROR: specified config file \(prod\.conf\) does not exist/,
   'error about missing config on STDERR';
 
 #---------------------------------------
@@ -98,13 +94,13 @@ ok -f 'af.csv', 'found other CSV file';
 
 my @log_lines = file('pathfind.log')->slurp;
 
-is scalar @log_lines, 5, 'got expected number of log entries';
+is scalar @log_lines, 4, 'got expected number of log entries';
 
 like $log_lines[0], qr|bin/pf accession -t lane -i 10018_1#1$|, 'log looks sensible';
 
 #-------------------------------------------------------------------------------
 
-done_testing;
+# done_testing;
 
 chdir $orig_cwd;
 
