@@ -11,6 +11,7 @@ use warnings;
 use DateTime;
 use Path::Class;
 use Try::Tiny;
+use Config::Any;
 
 use Bio::Path::Find::App::PathFind;
 
@@ -18,18 +19,32 @@ use Bio::Path::Find::App::PathFind;
 
 # setup. Check for config files
 
-unless ( defined $ENV{PF_CONFIG_FILE} and
-         defined $ENV{PF_LOG_FILE} ) {
+unless ( defined $ENV{PF_CONFIG_FILE} ) {
 
   say STDERR 'ERROR: no config file defined.' if not defined $ENV{PF_CONFIG_FILE};
-  say STDERR 'ERROR: no log file defined.'    if not defined $ENV{PF_LOG_FILE};
   say STDERR <<'EOF_noenv';
 
-Before using the "pf" commands you need to have the PF_CONFIG_FILE and
-PF_LOG_FILE environment variables configured for your shell. Email
-"path-help@sanger.ac.uk" for help with setting it up.
+Before using the "pf" commands you need to have the PF_CONFIG_FILE environment
+variable configured for your shell. Email "path-help@sanger.ac.uk" for help
+with setting it up.
 EOF_noenv
 
+  exit 1;
+}
+
+# make sure the config exists
+unless ( -f $ENV{PF_CONFIG_FILE} ) {
+  say STDERR qq(ERROR: specified config file ($ENV{PF_CONFIG_FILE}) does not exist);
+  exit 1;
+}
+
+# and read the config to get the location of the log file
+my $ca = Config::Any->load_files( { files => [ $ENV{PF_CONFIG_FILE} ], use_ext => 1 } );
+my $cfg = $ca->[0]->{ $ENV{PF_CONFIG_FILE} };
+my $log_file = $cfg->{log_file};
+
+unless ( defined $log_file ) {
+  say STDERR qq(ERROR: no log file specified by config file);
   exit 1;
 }
 
@@ -42,7 +57,13 @@ my $script_name  = $0;
 my $command_line = join ' ', $now, $username, $script_name, @ARGV;
 
 # and write it to file
-my $log_fh = file($ENV{PF_LOG_FILE})->opena;
+my $log_fh;
+try {
+  $log_fh = file($log_file)->opena;
+} catch {
+  say STDERR qq(ERROR: can't write to log file specified by config file ($log_file));
+  exit 1;
+};
 
 say $log_fh $command_line;
 
@@ -58,7 +79,7 @@ try {
   # Bio::Path::Find::App::PathFind->new_with_options->run;
 
   # or specify the config file name here:
-  Bio::Path::Find::App::PathFind->new_with_command(config_file => $ENV{PF_CONFIG_FILE})->run;
+  Bio::Path::Find::App::PathFind->new_with_command(config => $cfg)->run;
 } catch {
   say STDERR $_;
 };
