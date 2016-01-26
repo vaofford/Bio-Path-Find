@@ -76,6 +76,7 @@ parameters, e.g.
       host   path-db
       port   3306
       user   pathogens
+      pass   pathpass
       schema Bio::Track::Schema
     </tracking>
   </connection_params>
