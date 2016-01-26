@@ -13,8 +13,7 @@ use Carp qw( carp );
 use Path::Class;
 use File::Basename;
 use Try::Tiny;
-
-use Term::ProgressBar::Simple;
+use Scalar::Util qw( blessed );
 
 use Type::Params qw( compile );
 use Types::Standard qw(
@@ -52,13 +51,44 @@ path-help@sanger.ac.uk
 
 =cut
 
-# defaults for the mapping between a script name and a Role to apply to the
-# Lane objects that we return
+=head1 SYNOPSIS
 
-our $lane_roles = {
-  pf       => 'Bio::Path::Find::Lane::Role::PathFind',
-  pathfind => 'Bio::Path::Find::Lane::Role::PathFind',
-};
+  # create a Finder object by handing it a config hash
+  my $finder = Bio::Path::Find::Finder->new(
+    config => $config_hashref
+  );
+
+  # get an arrayref of Bio::Path::Find::Lane objects matching search criteria
+  my $lanes = $finder->find_lanes(
+    ids  => [ qw( 12345_1 2345 ) ],
+    type => 'lane',
+  );
+
+=head1 DESCRIPTION
+
+This is the main class for retrieving lane information from the pathogen
+tracking databases. It requires a config that provides database connection
+parameters, e.g.
+
+  <connection_params>
+    <tracking>
+      driver mysql
+      host   path-db
+      port   3306
+      user   pathogens
+      schema Bio::Track::Schema
+    </tracking>
+  </connection_params>
+
+The configuration may be specified using C<config_file>, in which case the
+configuration will be read from the specified file, or using C<config>, with
+the config provided as a hashref.
+
+The main method in the class is L<find_lanes>, which, given a list of IDs and
+their type (lane, sample, etc.), retrieves a list of matching
+L<Bio::Path::Find::Lane> objects.
+
+=cut
 
 #-------------------------------------------------------------------------------
 #- public attributes -----------------------------------------------------------
@@ -70,66 +100,17 @@ Inherits C<config> from L<Bio::Path::Find::Role::HasConfig>.
 
 =attr lane_role
 
-Simple string giving the name of a L<Bio::Path::Find::Role> that should be
-applied to the L<Bio::Path::Find::Lane> objects that we build. The Role is used
-to adapt the C<Lane> for use with a particular "*find" script, e.g. C<pathfind>
-or C<annotationfind>.
-
-If C<lane_role> is not supplied, we try to look up a mapping between script
-name and Role name in the config, for example:
-
- <lane_roles>
-   pathfind       Bio::Path::Find::Lane::Role::PathFind
-   infofind       Bio::Path::Find::Lane::Role::InfoFind
-   accessionfind  Bio::Path::Find::Lane::Role::AccessionFind
- </lane_roles>
-
-If the config doesn't contain a C<lane_roles> mapping, we use the default,
-hard-coded mapping in this class:
-
- our $lane_roles = {
-   pathfind      => 'Bio::Path::Find::Lane::Role::PathFind',
-   infofind      => 'Bio::Path::Find::Lane::Role::InfoFind',
-   accessionfind => 'Bio::Path::Find::Lane::Role::AccessionFind',
- };
-
-Finally, if, at the end of that, we can't find the name of a Role to apply, the
-value of C<lane_role> is left as C<undef>, and later on when we find lanes,
- simply won't have a Role applied to them before being returned.
+Simple string giving the name of a L<Bio::Path::Find::Lane::Role> that should
+be applied to the L<Bio::Path::Find::Lane> objects that we build. The Role is
+used to adapt the C<Lane> for use with a particular find command, e.g.
+C<pf data> or C<pf assembly>.
 
 =cut
 
 has 'lane_role' => (
-  is      => 'ro',
-  isa     => Maybe[Str],
-  lazy    => 1,
-  builder => '_build_lane_role',
+  is   => 'ro',
+  isa  => Maybe[Str],
 );
-
-# TODO this mechanism for picking lane roles won't work now that we've switched
-# TODO to a git-style app. Need to find a better way to determine which Role
-# TODO should be applied to Lane objects
-
-sub _build_lane_role {
-  my $self = shift;
-
-  my $role;
-  if ( exists $self->config->{lane_roles} and
-       exists $self->config->{lane_roles}->{ $self->_script_name } ) {
-    $self->log->debug('found lane role using script name in mapping from config');
-    $role = $self->config->{lane_roles}->{ $self->_script_name };
-  }
-  elsif ( exists $lane_roles->{ $self->_script_name } ) {
-    $self->log->debug('found lane role using script name in mapping from class');
-    $role = $lane_roles->{ $self->_script_name };
-  }
-  else {
-    $self->log->debug( "couldn't find a lane role for this script ("
-                       . $self->_script_name . ') in config or class mapping' );
-  }
-
-  return $role;
-}
 
 #---------------------------------------
 
@@ -162,18 +143,6 @@ has 'schema_name' => (
 #- private attributes ----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# normally this just returns the real name of the script, but it's intended to
-# allow the script name to be explicitly set in a test, so that the lane_role
-# builder can be exercised.
-
-has '_script_name' => (
-  is      => 'ro',
-  isa     => Str,
-  default => sub { basename $0 },
-);
-
-#---------------------------------------
-
 has '_db_manager' => (
   is      => 'ro',
   isa     => 'Bio::Path::Find::DatabaseManager',
@@ -204,6 +173,17 @@ has '_sorter' => (
 #-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
 #-------------------------------------------------------------------------------
+
+=head1 METHODS
+
+=head2 find_lanes( ids => ArrayRef[Str], type => IDType, ?qc => QCState, ?filetype => FileType )
+
+Finds lanes using the specified ID(s) (C<ids>) and entity type (C<type>). If
+the optional C<qc> attribute is given, only lanes with the specified QC status
+will be returned. If the optional C<filetype> is given, the method returns only
+lanes having files of the specified type.
+
+=cut
 
 sub find_lanes {
   state $check = compile(
@@ -276,6 +256,8 @@ sub find_lanes {
 #-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
+
+# actually queries the database(s) to get lane data for the specified ID(s)
 
 sub _find_lanes {
   my ( $self, $ids, $type ) = @_;

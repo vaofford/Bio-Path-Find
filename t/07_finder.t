@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 20;
+use Test::More tests => 16;
 use Test::Exception;
 use Test::Output;
 use Path::Class;
@@ -78,12 +78,12 @@ ok $lanes->[0]->does('Bio::Path::Find::Lane::Role::PathFind'),
 # check the behaviour of the lane_roles section of the config
 
 # first, let's see if we can look up the Role to apply using the name of the
-# calling script. We set the name of the script to one that we know exists
-# in the default script name-to-Role name mapping that's hard coded into
+# calling script. We set the name of the command class to one that we know
+# exists in the default script name-to-Role name mapping that's hard coded into
 # the class
 $f = Bio::Path::Find::Finder->new(
-  config       => $config,
-  _script_name => 'pathfind',
+  config    => $config,
+  lane_role => 'Bio::Path::Find::Lane::Role::PathFind',
 );
 
 lives_ok { $lanes = $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
@@ -95,8 +95,7 @@ ok $lanes->[0]->does('Bio::Path::Find::Lane::Role::PathFind'),
 # and make sure that we don't have any problems when we don't have
 # a Role to apply
 $f = Bio::Path::Find::Finder->new(
-  config       => $config,
-  _script_name => 'my_script',
+  config    => $config,
 );
 
 lives_ok { $lanes = $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
@@ -104,25 +103,6 @@ lives_ok { $lanes = $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
 
 ok ! $lanes->[0]->does('Bio::Path::Find::Lane::Role::PathFind'),
   'no roles applied to lanes';
-
-#---------------------------------------
-
-# next, if we specify the lane roles mapping in the config, we should get the
-# right value for lane_role and that Role should be applied to found lanes
-$config->{lane_roles} = {
-  '07_finder.t' => 'Bio::Path::Find::Lane::Role::PathFind',
-};
-
-lives_ok { $f = Bio::Path::Find::Finder->new( config => $config ) }
-  'got a finder with config having lane_roles section';
-
-is $f->lane_role, 'Bio::Path::Find::Lane::Role::PathFind', 'got correct lane role';
-
-lives_ok { $lanes = $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
-  'no exception finding lanes when script named in lane_roles';
-
-ok $lanes->[0]->does('Bio::Path::Find::Lane::Role::PathFind'),
-  'correct role applied to lane';
 
 #---------------------------------------
 

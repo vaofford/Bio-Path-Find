@@ -1,7 +1,7 @@
 
 package Bio::Path::Find::Lane::Role::PathFind;
 
-# ABSTRACT: a role that collects together statistics for a lane
+# ABSTRACT: a role that adds pathfind-specific functionality to the B::P::F::Lane class
 
 use Moose::Role;
 use Path::Class;
