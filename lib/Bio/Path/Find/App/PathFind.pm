@@ -13,6 +13,7 @@ use FileHandle;
 use Types::Standard qw(
   ArrayRef
   Str
+  Maybe
   Bool
 );
 
@@ -302,6 +303,29 @@ sub _build_logger_config {
 
 #---------------------------------------
 
+# this is the name of a Role that should be applied to the
+# Bio::Path::Find::Lane objects that are returned by the finder. The builder
+# method on this parent class returns under, so by default Lanes won't have any
+# Role applied. The command classes, like B::P::F::A::P::Data, should override
+# the builder and make it return the name of the Role that they want applied,
+# e.g. Bio::Path::Find::Lane::Role::PathFind
+#
+# The Role name is used in this class by the builder for the "_finder"
+# attribute, which passes it to the B::P::F::Finder constructor.
+
+has '_lane_role' => (
+  is      => 'ro',
+  isa     => Maybe[Str],
+  lazy    => 1,
+  builder => '_build_lane_role',
+);
+
+sub _build_lane_role {
+  return undef;
+}
+
+#---------------------------------------
+
 has '_finder' => (
   is      => 'ro',
   isa     => BioPathFindFinder,
@@ -311,7 +335,14 @@ has '_finder' => (
 
 sub _build_finder {
   my $self = shift;
-  return Bio::Path::Find::Finder->new(config => $self->config);
+
+  my %finder_params = (
+    config => $self->config,
+  );
+
+  $finder_params{lane_role} = $self->_lane_role if defined $self->_lane_role;
+
+  return Bio::Path::Find::Finder->new(%finder_params);
 }
 
 #---------------------------------------
