@@ -27,7 +27,8 @@ use Bio::Path::Find::Finder;
 use Bio::Path::Find::Exception;
 
 with 'MooseX::Log::Log4perl',
-     'Bio::Path::Find::Role::HasConfig';
+     'Bio::Path::Find::Role::HasConfig',
+     'Bio::Path::Find::Role::HasProgressBar';
 
 # configure the app
 
@@ -406,29 +407,9 @@ sub _load_ids_from_file {
 
 #-------------------------------------------------------------------------------
 
-# build a progress bar. If "no_progress_bar" is set to true in the config, we
-# don't create a progress bar but return zero, so that the caller can still
-# increment the progress bar without any ill effects. If we do create a
-# progress bar, "remove" is always set to true.
-
-sub _build_pb {
-  my ( $self, $name, $max ) = @_;
-
-  my $pb = $self->config->{no_progress_bars}
-         ? 0
-         : Term::ProgressBar::Simple->new( {
-             name   => $name,
-             count  => $max,
-             remove => 1,
-           } );
-
-  return $pb;
-}
-
-#-------------------------------------------------------------------------------
-
 # modifier for methods that write to file. Takes care of validating arguments
 # and opening a filehandle for writing
+
 around [ '_write_csv', '_write_list' ] => sub {
   my $orig = shift;
   my $self = shift;

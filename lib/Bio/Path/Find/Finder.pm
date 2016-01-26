@@ -42,8 +42,9 @@ use Bio::Path::Find::Lane;
 use Bio::Path::Find::Sorter;
 use Bio::Path::Find::Exception;
 
-with 'Bio::Path::Find::Role::HasConfig',
-     'MooseX::Log::Log4perl';
+with 'MooseX::Log::Log4perl',
+     'Bio::Path::Find::Role::HasConfig',
+     'Bio::Path::Find::Role::HasProgressBar';
 
 =head1 CONTACT
 
@@ -283,13 +284,7 @@ sub _find_lanes {
 
   # set up the progress bar
   my $max = scalar( @db_names ) * scalar( @$ids );
-  my $pb = $self->config->{no_progress_bars}
-         ? 0
-         : Term::ProgressBar::Simple->new( {
-             name   => 'finding lanes',
-             count  => $max,
-             remove => 1,
-           } );
+  my $pb = $self->_build_pb('finding lanes', $max);
 
   # walk over the list of available databases and, for each ID, search for
   # lanes matching the specified ID
