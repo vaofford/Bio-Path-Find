@@ -27,13 +27,16 @@ use Types::Standard qw(
   Optional
   Maybe
 );
-use Type::Utils qw( enum );
+
+# use Type::Utils qw( enum );
+
 use Bio::Path::Find::Types qw(
   BioPathFindSorter
   IDType
   FileIDType
   QCState
   FileType
+  AssemblyType
 );
 
 use Bio::Path::Find::DatabaseManager;
@@ -193,7 +196,7 @@ sub find_lanes {
       ids      => ArrayRef[Str],
       type     => IDType,
       qc       => Optional[QCState],
-      filetype => Optional[FileType],
+      filetype => Optional[FileType|AssemblyType],
     ],
   );
   my ( $self, $params ) = $check->(@_);

@@ -3,7 +3,7 @@ package Bio::Path::Find::Lane;
 
 # ABSTRACT: a class for working with information about a sequencing lane
 
-use v5.10; # required for Type::Params use of "state"
+use v5.10;    # required for Type::Params use of "state"
 
 use Moose;
 use namespace::autoclean;
@@ -36,10 +36,10 @@ use Bio::Path::Find::Types qw(
   PathClassFile
   PathClassDir
   FileType
+  AssemblyType
 );
 
-with 'MooseX::Log::Log4perl',
-     'MooseX::Traits';
+with 'MooseX::Log::Log4perl', 'MooseX::Traits';
 
 =head1 CONTACT
 
@@ -78,12 +78,9 @@ has 'row' => (
 =attr filetype_extensions
 
 Hash ref that maps a filetype, e.g. C<fastq>, to its file extension, e.g.
-C<.fastq.gz>. The default mapping is:
-
-  fastq     => '.fastq.gz',
-  bam       => '*.bam',
-  pacbio    => '*.h5',
-  corrected => '*.corrected.*'
+C<.fastq.gz>. The default mapping is empty and should be overridden by a
+mapping provided by a C<Role|Bio::Path::Find::Lane::Role> applied to the
+C<Lane>.
 
 =cut
 
@@ -92,17 +89,14 @@ C<.fastq.gz>. The default mapping is:
 
 has 'filetype_extensions' => (
   is      => 'rw',
-  isa     => HashRef[Str],
+  isa     => HashRef [Str],
   lazy    => 1,
   builder => '_build_filetype_extensions',
 );
 
 sub _build_filetype_extensions {
   {
-    # fastq     => '.fastq.gz',
-    # bam       => '*.bam', # NOTE no wildcard in mapping in original PathFind
-    # pacbio    => '*.h5',
-    # corrected => '*.corrected.*',
+    # empty mapping; provided by applied Role, e.g. B::P::F::Lane::Role::Data
   };
 }
 
@@ -138,10 +132,10 @@ associated with this lane.
 has 'files' => (
   traits  => ['Array'],
   is      => 'ro',
-  isa     => ArrayRef[PathClassFile],
+  isa     => ArrayRef [PathClassFile],
   default => sub { [] },
   handles => {
-    _add_file    => 'push',      # private method
+    _add_file    => 'push',       # private method
     all_files    => 'elements',
     has_files    => 'count',
     has_no_files => 'is_empty',
@@ -177,8 +171,8 @@ sub _build_root_dir {
   # machine and it's worth telling the user, so that they don't simply think
   # their IDs etc. don't exist
   unless ( -e $root_dir ) {
-    Bio::Path::Find::Exception->throw(
-      msg =>  "ERROR: can't see the filesystem root ($root_dir). This may indicate a problem with mountpoints"
+    Bio::Path::Find::Exception->throw( msg =>
+        "ERROR: can't see the filesystem root ($root_dir). This may indicate a problem with mountpoints"
     );
   }
 
@@ -210,8 +204,8 @@ sub _build_storage_path {
 
 =attr symlink_path
 
-A L<Path::Class::Dir> object representing the symlinked directory for file
-related to this lane.
+A L<Path::Class::Dir> object representing the symlinked directory for data
+files related to this lane.
 
 =cut
 
@@ -334,33 +328,26 @@ for how to do that.
 =cut
 
 sub find_files {
-  state $check = compile( Object, FileType );
+  state $check = compile( Object, FileType|AssemblyType );
   my ( $self, $filetype ) = $check->(@_);
 
   $self->_set_found_file_type($filetype);
 
   $self->clear_files;
 
+  # see if this Lane has a "_get_<filetype>" method, which will come from a
+  # Role applied when the Lane is instantiated
   my $method_name = "_get_$filetype";
   $self->$method_name if $self->can($method_name);
 
-  # if ( $filetype eq 'fastq' ) {
-  #   $self->_get_fastq;
-  # }
-  # elsif ( $filetype eq 'corrected' ) {
-  #   $self->_get_corrected;
-  # }
-  # elsif ( $filetype eq 'scaffold' ) {
-  #   $self->_get_scaffold;
-  # }
-  # elsif ( $filetype eq 'contig' ) {
-  #   $self->_get_contig;
-  # }
-
+  # can't find files of a specific type; fall back on the mapping between
+  # filetype and filename extension
   if ( $self->has_no_files ) {
     my $extension = $self->filetype_extensions->{$filetype};
     $self->_get_extension($extension)
       if ( defined $extension and $extension =~ m/\*/ );
+    $self->log->debug( 'found ' . $self->file_count . ' files using extension mapping' )
+      if $self->has_files;
   }
 
   return $self->file_count;
@@ -435,9 +422,9 @@ sub make_symlinks {
   state $check = compile(
     Object,
     slurpy Dict [
-      dest     => Optional[PathClassDir],
-      rename   => Optional[Bool],
-      filetype => Optional[FileType]
+      dest     => Optional [PathClassDir],
+      rename   => Optional [Bool],
+      filetype => Optional [FileType]
     ],
   );
   my ( $self, $params ) = $check->(@_);
@@ -448,23 +435,23 @@ sub make_symlinks {
   }
 
   unless ( -d $params->{dest} ) {
-    Bio::Path::Find::Exception->throw(
-      msg =>  'ERROR: destination for symlinks does not exist or is not a directory ('
-              . $params->{dest} . ')'
-    );
+    Bio::Path::Find::Exception->throw( msg =>
+        'ERROR: destination for symlinks does not exist or is not a directory ('
+        . $params->{dest}
+        . ')' );
   }
 
   if ( $params->{filetype} ) {
-    $self->log->debug('find files of type "' . $params->{filetype} . '"');
-    $self->find_files($params->{filetype});
+    $self->log->debug( 'find files of type "' . $params->{filetype} . '"' );
+    $self->find_files( $params->{filetype} );
   }
 
   my $rv = 0;
   if ( $self->has_found_files and $self->has_files ) {
-    $rv = $self->_make_file_symlinks($params->{dest}, $params->{rename});
+    $rv = $self->_make_file_symlinks( $params->{dest}, $params->{rename} );
   }
   else {
-    $rv = $self->_make_dir_symlink($params->{dest}, $params->{rename});
+    $rv = $self->_make_dir_symlink( $params->{dest}, $params->{rename} );
   }
 
   return $rv;
@@ -492,7 +479,7 @@ sub _make_file_symlinks {
     # do we need to rename the link (convert hashes to underscores) ?
     $filename =~ s/\#/_/g if $rename;
 
-    my $dst_file = file($dest, $filename);
+    my $dst_file = file( $dest, $filename );
 
     if ( -f $dst_file ) {
       carp "WARNING: destination file ($dst_file) already exists; skipping";
@@ -500,17 +487,20 @@ sub _make_file_symlinks {
     }
 
     if ( -l $dst_file ) {
-      carp "WARNING: destination file ($dst_file) is already a symlink; skipping";
+      carp
+        "WARNING: destination file ($dst_file) is already a symlink; skipping";
       next FILE;
     }
 
     my $success = 0;
     try {
       $success = symlink( $src_file, $dst_file );
-    } catch {
+    }
+    catch {
       # this should only happen if perl can't create symlinks on the current
       # platform
-      Bio::Path::Find::Exception->throw( msg => "ERROR: cannot create symlinks: $_" );
+      Bio::Path::Find::Exception->throw(
+        msg => "ERROR: cannot create symlinks: $_" );
     };
     $num_successful_links += $success;
 
@@ -539,30 +529,32 @@ sub _make_dir_symlink {
   $dir_name =~ s/\#/_/g if $rename;
 
   my $src_dir = $self->symlink_path;
-  my $dst_dir = file($dest, $dir_name);
+  my $dst_dir = file( $dest, $dir_name );
 
   if ( -e $dst_dir ) {
     carp "WARNING: destination dir ($dst_dir) already exists; skipping";
-    return 0
+    return 0;
   }
 
   if ( -l $dst_dir ) {
     carp "WARNING: destination dir ($dst_dir) is already a symlink; skipping";
-    return 0
+    return 0;
   }
 
   my $success = 0;
   try {
     $success = symlink( $src_dir, $dst_dir );
-  } catch {
+  }
+  catch {
     # this should only happen if perl can't create symlinks on the current
     # platform
-    Bio::Path::Find::Exception->throw( msg => "ERROR: cannot create symlinks: $_" );
+    Bio::Path::Find::Exception->throw(
+      msg => "ERROR: cannot create symlinks: $_" );
   };
 
   carp qq(WARNING: failed to create symlink for "$dest") unless $success;
 
-  return $success
+  return $success;
 }
 
 #-------------------------------------------------------------------------------
@@ -572,13 +564,12 @@ sub _get_extension {
 
   $self->log->trace(qq(searching for files with extension "$extension"));
 
-  my @files = File::Find::Rule->file
-                              ->extras( { follow => 1 } )
-                              ->maxdepth($self->search_depth)
-                              ->name($extension)
-                              ->in($self->symlink_path);
+  my @files =
+    File::Find::Rule->file->extras( { follow => 1 } )
+    ->maxdepth( $self->search_depth )->name($extension)
+    ->in( $self->symlink_path );
 
-  $self->log->debug('trace ' . scalar @files . ' files');
+  $self->log->debug( 'trace ' . scalar @files . ' files' );
 
   $self->_add_file( file($_) ) for @files;
 }
