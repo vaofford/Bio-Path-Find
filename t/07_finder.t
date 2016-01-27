@@ -63,14 +63,14 @@ throws_ok { $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
 # check that we can set the name of the role correctly using lane_role
 $f = Bio::Path::Find::Finder->new(
   config_file => file( qw( t data 07_finder test.conf ) ),
-  lane_role   => 'Bio::Path::Find::Lane::Role::PathFind',
+  lane_role   => 'Bio::Path::Find::Lane::Role::Data',
 );
 
 my $lanes;
 lives_ok { $lanes = $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
   'no exception getting lanes when valid lane_role specified';
 
-ok $lanes->[0]->does('Bio::Path::Find::Lane::Role::PathFind'),
+ok $lanes->[0]->does('Bio::Path::Find::Lane::Role::Data'),
   'correct role applied to found lanes';
 
 #---------------------------------------
@@ -83,13 +83,13 @@ ok $lanes->[0]->does('Bio::Path::Find::Lane::Role::PathFind'),
 # the class
 $f = Bio::Path::Find::Finder->new(
   config    => $config,
-  lane_role => 'Bio::Path::Find::Lane::Role::PathFind',
+  lane_role => 'Bio::Path::Find::Lane::Role::Data',
 );
 
 lives_ok { $lanes = $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
   'no exception getting lanes when script named in default lane_roles';
 
-ok $lanes->[0]->does('Bio::Path::Find::Lane::Role::PathFind'),
+ok $lanes->[0]->does('Bio::Path::Find::Lane::Role::Data'),
   'correct role applied to lanes';
 
 # and make sure that we don't have any problems when we don't have
@@ -101,7 +101,7 @@ $f = Bio::Path::Find::Finder->new(
 lives_ok { $lanes = $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
   'no exception getting lanes when script not named in default lane_roles';
 
-ok ! $lanes->[0]->does('Bio::Path::Find::Lane::Role::PathFind'),
+ok ! $lanes->[0]->does('Bio::Path::Find::Lane::Role::Data'),
   'no roles applied to lanes';
 
 #---------------------------------------

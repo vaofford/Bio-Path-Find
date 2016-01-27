@@ -406,7 +406,7 @@ sub _stats_file_builder {
 # Finder.
 
 sub _build_lane_role {
-  return 'Bio::Path::Find::Lane::Role::PathFind';
+  return 'Bio::Path::Find::Lane::Role::Data';
 }
 
 #-------------------------------------------------------------------------------

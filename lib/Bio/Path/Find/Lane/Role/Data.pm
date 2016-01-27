@@ -1,18 +1,33 @@
 
-package Bio::Path::Find::Lane::Role::PathFind;
+package Bio::Path::Find::Lane::Role::Data;
 
 # ABSTRACT: a role that adds pathfind-specific functionality to the B::P::F::Lane class
 
 use Moose::Role;
 use Path::Class;
+use Carp qw( carp );
 
 with 'Bio::Path::Find::Lane::Role::Stats';
 
 #-------------------------------------------------------------------------------
-#- methods required by the Stats role ------------------------------------------
+#- builders --------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+sub _build_filetype_extensions {
+  {
+    fastq     => '.fastq.gz',
+    bam       => '*.bam', # NOTE no wildcard in mapping in original PathFind
+    pacbio    => '*.h5',
+    corrected => '*.corrected.*',
+  };
+}
+
 #-------------------------------------------------------------------------------
 
 # build an array of headers for the statistics display
+#
+# required by the Stats Role
+
 sub _build_stats_headers {
   my $self = shift;
 
@@ -57,6 +72,9 @@ sub _build_stats_headers {
 #-------------------------------------------------------------------------------
 
 # collect together the fields for the statistics display
+#
+# required by the Stats Role
+
 sub _build_stats {
   my $self = shift;
 
@@ -100,6 +118,63 @@ sub _build_stats {
     $self->pipeline_status('assembled'),
     $self->pipeline_status('annotated'),
   ];
+}
+
+#-------------------------------------------------------------------------------
+#- private methods -------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+sub _get_fastq {
+  my $self = shift;
+
+  $self->log->trace('looking for fastq files');
+
+  # we have to save a reference to the "latest_files" relationship for each
+  # lane before iterating over it, otherwise DBIC will continually return the
+  # first row of the ResultSet
+  # (see https://metacpan.org/pod/DBIx::Class::ResultSet#next)
+  my $files = $self->row->latest_files;
+
+  FILE: while ( my $file = $files->next ) {
+    my $filename = $file->name;
+
+    # for illumina, the database stores the names of the fastq files directly.
+    # For pacbio, however, the database stores the names of the bax files. Work
+    # out the names of the fastq files from those bax filenames
+    $filename =~ s/\d\.ba[xs]\.h5$/fastq.gz/
+      if $self->row->database->name =~ m/pacbio/;
+
+    my $filepath = file( $self->symlink_path, $filename );
+
+    if ( $filepath =~ m/fastq/ and
+         $filepath !~ m/pool_1.fastq.gz/ ) {
+
+      # the filename here is obtained from the database, so the file really
+      # should exist on disk. If it doesn't exist, if the symlink in the root
+      # directory tree is broken, we'll show a warning, because that indicates
+      # a fairly serious mismatch between the two halves of the tracking system
+      # (database and filesystem)
+      unless ( -e $filepath ) {
+        carp "ERROR: database says that '$filepath' should exist but it doesn't";
+        next FILE;
+      }
+
+      $self->_add_file($filepath);
+    }
+  }
+}
+
+#-------------------------------------------------------------------------------
+
+sub _get_corrected {
+  my $self = shift;
+
+  $self->log->trace('looking for "corrected" files');
+
+  my $filename = $self->row->hierarchy_name . '.corrected.fastq.gz';
+  my $filepath = file( $self->symlink_path, $filename );
+
+  $self->_add_file($filepath) if -e $filepath;
 }
 
 #-------------------------------------------------------------------------------

@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 29;
+use Test::More tests => 31;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -45,7 +45,7 @@ $lane_row->database($database);
 
 my $lane;
 lives_ok { $lane = Bio::Path::Find::Lane->new( row => $lane_row ) }
-  'no exception with valid row';
+  'no exception with valid row and no Role';
 
 ok   $lane->has_no_files, '"has_no_files" true';
 ok ! $lane->has_files,    '"has_files" false';
@@ -61,6 +61,14 @@ throws_ok { $lane->root_dir }
   'exception with missing root directory';
 
 $database->_set_hierarchy_root_dir($old_hrd);
+
+is $lane->find_files('fastq'), 0, 'no files found without trait';
+
+# apply a trait when creating the Lane, so that the "_get_fastq" method
+# is available
+lives_ok { $lane = Bio::Path::Find::Lane->with_traits('Bio::Path::Find::Lane::Role::Data')
+                                        ->new( row => $lane_row ) }
+  'no exception when creating Lane with applied Role';
 
 SKIP: {
   skip "can't check path printing except on unix", 3,
@@ -188,7 +196,8 @@ SKIP: {
   chdir $orig_cwd;
 
   # and then when linking to a file
-  $lane = Bio::Path::Find::Lane->new( row => $lane_row );
+  $lane = Bio::Path::Find::Lane->with_traits('Bio::Path::Find::Lane::Role::Data')
+                               ->new( row => $lane_row );
   $lane->make_symlinks(
     dest     => $symlink_dir,
     rename   => 1,
@@ -202,7 +211,7 @@ SKIP: {
 
 # get a new lane and apply the trait that produces stats appropriate for the
 # pathfind script
-lives_ok { $lane = Bio::Path::Find::Lane->with_traits('Bio::Path::Find::Lane::Role::PathFind')
+lives_ok { $lane = Bio::Path::Find::Lane->with_traits('Bio::Path::Find::Lane::Role::Data')
                                         ->new( row => $lane_row ) }
   'no exception when applying Stats::Path trait to lane';
 

@@ -60,7 +60,7 @@ my %params = (
 # get the lanes using the Finder directly
 my $f = Bio::Path::Find::Finder->new(
   config_file => file( qw( t data 12_pf_data_archiving test.conf ) ),
-  lane_role   => 'Bio::Path::Find::Lane::Role::PathFind',
+  lane_role   => 'Bio::Path::Find::Lane::Role::Data',
 );
 
 my $lanes = $f->find_lanes( ids => [ '10018_1' ], type => 'lane', filetype => 'fastq' );
