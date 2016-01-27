@@ -319,11 +319,19 @@ Clears the list of found files. No return value.
 Look for files associated with this lane with a given filetype. Returns the
 number of files found.
 
-=cut
+This method relies on functionality that must be provided by C<Roles>. For
+example, the ability to find fastq files is provided by
+L<Bio::Path::Find::Lane::Role::Data>. The C<Role> should normally be applied to
+the L<Lane|Bio::Path::Find::Lane> at instantiation, something like:
 
-# TODO this method might need to be looked at again when we get to the other
-# TODO "*find" scripts, e.g. annotationfind. Passing in the filetype might get
-# TODO complicated in other cases
+  my $lane = Bio::Path::Find::Lane->with_traits('Bio::Path::Find::Lane::Role::Data')
+                                  ->new( row => $lane_row );
+
+You can also apply roles to classes; refer to the (L<Moose
+docs|https://metacpan.org/pod/distribution/Moose/lib/Moose/Manual/Roles.pod#ADDING-A-ROLE-TO-AN-OBJECT-INSTANCE>)
+for how to do that.
+
+=cut
 
 sub find_files {
   state $check = compile( Object, FileType );
@@ -502,11 +510,11 @@ sub _make_file_symlinks {
     } catch {
       # this should only happen if perl can't create symlinks on the current
       # platform
-      Bio::Path::Find::Exception->throw( msg =>  "ERROR: cannot create symlinks: $_" );
+      Bio::Path::Find::Exception->throw( msg => "ERROR: cannot create symlinks: $_" );
     };
     $num_successful_links += $success;
 
-    carp "WARNING: failed to create symlink for '$src_file'" unless $success;
+    carp qq(WARNING: failed to create symlink for "$src_file") unless $success;
   }
 
   $self->log->debug("created $num_successful_links links");
@@ -549,8 +557,10 @@ sub _make_dir_symlink {
   } catch {
     # this should only happen if perl can't create symlinks on the current
     # platform
-    Bio::Path::Find::Exception->throw( msg =>  "ERROR: cannot create symlinks: $_" );
+    Bio::Path::Find::Exception->throw( msg => "ERROR: cannot create symlinks: $_" );
   };
+
+  carp qq(WARNING: failed to create symlink for "$dest") unless $success;
 
   return $success
 }

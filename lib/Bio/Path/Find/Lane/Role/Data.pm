@@ -9,9 +9,52 @@ use Carp qw( carp );
 
 with 'Bio::Path::Find::Lane::Role::Stats';
 
+=head1 DESCRIPTION
+
+This L<Role|Moose::Role> provides functionality to
+L<Lanes|Bio::Path::Find::Lane>, allowing them to find statistics and files for
+sequencing data. This C<Role> provides the following methods for finding
+files:
+
+=over
+
+=item _get_fastq
+
+=item _get_corrected
+
+=back
+
+both of which are used for C<pathfind>-like searching for files.
+
+The C<Role> also provides a mapping between filetype and file extension, via
+the L<_build_filetype_extensions> builder. The mapping is:
+
+  fastq     => '.fastq.gz',
+  bam       => '*.bam',
+  pacbio    => '*.h5',
+  corrected => '*.corrected.*',
+
+Finally, the C<Role> provides builders for attributes that generate stats about
+sequencing lanes:
+
+=over
+
+=item _build_stats_header
+
+=item _build_stats
+
+=back
+
+again, both of which are used to generate stats as provided by C<pathfind>.
+
+=cut
+
 #-------------------------------------------------------------------------------
 #- builders --------------------------------------------------------------------
 #-------------------------------------------------------------------------------
+
+# build mapping between filetype and file extension. The mapping is specific
+# to data files related to lanes, such as fastq or bam.
 
 sub _build_filetype_extensions {
   {
