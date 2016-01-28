@@ -243,6 +243,13 @@ option 'no_progress_bars' => (
   },
 );
 
+option 'rename' => (
+  documentation => 'replace hash (#) with underscore (_) in filenames',
+  is            => 'rw',
+  isa           => Bool,
+  cmd_aliases   => 'r',
+);
+
 option 'verbose' => (
   documentation => 'show debugging messages',
   is            => 'rw',
@@ -434,6 +441,36 @@ sub _load_ids_from_file {
     unless scalar @ids;
 
   return \@ids;
+}
+
+#-------------------------------------------------------------------------------
+
+# generates a new filename by converting hashes to underscores in the supplied
+# filename. Also converts the filename to unix format, for use with tar and
+# zip
+
+sub _rename_file {
+  my ( $self, $old_filename ) = @_;
+
+  my $new_basename = $old_filename->basename;
+
+  # honour the "-rename" option
+  $new_basename =~ s/\#/_/g if $self->rename;
+
+  # add on the folder to get the relative path for the file in the
+  # archive
+  ( my $folder_name = $self->id ) =~ s/\#/_/g;
+
+  my $new_filename = file( $folder_name, $new_basename );
+
+  # filenames in an archive are specified as Unix paths (see
+  # https://metacpan.org/pod/Archive::Tar#tar-rename-file-new_name)
+  $old_filename = file( $old_filename )->as_foreign('Unix');
+  $new_filename = file( $new_filename )->as_foreign('Unix');
+
+  $self->log->debug( "renaming |$old_filename| to |$new_filename|" );
+
+  return $new_filename;
 }
 
 #-------------------------------------------------------------------------------
