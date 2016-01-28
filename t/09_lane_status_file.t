@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 16;
+use Test::More tests => 15;
 use Test::Exception;
 use Test::Warn;
 use Path::Class;
@@ -30,12 +30,8 @@ is $s->pipeline_name, 'stored', 'pipeline_name correct';
 
 lives_ok { $s = Bio::Path::Find::Lane::StatusFile->new( status_file => file( qw( t data 09_lane_status_file missing_config_file.txt ) ) ) }
   'no exception with status file having not-found config';
-is $s->config_file, undef, 'config file is undef';
+is $s->config_file, 'non-existent-file', 'non-existent config file name is returned';
 is $s->number_of_attempts, 3, 'number of attempts still read correctly';
-
-warning_like { $s->pipeline_name }
-  qr/no config file loaded/,
-  'warning about missing config';
 
 lives_ok { $s = Bio::Path::Find::Lane::StatusFile->new( status_file => file( qw( t data 09_lane_status_file unknown_pipeline_name.txt ) ) ) }
   'no exception with status file pointing at new, unknown pipeline config';
