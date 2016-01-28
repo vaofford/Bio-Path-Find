@@ -17,14 +17,14 @@ with 'Bio::Path::Find::Lane::Role::Stats';
 #- private attributes ----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-has 'known_assemblers' => (
+has 'assemblers' => (
   is => 'ro',
   isa => ArrayRef[Str],
   lazy => 1,
-  builder => '_build_known_assemblers',
+  builder => '_build_assemblers',
 );
 
-sub _build_known_assemblers {
+sub _build_assemblers {
   [ qw(
     velvet
     spades
@@ -32,6 +32,12 @@ sub _build_known_assemblers {
     pacbio
   ) ];
 }
+
+# TODO need to get this list from the Types library. It's daft having it in
+# TODO two places.
+#
+# TODO need to figure out how to set a value for "assemblers", so that we can
+# TODO restrict file finding to specific assemblers
 
 #-------------------------------------------------------------------------------
 #- builders --------------------------------------------------------------------
@@ -61,7 +67,7 @@ sub _get_scaffold {
 
   $self->log->trace( q(looking for scaffolds in ") . $self->symlink_path . q(") );
 
-  foreach my $assembler ( @{ $self->known_assemblers} ) {
+  foreach my $assembler ( @{ $self->assemblers} ) {
     my $filename = file( $self->symlink_path, "${assembler}_assembly", 'contigs.fa' );
     $self->_add_file($filename) if -f $filename;
   }
@@ -74,7 +80,7 @@ sub _get_contigs {
 
   $self->log->trace( q(looking for contigs in ") . $self->symlink_path . q(") );
 
-  foreach my $assembler ( @{ $self->known_assemblers} ) {
+  foreach my $assembler ( @{ $self->assemblers} ) {
     my $filename = file( $self->symlink_path, "${assembler}_assembly", 'unscaffolded_contigs.fa' );
     $self->_add_file($filename) if -f $filename;
   }
@@ -89,6 +95,40 @@ sub _get_all {
 
   $self->_get_scaffold;
   $self->_get_contigs;
+}
+
+#-------------------------------------------------------------------------------
+
+# given a "from" and "to" filename, edit the destination to change the format
+# of the filename. This gives a Role on the Lane a chance to edit the filenames
+# that are used, so that they can be specialised to the type of data that the
+# Role is handling.
+#
+# For example, this method is called by B::P::F::Role::Linker before it creates
+# links. This method makes the link destination look like:
+#
+#   <dst_path directory> / <id>.[scaffold_]contigs_<assembler>.fa
+#
+# e.g.: /home/user/12345_1#1.contigs_iva.fa
+#       /home/user/12345_1#1.scaffold_contigs_spades.fa
+
+sub _edit_filenames {
+  my ( $self, $src_path, $dst_path ) = @_;
+
+  my @src_path_components = $src_path->components;
+
+  my $id_dir        = $src_path_components[-3];
+  my $assembler_dir = $src_path_components[-2];
+  my $filename      = $src_path_components[-1];
+
+  ( my $prefix    = $filename )      =~ s/\.[^.]*//;
+  ( my $assembler = $assembler_dir ) =~ s/^(\w+)_assembly$/$1/;
+
+  my $dst = file( $dst_path->dir, $id_dir . '.' . $prefix . '_' . $assembler . '.fa' );
+
+  $DB::single = 1;
+
+  return ( $src_path, $dst );
 }
 
 #-------------------------------------------------------------------------------

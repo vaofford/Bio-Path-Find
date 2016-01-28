@@ -69,8 +69,21 @@ sub _check_for_symlink_value {
 # private attributes to store the (optional) value of the "symlink" attribute.
 # When using all of this we can check for "_symlink_flag" being true or false,
 # and, if it's true, check "_symlink_dir" for a value
-has '_symlink_dir'  => ( is => 'rw', isa => PathClassDir );
 has '_symlink_flag' => ( is => 'rw', isa => Bool );
+
+has '_symlink_dir' => (
+  is      => 'rw',
+  isa     => PathClassDir,
+  lazy    => 1,
+  builder => '_build_symlink_dir',
+);
+
+# specify the default directory for creating symlinks here, so that it can
+# be overridden by a method in a Lane that applies this Role
+sub _build_symlink_dir {
+  my $self = shift;
+  return dir( 'pf_' . $self->_renamed_id );
+}
 
 #-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------
@@ -81,16 +94,7 @@ has '_symlink_flag' => ( is => 'rw', isa => Bool );
 sub _make_symlinks {
   my ( $self, $lanes ) = @_;
 
-  my $dest;
-
-  if ( $self->_symlink_dir ) {
-    $self->log->debug('symlink attribute specifies a dir name');
-    $dest = $self->_symlink_dir;
-  }
-  else {
-    $self->log->debug('symlink attribute is a boolean; building a dir name');
-    $dest = dir( getcwd(), 'pathfind_' . $self->_renamed_id );
-  }
+  my $dest = $self->_symlink_dir;
 
   try {
     $dest->mkpath unless -d $dest;

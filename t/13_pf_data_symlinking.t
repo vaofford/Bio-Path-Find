@@ -67,7 +67,7 @@ lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
 my $dest = dir( $temp_dir, 'pathfind_10018_1' );
 
 stderr_like { $pf->_make_symlinks($lanes) }
-  qr|Creating links in '.*?/pathfind_10018_1'|, # STDOUT
+  qr|Creating links in 'pathfind_10018_1'|, # STDOUT
   'creating links in correct directory; no progress bar';
 
 # remove the links directory and do it again, this time checking for the

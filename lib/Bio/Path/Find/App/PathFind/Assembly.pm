@@ -11,6 +11,7 @@ use MooseX::StrictConstructor;
 
 use Carp qw( croak );
 use Path::Class;
+use Cwd;
 
 use Types::Standard qw(
   +Bool
@@ -20,6 +21,7 @@ use Bio::Path::Find::Types qw(
   PathClassDir  DirFromStr
   PathClassFile FileFromStr
   AssemblyType
+  Assembler
 );
 
 use Bio::Path::Find::Exception;
@@ -191,6 +193,15 @@ option 'filetype' => (
   default       => 'scaffold',
 );
 
+#---------------------------------------
+
+option 'program' => (
+  documentation => 'look for assemblies created by a specific assembler',
+  is            => 'ro',
+  isa           => Assembler,
+  cmd_aliases   => 'p',
+);
+
 #-------------------------------------------------------------------------------
 #- private attributes ----------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -215,6 +226,34 @@ sub _stats_file_builder {
   return file( getcwd(), $self->_renamed_id . '.assemblyfind_stats.csv' );
 }
 
+#---------------------------------------
+
+# set the default name for the symlink directory
+
+around '_build_symlink_dir' => sub {
+  my $orig = shift;
+  my $self = shift;
+
+  my $dir = $self->$orig->stringify;
+  $dir =~ s/^pf_/assemblyfind_/;
+
+  return dir( $dir );
+};
+
+#---------------------------------------
+
+# set the default names for the tar or zip files
+
+around [ '_build_tar_filename', '_build_zip_filename' ] => sub {
+  my $orig = shift;
+  my $self = shift;
+
+  my $filename = $self->$orig->stringify;
+  $filename =~ s/^pf_/assemblyfind_/;
+
+  return file( $filename );
+};
+
 #-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -222,29 +261,19 @@ sub _stats_file_builder {
 sub run {
   my $self = shift;
 
-  # Bio::Path::Find::Exception->throw( msg => q(ERROR: output file ") . $self->_outfile
-  #                                    . q(" already exists; not overwriting) )
-  #   if ( $self->_outfile_flag and -e $self->_outfile );
-  #
-  # Bio::Path::Find::Exception->throw( msg => q(ERROR: fastq URL output file ") . $self->_fastq
-  #                                    . q(" already exists; not overwriting) )
-  #   if ( $self->_fastq_flag and -e $self->_fastq );
-  #
-  # Bio::Path::Find::Exception->throw( msg => q(ERROR: submitted URL output file ") . $self->_submitted
-  #                                    . q(" already exists; not overwriting) )
-  #   if ( $self->_submitted_flag and -e $self->_submitted );
+  # TODO fail fast. Check for problems like existing directories here, before
+  # TODO actually doing any work
 
   # set up the finder
 
-  # build the parameters for the finder. Omit undefined options or Moose spits
-  # the dummy (by design)
+  # build the parameters for the finder
   my %finder_params = (
-    ids  => $self->_ids,
-    type => $self->_type,
+    ids      => $self->_ids,
+    type     => $self->_type,
+    filetype => $self->filetype,    # defaults to "scaffold"
   );
-  $finder_params{filetype} = $self->filetype if defined $self->filetype;
 
-  # find lanes
+ # find lanes
   my $lanes = $self->_finder->find_lanes(%finder_params);
 
   $self->log->debug( 'found a total of ' . scalar @$lanes . ' lanes' );
@@ -265,11 +294,10 @@ sub run {
     $self->_make_stats($lanes)    if $self->_stats_flag;
   }
   else {
-    # telling B::P::F::Finder to look for files of a specific type will make
-    # it run $lane->find_files, so calling $lane->print_paths will print out
-    # the names of the found files.
-    # If we don't tell Finder to look for files, $lane->print_path will fall
-    # back to printing the directory name for a lane
+    # we've set a default ("scaffold") for the "filetype" on the Finder, so
+    # when it looks for lanes it will automatically tell each lane to find
+    # files of type "scaffold". Hence, "print_paths" will print the paths for
+    # those found files.
     $_->print_paths for ( @$lanes );
   }
 

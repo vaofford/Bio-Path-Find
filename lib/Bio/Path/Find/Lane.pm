@@ -481,14 +481,20 @@ sub _make_file_symlinks {
 
     my $dst_file = file( $dest, $filename );
 
+    # if this Lane has a "_edit_link_filenames" method, call it to edit the
+    # "from" and "to" filenames for the link. The method should be provided by
+    # a B::P::F::Lane::Role, if it's needed
+    ( $src_file, $dst_file ) = $self->_edit_filenames( $src_file, $dst_file )
+      if $self->can('_edit_link_filenames');
+
+    # sanity check: don't overwrite the destination file
     if ( -f $dst_file ) {
       carp "WARNING: destination file ($dst_file) already exists; skipping";
       next FILE;
     }
 
     if ( -l $dst_file ) {
-      carp
-        "WARNING: destination file ($dst_file) is already a symlink; skipping";
+      carp "WARNING: destination file ($dst_file) is already a symlink; skipping";
       next FILE;
     }
 
@@ -499,8 +505,7 @@ sub _make_file_symlinks {
     catch {
       # this should only happen if perl can't create symlinks on the current
       # platform
-      Bio::Path::Find::Exception->throw(
-        msg => "ERROR: cannot create symlinks: $_" );
+      Bio::Path::Find::Exception->throw( msg => "ERROR: cannot create symlinks: $_" );
     };
     $num_successful_links += $success;
 
@@ -531,6 +536,8 @@ sub _make_dir_symlink {
   my $src_dir = $self->symlink_path;
   my $dst_dir = file( $dest, $dir_name );
 
+  # TODO should we add a call to "_edit_filenames" here too ?
+
   if ( -e $dst_dir ) {
     carp "WARNING: destination dir ($dst_dir) already exists; skipping";
     return 0;
@@ -559,6 +566,8 @@ sub _make_dir_symlink {
 
 #-------------------------------------------------------------------------------
 
+# find files by looking for files with the specified extension
+
 sub _get_extension {
   my ( $self, $extension ) = @_;
 
@@ -569,7 +578,7 @@ sub _get_extension {
     ->maxdepth( $self->search_depth )->name($extension)
     ->in( $self->symlink_path );
 
-  $self->log->debug( 'trace ' . scalar @files . ' files' );
+  $self->log->trace( 'found ' . scalar @files . ' files using extension' );
 
   $self->_add_file( file($_) ) for @files;
 }

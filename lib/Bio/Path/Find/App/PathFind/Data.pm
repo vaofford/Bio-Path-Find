@@ -235,13 +235,6 @@ option 'qc' => (
   cmd_aliases   => 'q',
 );
 
-option 'rename' => (
-  documentation => 'replace hash (#) with underscore (_) in filenames',
-  is            => 'rw',
-  isa           => Bool,
-  cmd_aliases   => 'r',
-);
-
 #-------------------------------------------------------------------------------
 #- private attributes ----------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -249,7 +242,7 @@ option 'rename' => (
 # this is a builder for the "_lane_role" attribute that's defined on the parent
 # class, B::P::F::A::PathFind. The return value specifies the name of a Role
 # that should be applied to the B::P::F::Lane objects that are returned by the
-# Finder.
+# B::P::F::Finder.
 
 sub _build_lane_role {
   return 'Bio::Path::Find::Lane::Role::Data';
@@ -265,6 +258,34 @@ sub _stats_file_builder {
   my $self = shift;
   return file( getcwd(), $self->_renamed_id . '.pathfind_stats.csv' );
 }
+
+#---------------------------------------
+
+# set the default name for the symlink directory
+
+around '_build_symlink_dir' => sub {
+  my $orig = shift;
+  my $self = shift;
+
+  my $dir = $self->$orig->stringify;
+  $dir =~ s/^pf_/pathfind_/;
+
+  return dir( $dir );
+};
+
+#---------------------------------------
+
+# set the default names for the tar or zip files
+
+around [ '_build_tar_filename', '_build_zip_filename' ] => sub {
+  my $orig = shift;
+  my $self = shift;
+
+  my $filename = $self->$orig->stringify;
+  $filename =~ s/^pf_/pathfind_/;
+
+  return file( $filename );
+};
 
 #-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------

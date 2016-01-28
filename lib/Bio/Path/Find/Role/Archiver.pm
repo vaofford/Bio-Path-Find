@@ -68,8 +68,21 @@ sub _check_for_archive_value {
   }
 }
 
-has '_tar'      => ( is => 'rw', isa => PathClassFile );
 has '_tar_flag' => ( is => 'rw', isa => Bool );
+
+has '_tar'      => (
+  is => 'rw',
+  isa => PathClassFile,
+  lazy => 1,
+  builder => '_build_tar_filename',
+);
+
+# specify the default tar file name here, so that it can be overridden by
+# a method in a Lane that applies this Role
+sub _build_tar_filename {
+  my $self = shift;
+  return file( 'pf_' . $self->_renamed_id . ( $self->no_tar_compression ? '.tar' : '.tar.gz' ) );
+}
 
 #---------------------------------------
 
@@ -98,8 +111,21 @@ sub _check_for_zip_value {
   }
 }
 
-has '_zip'      => ( is => 'rw', isa => PathClassFile );
 has '_zip_flag' => ( is => 'rw', isa => Bool );
+
+has '_zip' => (
+  is      => 'rw',
+  isa     => PathClassFile,
+  lazy    => 1,
+  builder => '_build_zip_filename',
+);
+
+# specify the default zip file name here, so that it can be overridden by
+# a method in a Lane that applies this Role
+sub _build_zip_filename {
+  my $self = shift;
+  return file( 'pf_' . $self->_renamed_id . '.zip' );
+}
 
 #---------------------------------------
 
@@ -120,19 +146,7 @@ option 'no_tar_compression' => (
 sub _make_tar {
   my ( $self, $lanes ) = @_;
 
-  my $archive_filename;
-
-  if ( $self->_tar ) {
-    $self->log->debug('_tar attribute is set; using it as a filename');
-    $archive_filename = $self->_tar;
-  }
-  else {
-    $self->log->debug('_tar attribute is not set; building a filename');
-    # we'll ALWAYS make a sensible name for the archive itself (use renamed_id)
-    $archive_filename = 'pathfind_' . $self->_renamed_id
-                        . ( $self->no_tar_compression ? '.tar' : '.tar.gz' );
-  }
-  $archive_filename = file $archive_filename;
+  my $archive_filename = $self->_tar;
 
   say STDERR "Archiving lane data to '$archive_filename'";
 
@@ -185,18 +199,7 @@ sub _make_tar {
 sub _make_zip {
   my ( $self, $lanes ) = @_;
 
-  my $archive_filename;
-
-  if ( $self->_zip ) {
-    $self->log->debug('_zip attribute is set; using it as a filename');
-    $archive_filename = $self->_zip;
-  }
-  else {
-    $self->log->debug('_zip attribute is not set; building a filename');
-    # we'll ALWAYS make a sensible name for the archive itself (use renamed_id)
-    $archive_filename = 'pathfind_' . $self->_renamed_id . '.zip';
-  }
-  $archive_filename = file $archive_filename;
+  my $archive_filename = $self->_zip;
 
   say STDERR "Archiving lane data to '$archive_filename'";
 
@@ -335,36 +338,6 @@ sub _create_zip_archive {
   }
 
   return $zip;
-}
-
-#-------------------------------------------------------------------------------
-
-# generates a new filename by converting hashes to underscores in the supplied
-# filename. Also converts the filename to unix format, for use with tar and
-# zip
-
-sub _rename_file {
-  my ( $self, $old_filename ) = @_;
-
-  my $new_basename = $old_filename->basename;
-
-  # honour the "-rename" option
-  $new_basename =~ s/\#/_/g if $self->rename;
-
-  # add on the folder to get the relative path for the file in the
-  # archive
-  ( my $folder_name = $self->id ) =~ s/\#/_/g;
-
-  my $new_filename = file( $folder_name, $new_basename );
-
-  # filenames in an archive are specified as Unix paths (see
-  # https://metacpan.org/pod/Archive::Tar#tar-rename-file-new_name)
-  $old_filename = file( $old_filename )->as_foreign('Unix');
-  $new_filename = file( $new_filename )->as_foreign('Unix');
-
-  $self->log->debug( "renaming |$old_filename| to |$new_filename|" );
-
-  return $new_filename;
 }
 
 #-------------------------------------------------------------------------------
