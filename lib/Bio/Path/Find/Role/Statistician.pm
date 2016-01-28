@@ -84,7 +84,7 @@ sub _make_stats {
     $lanes->[0]->stats_headers,
   );
 
-  my $pb = $self->_build_pb('collecting stats', scalar @$lanes);
+  my $pb = $self->_create_pb('collecting stats', scalar @$lanes);
 
   foreach my $lane ( @$lanes ) {
     push @stats, $lane->stats;

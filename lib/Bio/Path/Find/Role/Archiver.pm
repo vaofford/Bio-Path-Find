@@ -148,7 +148,7 @@ sub _make_tar {
   push @$filenames, $stats_file;
 
   # build the tar archive in memory
-  my $tar = $self->_build_tar_archive($filenames);
+  my $tar = $self->_create_tar_archive($filenames);
 
   # we could write the archive in a single call, like this:
   #   $tar->write( $tar_filename, COMPRESS_GZIP );
@@ -214,7 +214,7 @@ sub _make_zip {
   #---------------------------------------
 
   # build the zip archive in memory
-  my $zip = $self->_build_zip_archive($filenames);
+  my $zip = $self->_create_zip_archive($filenames);
 
   print STDERR 'Writing zip file... ';
 
@@ -245,7 +245,7 @@ sub _make_zip {
 sub _collect_filenames {
   my ( $self, $lanes ) = @_;
 
-  my $pb = $self->_build_pb('finding files', scalar @$lanes);
+  my $pb = $self->_create_pb('finding files', scalar @$lanes);
 
   # collect the lane stats as we go along. Store the headers for the stats
   # report as the first row
@@ -278,12 +278,12 @@ sub _collect_filenames {
 
 # creates a tar archive containing the specified files
 
-sub _build_tar_archive {
+sub _create_tar_archive {
   my ( $self, $filenames ) = @_;
 
   my $tar = Archive::Tar->new;
 
-  my $pb = $self->_build_pb('adding files', scalar @$filenames);
+  my $pb = $self->_create_pb('adding files', scalar @$filenames);
 
   foreach my $filename ( @$filenames ) {
     $tar->add_files($filename);
@@ -316,12 +316,12 @@ sub _build_tar_archive {
 
 # creates a ZIP archive containing the specified files
 
-sub _build_zip_archive {
+sub _create_zip_archive {
   my ( $self, $filenames ) = @_;
 
   my $zip = Archive::Zip->new;
 
-  my $pb = $self->_build_pb('adding files', scalar @$filenames);
+  my $pb = $self->_create_pb('adding files', scalar @$filenames);
 
   foreach my $orig_filename ( @$filenames ) {
     my $zip_filename  = $self->_rename_file($orig_filename);
@@ -381,7 +381,7 @@ sub _compress_data {
   my $chunk_size = int( $max / $num_chunks );
 
   # set up the progress bar
-  my $pb = $self->_build_pb('gzipping', $num_chunks);
+  my $pb = $self->_create_pb('gzipping', $num_chunks);
 
   my $compressed_data;
   my $offset      = 0;
@@ -418,7 +418,7 @@ sub _write_data {
   my $num_chunks = 100;
   my $chunk_size = int( $max / $num_chunks );
 
-  my $pb = $self->_build_pb('writing', $num_chunks);
+  my $pb = $self->_create_pb('writing', $num_chunks);
 
   open ( FILE, '>', $filename )
     or Bio::Path::Find::Exception->throw( msg => "ERROR: couldn't write output file ($filename): $!" );

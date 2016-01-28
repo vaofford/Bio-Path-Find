@@ -290,7 +290,7 @@ sub run {
     type => $self->type,
   );
 
-  my $pb = $self->_build_pb('collecting info', scalar @$lanes);
+  my $pb = $self->_create_pb('collecting info', scalar @$lanes);
 
   # gather the info. We could collect and print the info in the same loop, but
   # then we wouldn't be able to show the progress bar, which is probably worth

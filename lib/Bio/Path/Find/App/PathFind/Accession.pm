@@ -368,7 +368,7 @@ sub run {
   # and store the accession, so that we can build URLs later if needed
   my @accessions;
 
-  my $pb = $self->_build_pb('finding accessions', scalar @$lanes);
+  my $pb = $self->_create_pb('finding accessions', scalar @$lanes);
 
   foreach my $lane ( @$lanes ) {
 
@@ -400,11 +400,11 @@ sub run {
   if ( $self->_fastq_flag ) {
     $self->log->debug('getting URLs from ENA for fastq files');
 
-    $pb = $self->_build_pb('getting fastq URLs', scalar @$lanes);
+    $pb = $self->_create_pb('getting fastq URLs', scalar @$lanes);
 
     my @urls;
     foreach my $accession ( @accessions ) {
-      push @urls, $self->_build_url($accession, 'fastq');
+      push @urls, $self->_generate_url($accession, 'fastq');
       $pb++
     }
 
@@ -421,11 +421,11 @@ sub run {
   if ( $self->_submitted_flag ) {
     $self->log->debug('getting URLs from ENA for submitted files');
 
-    $pb = $self->_build_pb('getting submitted data URLs', scalar @$lanes);
+    $pb = $self->_create_pb('getting submitted data URLs', scalar @$lanes);
 
     my @urls;
     foreach my $accession ( @accessions ) {
-      push @urls, $self->_build_url($accession, 'submitted');
+      push @urls, $self->_generate_url($accession, 'submitted');
       $pb++
     }
 
@@ -448,7 +448,7 @@ sub run {
 
 # query ENA to get URLs
 
-sub _build_url {
+sub _generate_url {
   my ( $self, $accession, $which ) = @_;
 
   # add query terms to the URI::URL object that's already set up

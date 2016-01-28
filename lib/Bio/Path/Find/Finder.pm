@@ -270,7 +270,7 @@ sub _find_lanes {
 
   # set up the progress bar
   my $max = scalar( @db_names ) * scalar( @$ids );
-  my $pb = $self->_build_pb('finding lanes', $max);
+  my $pb = $self->_create_pb('finding lanes', $max);
 
   # walk over the list of available databases and, for each ID, search for
   # lanes matching the specified ID

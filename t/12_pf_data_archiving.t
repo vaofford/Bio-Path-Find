@@ -128,7 +128,7 @@ lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
 push @expected_filenames, file( qw( t data 12_pf_data_archiving stats.csv ) );
 
 my $archive;
-lives_ok { $archive = $pf->_build_tar_archive(\@expected_filenames) }
+lives_ok { $archive = $pf->_create_tar_archive(\@expected_filenames) }
   'no problems adding files to archive';
 
 my @archived_files = $archive->list_files;
@@ -153,7 +153,7 @@ is $got_stats_file, $expected_stats_file, 'extracted stats file looks right';
 
 push @expected_filenames, file('bad_filename');
 
-warnings_like { $pf->_build_tar_archive(\@expected_filenames) }
+warnings_like { $pf->_create_tar_archive(\@expected_filenames) }
   [
     { carped => qr/No such file:/ },
     { carped => qr/No such file in archive/ },
@@ -177,7 +177,7 @@ pop @expected_filenames;
 lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
   'no exception with "rename" option';
 
-lives_ok { $archive = $pf->_build_tar_archive(\@expected_filenames) }
+lives_ok { $archive = $pf->_create_tar_archive(\@expected_filenames) }
   'no problems adding files to archive';
 
 @archived_files = $archive->list_files;
@@ -253,7 +253,7 @@ for ( my $i = 0; $i < scalar @expected_filenames; $i++ ) {
 }
 
 my $zip;
-lives_ok { $zip = $pf->_build_zip_archive(\@expected_filenames) }
+lives_ok { $zip = $pf->_create_zip_archive(\@expected_filenames) }
   'no exception when building zip archive';
 
 isa_ok $zip, 'Archive::Zip::Archive', 'zip archive';

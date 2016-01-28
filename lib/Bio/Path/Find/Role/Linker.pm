@@ -106,7 +106,7 @@ sub _make_symlinks {
 
   say STDERR "Creating links in '$dest'";
 
-  my $pb = $self->_build_pb('linking', scalar @$lanes);
+  my $pb = $self->_create_pb('linking', scalar @$lanes);
 
   my $i = 0;
   foreach my $lane ( @$lanes ) {
