@@ -26,6 +26,10 @@ use Bio::Path::Find::Exception;
 
 extends 'Bio::Path::Find::App::PathFind';
 
+with 'Bio::Path::Find::Role::Linker',
+     'Bio::Path::Find::Role::Archiver',
+     'Bio::Path::Find::Role::Statistician';
+
 #-------------------------------------------------------------------------------
 #- usage text ------------------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -184,151 +188,8 @@ option 'filetype' => (
   is            => 'ro',
   isa           => AssemblyType,
   cmd_aliases   => 'f',
+  default       => 'scaffold',
 );
-
-#---------------------------------------
-
-# this option can be used as a simple switch ("-l") or with an argument
-# ("-l mydir"). It's a bit fiddly to set that up...
-
-option 'symlink' => (
-  documentation => 'create symlinks for data files in the specified directory',
-  is            => 'ro',
-  cmd_aliases   => 'l',
-  trigger       => \&_check_for_symlink_value,
-  # no "isa" because we want to accept both Bool and Str and it doesn't seem to
-  # be possible to specify that using the combination of MooseX::App and
-  # Type::Tiny that we're using here
-);
-
-# set up a trigger that checks for the value of the "symlink" command-line
-# argument and tries to decide if it's a boolean, in which case we'll generate
-# a directory name to hold links, or a string, in which case we'll treat that
-# string as a directory name.
-sub _check_for_symlink_value {
-  my ( $self, $new, $old ) = @_;
-
-  if ( not defined $new ) {
-    # make links in a directory whose name we'll set ourselves
-    $self->_symlink_flag(1);
-  }
-  elsif ( not is_Bool($new) ) {
-    # make links in the directory specified by the user
-    $self->_symlink_flag(1);
-    $self->_symlink_dir( dir $new );
-  }
-  else {
-    # don't make links. Shouldn't ever get here
-    $self->_symlink_flag(0);
-  }
-}
-
-# private attributes to store the (optional) value of the "symlink" attribute.
-# When using all of this we can check for "_symlink_flag" being true or false,
-# and, if it's true, check "_symlink_dir" for a value
-has '_symlink_dir'  => ( is => 'rw', isa => PathClassDir );
-has '_symlink_flag' => ( is => 'rw', isa => Bool );
-
-#---------------------------------------
-
-# set up "archive" like we set up "symlink". No need to register a new
-# subtype again though
-
-option 'archive' => (
-  documentation => 'create a tar archive of data files',
-  is            => 'rw',
-  # no "isa" because we want to accept both Bool and Str
-  cmd_aliases   => 'a',
-  trigger       => \&_check_for_archive_value,
-);
-
-sub _check_for_archive_value {
-  my ( $self, $new, $old ) = @_;
-
-  if ( not defined $new ) {
-    $self->_tar_flag(1);
-  }
-  elsif ( not is_Bool($new) ) {
-    $self->_tar_flag(1);
-    $self->_tar( file $new );
-  }
-  else {
-    $self->_tar_flag(0);
-  }
-}
-
-has '_tar'      => ( is => 'rw', isa => PathClassFile );
-has '_tar_flag' => ( is => 'rw', isa => Bool );
-
-#---------------------------------------
-
-# set up "zip" like we set up "symlink"
-
-option 'zip' => (
-  documentation => 'create a zip archive of data files',
-  is            => 'rw',
-  # no "isa" because we want to accept both Bool and Str
-  cmd_aliases   => 'z',
-  trigger       => \&_check_for_zip_value,
-);
-
-sub _check_for_zip_value {
-  my ( $self, $new, $old ) = @_;
-
-  if ( not defined $new ) {
-    $self->_zip_flag(1);
-  }
-  elsif ( not is_Bool($new) ) {
-    $self->_zip_flag(1);
-    $self->_zip( file $new );
-  }
-  else {
-    $self->_zip_flag(0);
-  }
-}
-
-has '_zip'      => ( is => 'rw', isa => PathClassFile );
-has '_zip_flag' => ( is => 'rw', isa => Bool );
-
-#---------------------------------------
-
-option 'stats' => (
-  documentation => 'filename for statistics CSV output',
-  is            => 'rw',
-  # no "isa" because we want to accept both Bool and Str
-  cmd_aliases   => 's',
-  trigger       => \&_check_for_stats_value,
-);
-
-sub _check_for_stats_value {
-  my ( $self, $new, $old ) = @_;
-
-  if ( not defined $new ) {
-    $self->_stats_flag(1);
-  }
-  elsif ( not is_Bool($new) ) {
-    $self->_stats_flag(1);
-    $self->_stats_file( file $new );
-  }
-  else {
-    $self->_stats_flag(0);
-  }
-}
-
-has '_stats_flag' => ( is => 'rw', isa => Bool );
-# has '_stats_file' => ( is => 'rw', isa => PathClassFile );
-
-has '_stats_file' => (
-  is      => 'rw',
-  isa     => PathClassFile,
-  lazy    => 1,
-  builder => '_stats_file_builder',
-);
-
-sub _stats_file_builder {
-  my $self = shift;
-  return file( getcwd(), $self->_renamed_id . '.assemblyfind_stats.csv' );
-}
 
 #-------------------------------------------------------------------------------
 #- private attributes ----------------------------------------------------------
@@ -341,6 +202,17 @@ sub _stats_file_builder {
 
 sub _build_lane_role {
   return 'Bio::Path::Find::Lane::Role::Assembly';
+}
+
+#---------------------------------------
+
+# this is a builder for the "_stats_file" attribute that's defined by the
+# B::P::F::Role::Statistician. This attribute provides the default name of the
+# stats file that the command writes out
+
+sub _stats_file_builder {
+  my $self = shift;
+  return file( getcwd(), $self->_renamed_id . '.assemblyfind_stats.csv' );
 }
 
 #-------------------------------------------------------------------------------
@@ -362,35 +234,45 @@ sub run {
   #                                    . q(" already exists; not overwriting) )
   #   if ( $self->_submitted_flag and -e $self->_submitted );
 
+  # set up the finder
+
   # build the parameters for the finder. Omit undefined options or Moose spits
   # the dummy (by design)
   my %finder_params = (
     ids  => $self->_ids,
     type => $self->_type,
   );
+  $finder_params{filetype} = $self->filetype if defined $self->filetype;
 
   # find lanes
   my $lanes = $self->_finder->find_lanes(%finder_params);
 
-  $self->log->debug( 'found ' . scalar @$lanes . ' lanes' );
+  $self->log->debug( 'found a total of ' . scalar @$lanes . ' lanes' );
 
   if ( scalar @$lanes < 1 ) {
     say STDERR 'No data found.';
     exit;
   }
 
-  $DB::single = 1;
-
-  my $filetype = $self->filetype || 'all';
-
-  my $pb = $self->_build_pb('finding files', scalar @$lanes);
-
-  foreach my $lane ( @$lanes ) {
-    $lane->find_files($filetype);
-    $pb++;
+  # do something with the found lanes
+  if ( $self->_symlink_flag or
+       $self->_tar_flag or
+       $self->_zip_flag or
+       $self->_stats_flag ) {
+    $self->_make_symlinks($lanes) if $self->_symlink_flag;
+    $self->_make_tar($lanes)      if $self->_tar_flag;
+    $self->_make_zip($lanes)      if $self->_zip_flag;
+    $self->_make_stats($lanes)    if $self->_stats_flag;
+  }
+  else {
+    # telling B::P::F::Finder to look for files of a specific type will make
+    # it run $lane->find_files, so calling $lane->print_paths will print out
+    # the names of the found files.
+    # If we don't tell Finder to look for files, $lane->print_path will fall
+    # back to printing the directory name for a lane
+    $_->print_paths for ( @$lanes );
   }
 
-  $_->print_paths for ( @$lanes );
 }
 
 #-------------------------------------------------------------------------------

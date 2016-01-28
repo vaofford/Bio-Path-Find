@@ -48,6 +48,12 @@ sub _build_filetype_extensions {
   };
 }
 
+# NOTE if there is a "_get_*" method for one of the keys, then calling
+# NOTE $lane->find_files(filetype=>'<key>') will call that method to find files.
+# NOTE If there's no corresponding "_get_*" method, "find_files" will fall back
+# NOTE on calling "_get_extension", which will use Find::File::Rule to look for
+# NOTE files according to the pattern given in the hash value.
+
 #-------------------------------------------------------------------------------
 
 sub _get_scaffold {
@@ -63,7 +69,7 @@ sub _get_scaffold {
 
 #-------------------------------------------------------------------------------
 
-sub _get_contig {
+sub _get_contigs {
   my $self = shift;
 
   $self->log->trace( q(looking for contigs in ") . $self->symlink_path . q(") );
@@ -82,7 +88,7 @@ sub _get_all {
   $self->log->trace( q(looking for scaffolds and contigs in ") . $self->symlink_path . q(") );
 
   $self->_get_scaffold;
-  $self->_get_contig;
+  $self->_get_contigs;
 }
 
 #-------------------------------------------------------------------------------

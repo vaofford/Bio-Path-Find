@@ -53,20 +53,6 @@ again, both of which are used to generate stats as provided by C<pathfind>.
 #- builders --------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# build mapping between filetype and file extension. The mapping is specific
-# to data files related to lanes, such as fastq or bam.
-
-sub _build_filetype_extensions {
-  {
-    fastq     => '.fastq.gz',
-    bam       => '*.bam', # NOTE no wildcard in mapping in original PathFind
-    pacbio    => '*.h5',
-    corrected => '*.corrected.*',
-  };
-}
-
-#-------------------------------------------------------------------------------
-
 # build an array of headers for the statistics display
 #
 # required by the Stats Role
@@ -162,6 +148,26 @@ sub _build_stats {
     $self->pipeline_status('annotated'),
   ];
 }
+
+#-------------------------------------------------------------------------------
+
+# build mapping between filetype and file extension. The mapping is specific
+# to data files related to lanes, such as fastq or bam.
+
+sub _build_filetype_extensions {
+  {
+    fastq     => '.fastq.gz',
+    bam       => '*.bam', # NOTE no wildcard in mapping in original PathFind
+    pacbio    => '*.h5',
+    corrected => '*.corrected.*',
+  };
+}
+
+# NOTE if there is a "_get_*" method for one of the keys, then calling
+# NOTE $lane->find_files(filetype=>'<key>') will call that method to find files.
+# NOTE If there's no corresponding "_get_*" method, "find_files" will fall back
+# NOTE on calling "_get_extension", which will use Find::File::Rule to look for
+# NOTE files according to the pattern given in the hash value.
 
 #-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------
