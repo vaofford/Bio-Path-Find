@@ -52,6 +52,7 @@ enum FileIDType,   [qw( lane sample study)];
 enum QCState,      [qw( passed failed pending )];
 enum FileType,     [qw( fastq bam pacbio corrected )];
 enum AssemblyType, [qw( scaffold contigs all )];
+enum Assembler,    [qw( velvet spades iva pacbio )];
 
 1;
 
