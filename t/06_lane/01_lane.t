@@ -2,13 +2,16 @@
 use strict;
 use warnings;
 
-use Test::More tests => 17;
+use Test::More tests => 16;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
 use Path::Class;
 use File::Temp qw( tempdir );
 use Cwd;
+use Log::Log4perl qw( :easy );
+
+use Bio::Path::Find::DatabaseManager;
 
 # set up the "linked" directory for the test suite
 use lib 't';
@@ -19,16 +22,9 @@ unless ( -d dir( qw( t data linked ) ) ) {
   diag 'creating symlink directory';
   Test::Setup::make_symlinks;
 }
-use_ok('Bio::Path::Find::DatabaseManager');
-
-use Bio::Path::Find::DatabaseManager;
-
-use Log::Log4perl qw( :easy );
 
 # initialise l4p to avoid warnings
 Log::Log4perl->easy_init( $FATAL );
-
-use_ok('Bio::Path::Find::Lane');
 
 #---------------------------------------
 
@@ -50,17 +46,19 @@ my $dbm = Bio::Path::Find::DatabaseManager->new(
   schema_name => 'tracking',
 );
 
-my $database  = $dbm->get_database('pathogen_prok_track');
-my $lane_rows = $database->schema->get_lanes_by_id('10018_1', 'lane');
+my $database     = $dbm->get_database('pathogen_prok_track');
+my $lane_rows_rs = $database->schema->get_lanes_by_id('10018_1', 'lane');
 
-is $lane_rows->count, 50, 'got 50 lanes';
+is $lane_rows_rs->count, 50, 'got 50 lanes';
 
-my $lane_row = $lane_rows->first;
+my $lane_row = $lane_rows_rs->first;
 $lane_row->database($database);
 
 #---------------------------------------
 
 # check creation without a role
+
+use_ok('Bio::Path::Find::Lane');
 
 my $lane;
 lives_ok { $lane = Bio::Path::Find::Lane->new( row => $lane_row ) }
@@ -157,5 +155,5 @@ SKIP: {
 
 }
 
-done_testing;
+# done_testing;
 
