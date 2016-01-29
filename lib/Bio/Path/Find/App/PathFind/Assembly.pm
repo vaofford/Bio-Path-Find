@@ -273,6 +273,15 @@ sub run {
     filetype => $self->filetype,    # defaults to "scaffold"
   );
 
+  # should we restrict the search to a specific assembler ?
+  if ( $self->program ) {
+    $self->log->debug( 'finding lanes with assemblies created by ' . $self->program );
+
+    # yes; tell the Finder to set the "assemblers" attribute on every Lane that
+    # it returns
+    $finder_params{lane_attributes}->{assemblers} = [ $self->program ];
+  }
+
  # find lanes
   my $lanes = $self->_finder->find_lanes(%finder_params);
 
