@@ -29,6 +29,7 @@ use Types::Standard qw(
   Dict
   Optional
   Bool
+  Maybe
 );
 use Bio::Path::Find::Types qw(
   BioPathFindLaneStatus
@@ -223,24 +224,16 @@ sub _build_symlink_path {
 
 #---------------------------------------
 
-=attr found_file_type
+=attr filetype
 
-The type of file that was found when running L<find_files>, or C<undef> if
-L<find_files> has not yet been run. This attribute acts as a proxy for checking
-if this C<Lane> has found files yet. If C<found_file_type> is set, i.e. not
-C<undef>, the L<find_files> method has been called. This can be checked using
-the L<has_found_files> predicate.
-
-The type of tile to find is specified as an argument to L<find_files> and
-cannot be set separately. B<Read only>.
+The type of file that this C<Lane> should find if requested (see
+L<find_files|Bio::Path::Find::Lane>).
 
 =cut
 
-has 'found_file_type' => (
-  is        => 'rw',
-  isa       => Str,
-  writer    => '_set_found_file_type',
-  predicate => 'has_found_files',
+has 'filetype' => (
+  is  => 'rw',
+  isa => Maybe[FileType|AssemblyType],
 );
 
 #---------------------------------------
@@ -321,9 +314,12 @@ the L<Lane|Bio::Path::Find::Lane> at instantiation, something like:
   my $lane = Bio::Path::Find::Lane->with_traits('Bio::Path::Find::Lane::Role::Data')
                                   ->new( row => $lane_row );
 
-You can also apply roles to classes; refer to the (L<Moose
-docs|https://metacpan.org/pod/distribution/Moose/lib/Moose/Manual/Roles.pod#ADDING-A-ROLE-TO-AN-OBJECT-INSTANCE>)
+You can also apply roles to existing objects if necessary; refer to the
+L<Moose docs|https://metacpan.org/pod/distribution/Moose/lib/Moose/Manual/Roles.pod#ADDING-A-ROLE-TO-AN-OBJECT-INSTANCE>
 for how to do that.
+
+B<Note> that calling this method will set the L<filetype> attribute on the
+object to C<$filetype>.
 
 =cut
 
@@ -331,7 +327,7 @@ sub find_files {
   state $check = compile( Object, FileType|AssemblyType );
   my ( $self, $filetype ) = $check->(@_);
 
-  $self->_set_found_file_type($filetype);
+  $self->filetype($filetype);
 
   $self->clear_files;
 
@@ -359,11 +355,12 @@ sub find_files {
 
 Prints the paths for this lane.
 
-If a file type was specified when running L<find_files>, this method prints the
-path to that type of file only. If file type was not specified, this method
-prints the path to the directory containing all files for this lane.
+If the L<filetype> attribute is set, either directly or by the L<find_files>
+method when it runs, this method prints the path to that type of file only. If
+file type has not been specified, this method prints the path to the directory
+containing all files for this lane.
 
-Returns the number of files found, if a file type was specified, or 1 if we're
+Returns the number of files found if a file type was specified, or 1 if we're
 printing the path to the lane's directory.
 
 =cut
@@ -372,7 +369,7 @@ sub print_paths {
   my $self = shift;
 
   my $rv = 0;
-  if ( $self->found_file_type ) {
+  if ( $self->filetype ) {
     say $_ for ( $self->all_files );
     $rv += $self->has_files;
   }
@@ -447,7 +444,7 @@ sub make_symlinks {
   }
 
   my $rv = 0;
-  if ( $self->has_found_files and $self->has_files ) {
+  if ( $self->filetype and $self->has_files ) {
     $rv = $self->_make_file_symlinks( $params->{dest}, $params->{rename} );
   }
   else {
@@ -481,9 +478,11 @@ sub _make_file_symlinks {
 
     my $dst_file = file( $dest, $filename );
 
-    # if this Lane has a "_edit_link_filenames" method, call it to edit the
-    # "from" and "to" filenames for the link. The method should be provided by
-    # a B::P::F::Lane::Role, if it's needed
+    # provide a hook for Lane Roles to edit filenames, if necessary
+    #
+    # if the Lane has a "_edit_link_filenames" method, which should come from a
+    # Role applied to the Lane, call the method to edit the "from" and "to"
+    # filenames for the link
     ( $src_file, $dst_file ) = $self->_edit_filenames( $src_file, $dst_file )
       if $self->can('_edit_link_filenames');
 
