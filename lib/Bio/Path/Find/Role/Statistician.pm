@@ -13,7 +13,6 @@ path-help@sanger.ac.uk
 
 =cut
 
-use Cwd;
 use Path::Class;
 
 use Bio::Path::Find::Exception;
@@ -67,7 +66,7 @@ has '_stats_file' => (
 
 sub _stats_file_builder {
   my $self = shift;
-  return file( getcwd(), $self->_renamed_id . '.pathfind_stats.csv' );
+  return file( $self->_renamed_id . '.pathfind_stats.csv' );
 }
 
 #-------------------------------------------------------------------------------
@@ -87,7 +86,8 @@ sub _make_stats {
   my $pb = $self->_create_pb('collecting stats', scalar @$lanes);
 
   foreach my $lane ( @$lanes ) {
-    push @stats, $lane->stats;
+    $lane->filetype($self->filetype);
+    push @stats, @{ $lane->stats };
     $pb++;
   }
 

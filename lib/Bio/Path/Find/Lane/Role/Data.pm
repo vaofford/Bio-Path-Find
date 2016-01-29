@@ -110,42 +110,46 @@ sub _build_stats {
   # shortcut to a hash containing Bio::Track::Schema::Result objects
   my $t = $self->_tables;
 
+  # NOTE has to return an array ref of array refs (to match up with the return
+  # NOTE value from B::P::F::Lane::Role::Assembly)
   return [
-    $t->{project}->ssid,
-    $t->{sample}->name,
-    $t->{lane}->name,
-    $t->{lane}->readlen,
-    $t->{lane}->raw_reads,
-    $t->{lane}->raw_bases,
-    $self->_map_type,
-    defined $t->{assembly} ? $t->{assembly}->name           : undef,
-    defined $t->{assembly} ? $t->{assembly}->reference_size : undef,
-    defined $t->{mapper}   ? $t->{mapper}->name             : undef,
-    defined $t->{mapstats} ? $t->{mapstats}->mapstats_id    : undef,
-    $self->_mapping_is_complete
-      ? $self->_percentage( $t->{mapstats}->reads_mapped, $t->{mapstats}->raw_reads )
-      : '0.0',
-    $self->_mapping_is_complete
-      ? $self->_percentage( $t->{mapstats}->reads_paired, $t->{mapstats}->raw_reads )
-      : '0.0',
-    $t->{mapstats}->mean_insert,
-    $self->_depth_of_coverage,
-    $self->_depth_of_coverage_sd,
-    $self->_adapter_percentage,
-    $self->_transposon_percentage,
-    $self->_genome_covered,
-    $self->_duplication_rate,
-    $self->_error_rate,
-    $t->{lane}->npg_qc_status,
-    $t->{lane}->qc_status,
-    $self->_het_snp_stats, # returns 4 values
-    $self->pipeline_status('qc'),
-    $self->pipeline_status('mapped'),
-    $self->pipeline_status('stored'),
-    $self->pipeline_status('snp_called'),
-    $self->pipeline_status('snp_called'),
-    $self->pipeline_status('assembled'),
-    $self->pipeline_status('annotated'),
+    [
+      $t->{project}->ssid,
+      $t->{sample}->name,
+      $t->{lane}->name,
+      $t->{lane}->readlen,
+      $t->{lane}->raw_reads,
+      $t->{lane}->raw_bases,
+      $self->_map_type,
+      defined $t->{assembly} ? $t->{assembly}->name           : undef,
+      defined $t->{assembly} ? $t->{assembly}->reference_size : undef,
+      defined $t->{mapper}   ? $t->{mapper}->name             : undef,
+      defined $t->{mapstats} ? $t->{mapstats}->mapstats_id    : undef,
+      $self->_mapping_is_complete
+        ? $self->_percentage( $t->{mapstats}->reads_mapped, $t->{mapstats}->raw_reads )
+        : '0.0',
+      $self->_mapping_is_complete
+        ? $self->_percentage( $t->{mapstats}->reads_paired, $t->{mapstats}->raw_reads )
+        : '0.0',
+      $t->{mapstats}->mean_insert,
+      $self->_depth_of_coverage,
+      $self->_depth_of_coverage_sd,
+      $self->_adapter_percentage,
+      $self->_transposon_percentage,
+      $self->_genome_covered,
+      $self->_duplication_rate,
+      $self->_error_rate,
+      $t->{lane}->npg_qc_status,
+      $t->{lane}->qc_status,
+      $self->_het_snp_stats, # returns 4 values
+      $self->pipeline_status('qc'),
+      $self->pipeline_status('mapped'),
+      $self->pipeline_status('stored'),
+      $self->pipeline_status('snp_called'),
+      $self->pipeline_status('snp_called'),
+      $self->pipeline_status('assembled'),
+      $self->pipeline_status('annotated'),
+    ]
   ];
 }
 

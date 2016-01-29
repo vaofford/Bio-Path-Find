@@ -269,7 +269,7 @@ sub _collect_filenames {
     }
 
     # store the stats for this lane
-    push @stats, $lane->stats;
+    push @stats, @{ $lane->stats };
 
     $pb++;
   }

@@ -50,7 +50,7 @@ L<headers>.
 
 has 'stats' => (
   is      => 'ro',
-  isa     => ArrayRef[Str],
+  isa     => ArrayRef[ArrayRef],
   lazy    => 1,
   builder => '_build_stats',
 );
