@@ -29,7 +29,7 @@ use Bio::Path::Find::Exception;
 extends 'Bio::Path::Find::App::PathFind';
 
 with 'Bio::Path::Find::Role::Linker',
-     'Bio::Path::Find::Role::Archiver',
+     'Bio::Path::Find::Role::Archivist',
      'Bio::Path::Find::Role::Statistician';
 
 #-------------------------------------------------------------------------------
