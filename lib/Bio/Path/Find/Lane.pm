@@ -31,14 +31,7 @@ use Types::Standard qw(
   Bool
   Maybe
 );
-use Bio::Path::Find::Types qw(
-  BioPathFindLaneStatus
-  BioTrackSchemaResultLatestLane
-  PathClassFile
-  PathClassDir
-  FileType
-  AssemblyType
-);
+use Bio::Path::Find::Types qw( :types );
 
 with 'MooseX::Log::Log4perl', 'MooseX::Traits';
 
