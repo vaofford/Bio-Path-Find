@@ -3,7 +3,7 @@ package Bio::Path::Find::App::PathFind;
 
 # ABSTRACT: find data for sequencing runs
 
-use MooseX::App qw( Man BashCompletion );
+use MooseX::App qw( Man BashCompletion Color );
 
 use Path::Class;
 use Text::CSV_XS;
