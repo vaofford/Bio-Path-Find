@@ -39,6 +39,10 @@ has 'status_file' => (
 
 # attributes populated when we read a file
 
+# NOTE the "config_file" referred to throughout this class is not the config
+# NOTE file for the Bio::Path::Find classes, but a config file that's part of
+# NOTE the pipeline system
+
 has 'config_file'        => ( is => 'ro', isa => PathClassFile, writer => '_set_config_file' );
 has 'last_update'        => ( is => 'ro', isa => Datetime,      writer => '_set_last_update',       coerce => 1 );
 # (coerce from an epoch time in the status file)

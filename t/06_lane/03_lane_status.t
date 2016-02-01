@@ -22,12 +22,25 @@ use_ok('Bio::Path::Find::DatabaseManager');
 # initialise l4p to avoid warnings
 Log::Log4perl->easy_init( $FATAL );
 
+#---------------------------------------
+
 # get a lane object to play with
 use Bio::Path::Find::Lane;
 use Bio::Path::Find::DatabaseManager;
 
+my $config = {
+  db_root           => dir(qw( t data linked )),
+  connection_params => {
+    tracking => {
+      driver       => 'SQLite',
+      dbname       => file(qw( t data pathogen_prok_track.db )),
+      schema_class => 'Bio::Track::Schema',
+    },
+  },
+};
+
 my $dbm = Bio::Path::Find::DatabaseManager->new(
-  config_file => file( qw( t data 10_lane_status test.conf ) ),
+  config      => $config,
   schema_name => 'tracking',
 );
 
@@ -43,6 +56,8 @@ my $lane = Bio::Path::Find::Lane->new( row => $lane_row );
 # quick check that the lane has the state we're expecting...
 is $lane_row->processed, 15, 'lane row has expected "processed" value';
 
+#---------------------------------------
+
 # and now test the Lane::Status class
 
 use_ok('Bio::Path::Find::Lane::Status');
@@ -52,6 +67,11 @@ lives_ok { $lane_status = Bio::Path::Find::Lane::Status->new( lane => $lane ) }
   'no exception when instantiating';
 
 isa_ok $lane_status, 'Bio::Path::Find::Lane::Status', 'status object';
+
+# the LaneStatus object is built using the following "_job_status" file:
+#   t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/_job_status
+# which points to a job config file at:
+#   t/data/06_lane/03_lane_status/stored/stored_global.conf
 
 ok $lane_status->has_status_files, 'loaded a status file';
 

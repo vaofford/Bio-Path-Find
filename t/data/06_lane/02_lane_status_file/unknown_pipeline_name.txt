@@ -1,0 +1,4 @@
+t/data/06_lane/02_lane_status_file/new_pipeline.conf
+1446650905
+failed
+3
