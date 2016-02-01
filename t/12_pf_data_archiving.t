@@ -2,9 +2,10 @@
 use strict;
 use warnings;
 
-use Test::More tests => 41;
+use Test::More tests => 44;
 use Test::Exception;
 use Test::Output;
+use Capture::Tiny qw( :all );
 use Test::Warn;
 use Path::Class;
 use File::Temp qw( tempdir );
@@ -88,10 +89,7 @@ my $pf;
 lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
   'got a new pathfind app object';
 
-my ( $got_filenames, $got_stats );
-stderr_unlike { ( $got_filenames, $got_stats ) = $pf->_collect_filenames($lanes) }
-  qr/finding files:\s+\d+\%/,
-  'no progress bar for _collect_filenames when "no_progress_bars" true';
+my ( $got_filenames, $got_stats ) = $pf->_collect_filenames($lanes);
 
 is_deeply $got_filenames, \@expected_filenames,
   'got expected list of filenames from _collect_filenames';
@@ -224,6 +222,18 @@ $filename = file( $temp_dir, 'output.txt.gz' );
 lives_ok { $pf->_write_data($compressed_data, $filename) }
   'no exception when writing file to valid directory';
 
+# should get an error when writing to the same output filename
+throws_ok { $pf->_write_data($compressed_data, $filename) }
+  qr/already exists/,
+  'exception when writing file to valid directory';
+
+$params{force} = 1;
+
+$pf = Bio::Path::Find::App::PathFind::Data->new(%params);
+
+lives_ok { $pf->_write_data($compressed_data, $filename) }
+  'no exception when writing to existing file but "force" is true';
+
 my $slurped_file = $filename->slurp;
 my $uncompressed_slurped_data = Compress::Zlib::memGunzip $slurped_file;
 
@@ -332,7 +342,8 @@ ok $exception_thrown, 'exception with write failure';
 # create a zip archive
 
 delete $params{archive};
-$params{zip} = 1;
+$params{force} = 0;
+$params{zip}   = 1;
 
 $pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
@@ -344,6 +355,31 @@ output_like { $pf->_make_zip($lanes) }
 $archive = file( $temp_dir, 'pathfind_10018_1_1.zip' );
 
 ok -f $archive, 'found zip archive';
+
+# should get an error when writing to the same filename
+try {
+  capture_stderr { $pf->_make_zip($lanes) };
+  $exception_thrown = 0;
+} catch {
+  $exception_thrown = 1;
+};
+
+ok $exception_thrown, 'exception when writing to existing file';
+
+$params{force} = 1;
+
+$pf = Bio::Path::Find::App::PathFind::Data->new(%params);
+
+try {
+  capture_merged { $pf->_make_zip($lanes) };
+  $exception_thrown = 0;
+} catch {
+  $exception_thrown = 1;
+};
+
+ok ! $exception_thrown, 'no error when writing to existing file but "force" is true';
+
+# make sure we can read the zip
 
 $zip = Archive::Zip->new;
 
@@ -359,9 +395,7 @@ $pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
 $exception_thrown = 0;
 try {
-  stderr_like { $pf->_make_zip($lanes) }
-    qr|non-existent-dir.*?Can't open /non-existent-dir/test.zip|,
-    'exception when writing zip to expected (broken) location';
+  capture_stderr { $pf->_make_zip($lanes) };
 } catch {
   $exception_thrown = 1;
 };

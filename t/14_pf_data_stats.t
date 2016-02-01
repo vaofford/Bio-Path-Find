@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 10;
+use Test::More tests => 12;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -100,6 +100,17 @@ ok -e $stats_file, 'stats named as expected';
 
 $stats = csv( in => $stats_file->stringify );
 is_deeply $stats, \@expected_stats, 'contents of named file look right';
+
+# should get an error when writing to the same file a second time
+throws_ok { $pf->_make_stats($lanes) }
+  qr/already exists/,
+  'exception when calling _make_stats with existing file';
+
+$params{force} = 1;
+$pf = Bio::Path::Find::App::PathFind::Data->new(%params);
+
+lives_ok { $pf->_make_stats($lanes) }
+  'no exception when calling _make_stats with existing file but "force" is set to true';
 
 #-------------------------------------------------------------------------------
 

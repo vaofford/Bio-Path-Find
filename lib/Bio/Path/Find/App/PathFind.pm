@@ -73,7 +73,9 @@ file from ENA.
 
 =head2 assembly
 
-Find genome assemblies.
+Find genome assemblies. Lists assembly files, creates archives of or symbolic
+links to assembly data files. Equivalent to the original C<assemblyfind>
+command.
 
 =head2 data
 
@@ -136,6 +138,14 @@ When writing comma separated values (CSV) files (e.g. when writing statistics
 using C<pf data>), use the specified string as a separator. Defaults to comma
 (C<,>).
 
+=item --force, -F
+
+When writing files, you will see an error message if the output file already
+exists. Add C<--force> to force C<pf> to silently overwrite any existing files.
+Note that this will not affect the creation of symbolic links. Trying to create
+links where the destination file or directory already exist will cause an error
+or a warning.
+
 =item --verbose, -v
 
 Show debugging information.
@@ -167,6 +177,10 @@ interactively. Corresponds to C<--no-progress-bars>.
 
 Set the separator to be used when writing comma separated values (CSV) files.
 Corresponds to C<--csv-separator>.
+
+=item PF_FORCE_OVERWRITE
+
+Set to true to force existing files or links to be overwritten.
 
 =item PF_VERBOSE
 
@@ -248,6 +262,15 @@ option 'rename' => (
   is            => 'rw',
   isa           => Bool,
   cmd_aliases   => 'r',
+);
+
+option 'force' => (
+  documentation => 'force commands to overwrite existing files',
+  is            => 'ro',
+  isa           => Bool,
+  cmd_aliases   => 'F',
+  cmd_env       => 'PF_FORCE_OVERWRITE',
+  default       => 0,
 );
 
 option 'verbose' => (
@@ -490,8 +513,11 @@ around [ '_write_csv', '_write_list' ] => sub {
     unless defined $filename;
 
   # see if the supplied filename exists and complain if it does
-  Bio::Path::Find::Exception->throw( msg => qq(ERROR: output file "$filename" already exists; not overwriting existing file) )
-    if -e $filename;
+  if ( -e $filename and not $self->force ) {
+    Bio::Path::Find::Exception->throw(
+      msg => qq(ERROR: output file "$filename" already exists; not overwriting existing file. Use "-F" to force overwriting)
+    );
+  }
 
   my $fh = FileHandle->new;
 
