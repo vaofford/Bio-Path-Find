@@ -1,8 +1,26 @@
 
+package TestRole;
+
+use Moose::Role;
+
+with 'Bio::Path::Find::Lane::Role::Data';
+
+sub _build_stats_headers {
+  [ 'one', 'two' ];
+}
+
+sub _build_stats {
+  [ [ 1, 2, ] ];
+}
+
+#-------------------------------------------------------------------------------
+
+package main;
+
 use strict;
 use warnings;
 
-use Test::More tests => 14;
+use Test::More tests => 28;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -62,110 +80,163 @@ $lane_row->database($database);
 
 my $lane;
 
-# apply a trait when creating the Lane, so that the "_get_fastq" method
-# is available
-lives_ok { $lane = Bio::Path::Find::Lane->with_traits('Bio::Path::Find::Lane::Role::Data')
+lives_ok { $lane = Bio::Path::Find::Lane->with_traits('TestRole')
                                         ->new( row => $lane_row ) }
-  'no exception when creating Lane with applied Role';
+  'no exception when creating Lane with Stats Role applied';
 
-SKIP: {
-  skip "can't check path printing except on unix", 3,
-    unless file( qw( t data linked ) ) eq 't/data/linked';
+ok $lane->does('Bio::Path::Find::Lane::Role::Stats'), 'lane has Stats Role applied';
+ok $lane->does('Bio::Path::Find::Lane::Role::Data'), 'lane has Data Role applied';
 
-  stdout_is { $lane->print_paths } 't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1
-', 'printed expected path to directory for lane';
+#-------------------------------------------------------------------------------
 
-  # find some files with specific types...
-  is $lane->find_files('fastq'), 1, 'found fastq file for lane';
+# check methods for retrieving or calculating stats values
 
-  # check print_files output
-  stdout_is { $lane->print_paths } 't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/10018_1#1_1.fastq.gz
-', 'printed expected path';
+# "_map_type"
 
-  is $lane->find_files('bam'),   2, 'found 2 bam files for lane';
-  stdout_is { $lane->print_paths } 't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/544477.se.markdup.bam
-t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/544477.se.raw.sorted.bam
-', 'printed expected paths';
-};
+is $lane->_map_type, 'QC', 'map type is correct, as per the starting test data';
 
-# status object
-isa_ok $lane->status, 'Bio::Path::Find::Lane::Status', 'lane status object';
-is $lane->pipeline_status('stored'), 'Done', 'got pipeline status directly from the Lane';
+$lane->_tables->{mapstats}->is_qc(0);
+is $lane->_map_type, 'Mapping', 'map type is correct, as per altered test data';
+$lane->_tables->{mapstats}->is_qc(1);
 
 #---------------------------------------
 
-# symlinking
+# "_depth_of_coverage" and "_depth_of_coverage_sd"
 
-# first, see if we can make symlinks in perl on this platform
-my $symlink_exists = eval { symlink("",""); 1 }; # see perl doc for symlink
+# calculated value for first lane
+is $lane->_depth_of_coverage, '0.00', 'calculated depth of field is correct';
 
-SKIP: {
-  skip "can't create symlinks on this platform", 10 unless $symlink_exists;
+# mess with internal parameters a bit
+my $old_mtc = $lane->_tables->{mapstats}->mean_target_coverage;
+$lane->_tables->{mapstats}->mean_target_coverage(undef);
 
-  # set up a temp directory as the destination
-  my $temp_dir = File::Temp->newdir;
-  my $symlink_dir = dir $temp_dir;
+my $old_rbm = $lane->_tables->{mapstats}->rmdup_bases_mapped;
+$lane->_tables->{mapstats}->rmdup_bases_mapped(100000);
 
-  # should work
-  lives_ok { $lane->make_symlinks( dest => $symlink_dir ) }
-    'no exception when creating symlinks';
+is $lane->_depth_of_coverage, '0.05',
+  'calculated depth of field is correct (messed with "rmdup_bases_mapped")';
 
-  is $lane->make_symlinks( dest => $symlink_dir, filetype => 'fastq' ), 1,
-    'created expected one link for fastq';
+my $old_qb = $lane->_tables->{mapstats}->raw_bases;
+$lane->_tables->{mapstats}->raw_bases($old_qb/2);
 
-  # check renaming (conversion of hashes to underscores in filename)  when
-  # linking to a file
-  $lane->make_symlinks(
-    dest     => $symlink_dir,
-    rename   => 1,
-    filetype => 'fastq',
-  );
+is $lane->_depth_of_coverage, '0.10',
+  'calculated depth of field is correct (messed with "raw_bases")';
 
-  ok -l file( $symlink_dir, '10018_1_1_1.fastq.gz' ), 'found renamed link';
-}
+is $lane->_depth_of_coverage_sd, '0.02',
+  'calculated depth of field is correct (with tweaked params in "_depth_of_coverage")';
 
-# check the stats for a lane
+# reset the tweaked values
+$lane->_tables->{mapstats}->mean_target_coverage($old_mtc);
+$lane->_tables->{mapstats}->rmdup_bases_mapped($old_rbm);
+$lane->_tables->{mapstats}->raw_bases($old_qb);
 
-my $expected_stats = [
-  [
-    '607',
-    'APP_N2_OP1',
-    '10018_1#1',
-    '47',
-    '397141',
-    '18665627',
-    'QC',
-    'Streptococcus_suis_P1_7_v1',
-    '2007491',
-    'bwa',
-    '525354',
-    '0.0',
-    '0.0',
-    '0',
-    '0.00',
-    '0.01',
-    '2.3',
-    '90.2',
-    '0.00',
-    '0.0000',
-    '0.044',
-    'pending',
-    'pending',
-    '1',
-    '2.0868283360403e-05',
-    '0.0112145340361108',
-    '3.57142857142857',
-    'Done',
-    'Done',
-    'Done',
-    '-',
-    '-',
-    '-',
-    '-',
-  ]
+is $lane->_depth_of_coverage_sd, '0.01',
+  'calculated depth of field is correct (with reset params)';
+
+#---------------------------------------
+
+# "_adapter_percentage"
+
+is $lane->_adapter_percentage, '2.3', 'calculated adapter percentage correctly';
+
+$lane->_tables->{mapstats}->is_qc(0);
+is $lane->_adapter_percentage, 'NA',
+  'refused to calculate adapter percentage ("is_qc" set to zero)';
+$lane->_tables->{mapstats}->is_qc(1);
+
+my $old_ar = $lane->_tables->{mapstats}->adapter_reads;
+$lane->_tables->{mapstats}->adapter_reads($old_ar * 2);
+
+is $lane->_adapter_percentage, '4.7',
+  'calculated adapter percentage correctly (doubled adapter reads)';
+
+$lane->_tables->{mapstats}->adapter_reads($old_ar);
+
+#---------------------------------------
+
+# "_transposon_percentage"
+
+is $lane->_transposon_percentage, '90.2', 'returned transposon percentage correctly';
+
+$lane->_tables->{mapstats}->is_qc(0);
+is $lane->_transposon_percentage, 'NA',
+  'refused to return transposon percentage ("is_qc" set to zero)';
+$lane->_tables->{mapstats}->is_qc(1);
+
+my $old_prwt = $lane->_tables->{mapstats}->percentage_reads_with_transposon;
+$lane->_tables->{mapstats}->percentage_reads_with_transposon($old_prwt/2);
+
+is $lane->_transposon_percentage, '45.1',
+  'calculated transposon percentage (halved "percentage_reads_with_transposon")';
+
+#---------------------------------------
+
+# "_genome_covered"
+
+is $lane->_genome_covered, '0.00', 'returned genome coverage percentage correctly';
+
+my $old_tbm = $lane->_tables->{mapstats}->target_bases_mapped;
+$lane->_tables->{mapstats}->target_bases_mapped(100000);
+is $lane->_genome_covered, '4.98',
+  'returned genome coverage percentage correctly (doubled "target_bases_mapped")';
+
+$lane->_tables->{mapstats}->target_bases_mapped(undef);
+
+is $lane->_genome_covered, 'NA',
+  'refused to return genome coverage ("target_bases_mapped" set to undef)';
+
+$lane->_tables->{mapstats}->target_bases_mapped(47);
+
+#---------------------------------------
+
+# "_duplication_rate"
+
+is $lane->_duplication_rate, '0.0000', 'returned duplication rate correctly';
+
+my $old_rrm = $lane->_tables->{mapstats}->rmdup_reads_mapped;
+my $old_rm  = $lane->_tables->{mapstats}->reads_mapped;
+
+$lane->_tables->{mapstats}->rmdup_reads_mapped(undef);
+
+is $lane->_duplication_rate, 'NA',
+  'refused to return duplication rate ("rmdup_reads_mapped" set to undef)';
+
+$lane->_tables->{mapstats}->rmdup_reads_mapped(10);
+$lane->_tables->{mapstats}->reads_mapped(100);
+
+is $lane->_duplication_rate, '0.9000', 'returned duplication rate correctly';
+
+#---------------------------------------
+
+# "_error_rate"
+
+is $lane->_error_rate, '0.044', 'returned error rate correctly';
+
+$lane->_tables->{mapstats}->is_qc(0);
+
+is $lane->_error_rate, 'NA', 'refused to return error rate ("is_qc" false)';
+
+$lane->_tables->{mapstats}->is_qc(1);
+
+
+#---------------------------------------
+
+# "het_snp_stats"
+
+my $expected_het_snp_stats = [
+  1,
+  2.0868283360403e-05,
+  0.0112145340361108,
+  3.57142857142857,
 ];
 
-is_deeply $lane->stats, $expected_stats, 'got expected stats for lane';
+is_deeply [ $lane->_het_snp_stats ], $expected_het_snp_stats, 'returned het SNP stats correctly';
+
+$lane->row->hierarchy_name('non-existent');
+
+is_deeply [ $lane->_het_snp_stats ], [ qw( NA NA NA NA ) ], 'returned "NA" for het SNP stats (missing file)';
+
+#---------------------------------------
 
 # done_testing;
 

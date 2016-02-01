@@ -6,19 +6,11 @@ use Moose::Role;
 with 'Bio::Path::Find::Lane::Role::Stats';
 
 sub _build_stats_headers {
-  [
-    'one',
-    'two',
-  ];
+  [ 'one', 'two' ];
 }
 
 sub _build_stats {
-  [
-    [
-      1,
-      2,
-    ]
-  ];
+  [ [ 1, 2, ] ];
 }
 
 #-------------------------------------------------------------------------------
@@ -28,7 +20,7 @@ package main;
 use strict;
 use warnings;
 
-use Test::More; # tests => 14;
+use Test::More tests => 46;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -110,7 +102,7 @@ isa_ok $lane->_tables->{mapper},   'Bio::Track::Schema::Result::Mapper',        
 
 #-------------------------------------------------------------------------------
 
-# check the utility method
+# check the utility methods
 
 # "_mapping_is_complete" and "_is_mapped"
 
@@ -133,15 +125,6 @@ $lane->_tables->{mapstats}->is_qc(0);
 ok ! $lane->_is_mapped, '"_is_mapped" returns 0 when "_is_qc" is false';
 
 $lane->_tables->{mapstats}->is_qc(1);
-
-#---------------------------------------
-
-# "_map_type"
-
-is $lane->_map_type, 'QC', 'map type is correct, as per the starting test data';
-
-$lane->_tables->{mapstats}->is_qc(0);
-is $lane->_map_type, 'Mapping', 'map type is correct, as per altered test data';
 
 #---------------------------------------
 
@@ -188,10 +171,7 @@ is $lane->_percentage(1), 'NaN', '"_percentage" returns "NaN" with single numeri
 is $lane->_percentage(1, 10), '10.0', '"_percentage" returns correct value for integer args';
 is $lane->_percentage(1, 10, '%5.2f'), '10.00', '"_percentage" returns correct when format given';
 
-
 #---------------------------------------
 
-$DB::single = 1;
-
-done_testing;
+# done_testing;
 
