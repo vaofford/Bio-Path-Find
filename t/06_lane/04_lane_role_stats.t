@@ -1,4 +1,6 @@
 
+# a dummy Role that provides the two required methods for the Stats Role.
+
 package TestRole;
 
 use Moose::Role;
@@ -20,7 +22,7 @@ package main;
 use strict;
 use warnings;
 
-use Test::More tests => 46;
+use Test::More tests => 47;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -83,6 +85,8 @@ my $lane;
 lives_ok { $lane = Bio::Path::Find::Lane->with_traits('TestRole')
                                         ->new( row => $lane_row ) }
   'no exception when creating Lane with Stats Role applied';
+
+ok $lane->does('Bio::Path::Find::Lane::Role::Stats'), 'lane has Stats Role applied';
 
 # make sure the overridden methods work
 my $expected_headers = [ qw( one two ) ];

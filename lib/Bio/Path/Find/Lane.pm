@@ -33,7 +33,8 @@ use Types::Standard qw(
 );
 use Bio::Path::Find::Types qw( :types );
 
-with 'MooseX::Log::Log4perl', 'MooseX::Traits';
+with 'MooseX::Log::Log4perl',
+     'MooseX::Traits';
 
 =head1 CONTACT
 

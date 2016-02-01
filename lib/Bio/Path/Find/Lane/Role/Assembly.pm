@@ -45,14 +45,14 @@ default list is:
 =cut
 
 has 'assemblers' => (
-  is => 'rw',
-  isa => ArrayRef[Assembler],
-  lazy => 1,
+  is      => 'rw',
+  isa     => ArrayRef [Assembler],
+  lazy    => 1,
   builder => '_build_assemblers',
 );
 
 sub _build_assemblers {
-  [ qw(
+  return [ qw(
     velvet
     spades
     iva
@@ -62,6 +62,10 @@ sub _build_assemblers {
 
 # TODO ideally we need to get this list from the Types library. It's daft
 # TODO having it in two places
+
+# TODO or we could get it from the config, but that would mean passing in the
+# TODO config hash when we instantiate the Lane, which would have to be done
+# TODO in the B::P::F::Finder::find_lanes method
 
 #---------------------------------------
 
@@ -99,15 +103,20 @@ sub _register_assembly_files {
 #- private attributes ----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# the list of files
+# the list of files. This is set up by the trigger on the "assembly_type"
+# attribute.
+
 has '_assembly_files' => (
-  is => 'ro',
-  isa => ArrayRef[Str],
-  writer => '_set_assembly_files',
-  default => sub { [ 'contigs.fa.stats' ] },
+  is      => 'ro',
+  isa     => ArrayRef[Str],
+  writer  => '_set_assembly_files',
+  default => sub { ['contigs.fa.stats'] },
 );
 
 #---------------------------------------
+
+# a mapping between the "version number" for the assembly pipeline that was run
+# and a description string
 
 has '_pipeline_versions' => (
   is      => 'ro',
@@ -115,6 +124,10 @@ has '_pipeline_versions' => (
   lazy    => 1,
   builder => '_build_pipeline_versions',
 );
+
+# TODO we could get thisfrom the config, but that would mean passing in the
+# TODO config hash when we instantiate the Lane, which would have to be done
+# TODO in the B::P::F::Finder::find_lanes method
 
 sub _build_pipeline_versions {
   return {
@@ -178,7 +191,7 @@ sub _build_pipeline_versions {
 }
 
 #-------------------------------------------------------------------------------
-#- builders --------------------------------------------------------------------
+#- builders for file finding ---------------------------------------------------
 #-------------------------------------------------------------------------------
 
 # this sets the mapping between filetype and patterns matching filenames on
@@ -191,7 +204,7 @@ sub _build_pipeline_versions {
 # (PathFind/lib/Path/Find/CommandLine/Assembly.pm:193)
 
 sub _build_filetype_extensions {
-  {
+  return {
     contigs  => 'unscaffolded_contigs.fa',
     scaffold => 'contigs.ga',
     all      => '*contigs.fa',
@@ -204,6 +217,8 @@ sub _build_filetype_extensions {
 # calling "_get_extension", which will use Find::File::Rule to look for files
 # according to the pattern given in the hash value.)
 
+#-------------------------------------------------------------------------------
+#- methods for file finding ----------------------------------------------------
 #-------------------------------------------------------------------------------
 
 # these methods are used by B::P::F::Finder when looking for assembly-related
@@ -271,19 +286,18 @@ sub _edit_filenames {
   ( my $prefix    = $filename )      =~ s/\.[^.]*//;
   ( my $assembler = $assembler_dir ) =~ s/^(\w+)_assembly$/$1/;
 
-  my $dst = file( $dst_path->dir, $id_dir . '.' . $prefix . '_' . $assembler . '.fa' );
+  my $new_dst = file( $dst_path->dir, $id_dir . '.' . $prefix . '_' . $assembler . '.fa' );
 
-  $DB::single = 1;
-
-  return ( $src_path, $dst );
+  return ( $src_path, $new_dst );
 }
 
 #-------------------------------------------------------------------------------
+#- builders for statistics gathering -------------------------------------------
+#-------------------------------------------------------------------------------
 
-# build an array of headers for the statistics display
+# build an array of headers for the statistics report
+
 sub _build_stats_headers {
-  my $self = shift;
-
   return [
     'Lane',
     'Assembly Type',
@@ -322,7 +336,8 @@ sub _build_stats_headers {
 
 #-------------------------------------------------------------------------------
 
-# collect together the fields for the statistics display
+
+# collect together the fields for the statistics report
 sub _build_stats {
   my $self = shift;
 
@@ -341,106 +356,136 @@ sub _build_stats {
   return \@rows;
 }
 
+#-------------------------------------------------------------------------------
+#- methods for statistics gathering --------------------------------------------
+#-------------------------------------------------------------------------------
+
+# get the statistics for the specified assembler from the specified file
+
 sub _get_stats_row {
   my ( $self, $assembler, $assembly_file ) = @_;
 
   # shortcut to a hash containing Bio::Track::Schema::Result objects
   my $t = $self->_tables;
 
+  my $assembly_dir   = dir( $self->symlink_path, "${assembler}_assembly" );
+
+  my $stats_file     = file( $assembly_dir, $assembly_file );
+  my $file_stats     = $self->_parse_stats_file($stats_file);
+
+  my $bamcheck_file  = file( $assembly_dir, 'contigs.mapped.sorted.bam.bc' );
+  my $bamcheck_stats = $self->_parse_bc_file($bamcheck_file);
+
   return [
     $t->{lane}->name,
-    $self->_get_assembly_type( $assembler, $assembly_file ),
-#     'Total Length',
-#     'No Contigs',
-#     'Avg Contig Length',
-#     'Largest Contig',
-#     'N50',
-#     'Contigs in N50',
-#     'N60',
-#     'Contigs in N60',
-#     'N70',
-#     'Contigs in N70',
-#     'N80',
-#     'Contigs in N80',
-#     'N90',
-#     'Contigs in N90',
-#     'N100',
-#     'Contigs in N100',
-#     'No scaffolded bases (N)',
-#     'Total Raw Reads',
-#     'Reads Mapped',
-#     'Reads Unmapped',
-#     'Reads Paired',
-#     'Reads Unpaired',
-#     'Total Raw Bases',
-#     'Total Bases Mapped',
-#     'Total Bases Mapped (Cigar)',
-#     'Average Read Length',
-#     'Maximum Read Length',
-#     'Average Quality',
-#     'Insert Size Average',
-#     'Insert Size Std Dev',
-#
-#     $t->{project}->ssid,
-#     $t->{sample}->name,
-#     $t->{lane}->readlen,
-#     $t->{lane}->raw_reads,
-#     $t->{lane}->raw_bases,
-#     $self->_map_type,
-#     defined $t->{assembly} ? $t->{assembly}->name           : undef,
-#     defined $t->{assembly} ? $t->{assembly}->reference_size : undef,
-#     defined $t->{mapper}   ? $t->{mapper}->name             : undef,
-#     defined $t->{mapstats} ? $t->{mapstats}->mapstats_id    : undef,
-#     $self->_mapping_is_complete
-#       ? $self->_percentage( $t->{mapstats}->reads_mapped, $t->{mapstats}->raw_reads )
-#       : '0.0',
-#     $self->_mapping_is_complete
-#       ? $self->_percentage( $t->{mapstats}->reads_paired, $t->{mapstats}->raw_reads )
-#       : '0.0',
-#     $t->{mapstats}->mean_insert,
-#     $self->_depth_of_coverage,
-#     $self->_depth_of_coverage_sd,
-#     $self->_adapter_percentage,
-#     $self->_transposon_percentage,
-#     $self->_genome_covered,
-#     $self->_duplication_rate,
-#     $self->_error_rate,
-#     $t->{lane}->npg_qc_status,
-#     $t->{lane}->qc_status,
-#     $self->_het_snp_stats, # returns 4 values
-#     $self->pipeline_status('qc'),
-#     $self->pipeline_status('mapped'),
-#     $self->pipeline_status('stored'),
-#     $self->pipeline_status('snp_called'),
-#     $self->pipeline_status('snp_called'),
-#     $self->pipeline_status('assembled'),
-#     $self->pipeline_status('annotated'),
+    $self->_get_assembly_type($assembly_dir, $assembly_file) || 'NA', # not sure if it's ever undef...
+    $file_stats->{total_length},
+    $file_stats->{num_contigs},
+    $file_stats->{average_contig_length},
+    $file_stats->{largest_contig},
+    $file_stats->{N50},
+    $file_stats->{N50_n},
+    $file_stats->{N60},
+    $file_stats->{N60_n},
+    $file_stats->{N70},
+    $file_stats->{N70_n},
+    $file_stats->{N80},
+    $file_stats->{N80_n},
+    $file_stats->{N90},
+    $file_stats->{N90_n},
+    $file_stats->{N100},
+    $file_stats->{N100_n},
+    $file_stats->{n_count},
+    $bamcheck_stats->{sequences},
+    $bamcheck_stats->{'reads mapped'},
+    $bamcheck_stats->{'reads unmapped'},
+    $bamcheck_stats->{'reads paired'},
+    $bamcheck_stats->{'reads unpaired'},
+    $bamcheck_stats->{'total length'},
+    $bamcheck_stats->{'bases mapped'},
+    $bamcheck_stats->{'bases mapped (cigar)'},
+    $bamcheck_stats->{'average length'},
+    $bamcheck_stats->{'maximum length'},
+    $bamcheck_stats->{'average quality'},
+    $bamcheck_stats->{'insert size average'},
+    $bamcheck_stats->{'insert size standard deviation'},
   ];
 }
 
 #-------------------------------------------------------------------------------
-#- methods that return stats values --------------------------------------------
-#-------------------------------------------------------------------------------
+
+# get the string describing the assembly pipeline that was run
 
 sub _get_assembly_type {
-  my ( $self, $assembler, $assembly_file ) = @_;
+  my ( $self, $assembly_dir, $assembly_file ) = @_;
 
-  my $assembly_dir = dir( $self->symlink_path, "${assembler}_assembly" );
-
-  my $pipeline_version;
+  my $pipeline_description;
   foreach ( $assembly_dir->children ) {
     next unless m|pipeline_version_(\d+)$|;
-    $pipeline_version = $self->_pipeline_versions->{$1};
-    last if defined $pipeline_version;
+    $pipeline_description = $self->_pipeline_versions->{$1};
+    last if defined $pipeline_description;
   }
 
-  return unless defined $pipeline_version;
+  return unless $pipeline_description;
 
   my $contig_type = $assembly_file =~ m/^unscaffolded/
                   ? 'Contig'
                   : 'Scaffold';
 
-  return "$contig_type: $pipeline_version";
+  return "$contig_type: $pipeline_description";
+}
+
+#-------------------------------------------------------------------------------
+
+# parse the stats file that comes with the assembly
+
+sub _parse_stats_file {
+  my ( $self, $stats_file ) = @_;
+
+  my %assembly_stats;
+  foreach ( $stats_file->slurp(chomp => 1) ) {
+    # I don't really like using regexes with lack matches like this, but at
+    # least one of these fields, "ave", can be a float, and who knows what else
+    # might be in there if things go wrong in the pipeline. Better to return
+    # everything, so that at least the end-user gets to see the bad data.
+    if ( m/^sum = (\S+), n = (\S+), ave = (\S+), largest = (\S+)/ ) {
+      $assembly_stats{total_length}          = $1;
+      $assembly_stats{num_contigs}           = $2;
+      $assembly_stats{average_contig_length} = $3;
+      $assembly_stats{largest_contig}        = $4;
+    }
+    elsif ( m/^(N\d+) = (\d+), n = (\d+)/ ) {
+      $assembly_stats{$1}          = $2;
+      $assembly_stats{ $1 . '_n' } = $3;
+    }
+    elsif ( m/^N_count = (\d+)/ ) {
+      $assembly_stats{n_count} = $1;
+    }
+  }
+
+  return \%assembly_stats;
+}
+
+#-------------------------------------------------------------------------------
+
+# parse the bamcheck file
+
+sub _parse_bc_file {
+  my ( $self, $bc_file ) = @_;
+
+  my %bc_stats;
+  foreach ( $bc_file->slurp(chomp => 1) ) {
+    # TODO not sure if this is a sensible optimisation. Do the FFQ fields
+    # TODO *always* come after the SN fields ?
+    last if m/^FFQ/;
+
+    # anyway, we're only interested in the summary numbers
+    next unless m/^SN\t(.*?):\t(\S+)/;
+
+    $bc_stats{$1} = $2;
+  }
+
+  return \%bc_stats;
 }
 
 #-------------------------------------------------------------------------------

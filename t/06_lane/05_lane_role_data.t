@@ -1,22 +1,4 @@
 
-package TestRole;
-
-use Moose::Role;
-
-with 'Bio::Path::Find::Lane::Role::Data';
-
-sub _build_stats_headers {
-  [ 'one', 'two' ];
-}
-
-sub _build_stats {
-  [ [ 1, 2, ] ];
-}
-
-#-------------------------------------------------------------------------------
-
-package main;
-
 use strict;
 use warnings;
 
@@ -80,9 +62,9 @@ $lane_row->database($database);
 
 my $lane;
 
-lives_ok { $lane = Bio::Path::Find::Lane->with_traits('TestRole')
+lives_ok { $lane = Bio::Path::Find::Lane->with_traits('Bio::Path::Find::Lane::Role::Data')
                                         ->new( row => $lane_row ) }
-  'no exception when creating Lane with Stats Role applied';
+  'no exception when creating Lane with Data Role applied';
 
 ok $lane->does('Bio::Path::Find::Lane::Role::Stats'), 'lane has Stats Role applied';
 ok $lane->does('Bio::Path::Find::Lane::Role::Data'), 'lane has Data Role applied';
