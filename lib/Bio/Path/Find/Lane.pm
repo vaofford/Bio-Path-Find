@@ -377,7 +377,7 @@ sub print_paths {
 
 #-------------------------------------------------------------------------------
 
-=head2 make_symlinks( dest => ?$dest, rename => $?rename, filetype => ?$filetype)
+=head2 make_symlinks( dest => ?$dest, rename => $?rename, filetype => ?$filetype )
 
 Generate symlinks for files from this lane.
 
@@ -413,9 +413,9 @@ sub make_symlinks {
   state $check = compile(
     Object,
     slurpy Dict [
-      dest     => Optional [PathClassDir],
-      rename   => Optional [Bool],
-      filetype => Optional [FileType]
+      dest     => Optional[PathClassDir],
+      rename   => Optional[Bool],
+      filetype => Optional[FileType],
     ],
   );
   my ( $self, $params ) = $check->(@_);
@@ -482,12 +482,12 @@ sub _make_file_symlinks {
 
     # sanity check: don't overwrite the destination file
     if ( -f $dst_file ) {
-      carp "WARNING: destination file ($dst_file) already exists; skipping";
+      carp qq(WARNING: destination file ($dst_file) already exists; skipping.);
       next FILE;
     }
 
     if ( -l $dst_file ) {
-      carp "WARNING: destination file ($dst_file) is already a symlink; skipping";
+      carp qq(WARNING: destination file ($dst_file) is already a symlink; skipping.);
       next FILE;
     }
 
@@ -532,12 +532,12 @@ sub _make_dir_symlink {
   # TODO should we add a call to "_edit_filenames" here too ?
 
   if ( -e $dst_dir ) {
-    carp "WARNING: destination dir ($dst_dir) already exists; skipping";
+    carp qq(WARNING: destination dir ($dst_dir) already exists; skipping.);
     return 0;
   }
 
   if ( -l $dst_dir ) {
-    carp "WARNING: destination dir ($dst_dir) is already a symlink; skipping";
+    carp qq(WARNING: destination dir ($dst_dir) is already a symlink; skipping.);
     return 0;
   }
 

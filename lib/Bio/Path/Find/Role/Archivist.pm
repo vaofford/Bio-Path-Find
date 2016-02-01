@@ -181,7 +181,7 @@ sub _make_tar {
              ? $tar_contents
              : $self->_compress_data($tar_contents);
 
-  # and write it out, gzip compressed
+  # and write it out
   $self->_write_data( $output, $archive_filename );
 
   #---------------------------------------
@@ -222,6 +222,12 @@ sub _make_zip {
   print STDERR 'Writing zip file... ';
 
   # write it to file
+  if ( -e $archive_filename and not $self->force ) {
+    Bio::Path::Find::Exception->throw(
+      msg => qq(ERROR: output file "$archive_filename" already exists; not overwriting. Use "-F" to force overwriting)
+    );
+  }
+
   try {
     unless ( $zip->writeToFileNamed($archive_filename->stringify) == AZ_OK ) {
       print STDERR "failed\n";
@@ -386,6 +392,12 @@ sub _compress_data {
 
 sub _write_data {
   my ( $self, $data, $filename ) = @_;
+
+  if ( -e $filename and not $self->force ) {
+    Bio::Path::Find::Exception->throw(
+      msg => qq(ERROR: output file "$filename" already exists; not overwriting. Use "-F" to force overwriting)
+    );
+  }
 
   my $max        = length $data;
   my $num_chunks = 100;

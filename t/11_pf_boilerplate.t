@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 15;
+use Test::More tests => 16;
 use Test::Exception;
 use Test::Output;
 use Path::Class;
@@ -83,6 +83,12 @@ is_deeply $stats, \@expected_stats, 'written contents look right';
 throws_ok { $tf->_write_csv(\@expected_stats, $stats_file) }
   qr/not overwriting/,
   'exception when file already exists';
+
+$params{force} = 1;
+my $tf_force = Bio::Path::Find::App::PathFind->new(%params);
+
+lives_ok { $tf_force->_write_csv(\@expected_stats, $stats_file) }
+  'no exception when file already exists but "force" is true';
 
 $stats_file->remove;
 
