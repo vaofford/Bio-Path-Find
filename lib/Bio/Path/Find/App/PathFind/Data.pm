@@ -307,7 +307,8 @@ sub run {
     );
   }
 
-  if ( $self->_stats_flag and            # flag is set; we're writing stats.
+  if ( not $self->force and              # we're not overwriting stuff.
+       $self->_stats_flag and            # flag is set; we're writing stats.
        $self->_stats_file and            # destination file is specified.
        -e $self->_stats_file ) {         # output file already exists.
     Bio::Path::Find::Exception->throw(

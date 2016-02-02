@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 11;
+use Test::More tests => 14;
 use Test::Exception;
 use Test::Output;
 use Test::Script::Run;
@@ -99,6 +99,19 @@ SKIP: {
 
 #---------------------------------------
 
+# check "--force" option
+
+( $rv, $stdout, $stderr ) = run_script( $script, [ 'data', '-t', 'lane', '-i', '10018_1#1', '-s' ] );
+is $stderr, '', 'no problems writing stats';
+
+( $rv, $stdout, $stderr ) = run_script( $script, [ 'data', '-t', 'lane', '-i', '10018_1#1', '-s' ] );
+like $stderr, qr/already exists/, 'error when writing stats again without "-F"';
+
+( $rv, $stdout, $stderr ) = run_script( $script, [ 'data', '-t', 'lane', '-i', '10018_1#1', '-s', '-F' ] );
+is $stderr, '', 'no error when writing stats again with "-F"';
+
+#---------------------------------------
+
 # this is really testing functionality in AppRole::BUILD, but we can't test it
 # without a wrapper script, so here it is
 
@@ -125,7 +138,7 @@ is $found, 61, 'got expected paths on STDOUT with IDs on STDIN';
 
 my @log_lines = file('pathfind.log')->slurp;
 
-is scalar @log_lines, 5, 'got expected number of log entries';
+is scalar @log_lines, 8, 'got expected number of log entries';
 
 like $log_lines[3], qr|bin/pf data -t lane -i 10018_1#1$|, 'log line is correct';
 
