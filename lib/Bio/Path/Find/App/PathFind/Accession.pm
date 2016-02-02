@@ -44,7 +44,7 @@ pf accession - Find accessions for sequencing runs
 
 =head1 DESCRIPTION
 
-The C<accession> command finds accessions for samples. Search for data for by
+The C<accession> command finds accessions for samples. Search for data by
 specifying the type of data using the C<--type> option (C<lane>, C<sample>,
 etc) and the ID using the C<--id> option.
 
