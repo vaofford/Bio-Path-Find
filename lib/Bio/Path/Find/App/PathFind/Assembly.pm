@@ -251,8 +251,29 @@ around [ '_build_tar_filename', '_build_zip_filename' ] => sub {
 sub run {
   my $self = shift;
 
-  # TODO fail fast. Check for problems like existing directories here, before
-  # TODO actually doing any work
+  # fail fast if we're going to end up overwriting a file later on
+  if ( not $self->force ) {
+
+    # writing stats
+    if ( $self->_stats_flag and -f $self->_stats_file ) {
+      Bio::Path::Find::Exception->throw(
+        msg => q(ERROR: output file ") . $self->_stats_file . q(" already exists; not overwriting existing file. Use "-F" t- force overwriting)
+      );
+    }
+
+    # writing archives
+    if ( $self->_tar_flag and -f $self->_tar ) {
+      Bio::Path::Find::Exception->throw(
+        msg => q(ERROR: output file ") . $self->_tar . q(" already exists; not overwriting existing file. Use "-F" t- force overwriting)
+      );
+    }
+    if ( $self->_zip_flag and -f $self->_zip ) {
+      Bio::Path::Find::Exception->throw(
+        msg => q(ERROR: output file ") . $self->_zip . q(" already exists; not overwriting existing file. Use "-F" t- force overwriting)
+      );
+    }
+
+  }
 
   # set up the finder
 
