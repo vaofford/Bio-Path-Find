@@ -3,7 +3,7 @@ package Bio::Path::Find::Lane;
 
 # ABSTRACT: a class for working with information about a sequencing lane
 
-use v5.10;    # required for Type::Params use of "state"
+use v5.10; # required for Type::Params use of "state"
 
 use Moose;
 use namespace::autoclean;
@@ -84,7 +84,7 @@ C<Lane>.
 
 has 'filetype_extensions' => (
   is      => 'rw',
-  isa     => HashRef [Str],
+  isa     => HashRef[Str],
   lazy    => 1,
   builder => '_build_filetype_extensions',
 );
@@ -127,7 +127,7 @@ associated with this lane.
 has 'files' => (
   traits  => ['Array'],
   is      => 'ro',
-  isa     => ArrayRef [PathClassFile],
+  isa     => ArrayRef[PathClassFile],
   default => sub { [] },
   handles => {
     _add_file    => 'push',       # private method
@@ -166,8 +166,8 @@ sub _build_root_dir {
   # machine and it's worth telling the user, so that they don't simply think
   # their IDs etc. don't exist
   unless ( -e $root_dir ) {
-    Bio::Path::Find::Exception->throw( msg =>
-        "ERROR: can't see the filesystem root ($root_dir). This may indicate a problem with mountpoints"
+    Bio::Path::Find::Exception->throw(
+      msg => "ERROR: can't see the filesystem root ($root_dir). This may indicate a problem with mountpoints"
     );
   }
 
@@ -412,7 +412,7 @@ Returns the number of links created.
 sub make_symlinks {
   state $check = compile(
     Object,
-    slurpy Dict [
+    slurpy Dict[
       dest     => Optional[PathClassDir],
       rename   => Optional[Bool],
       filetype => Optional[FileType],
@@ -426,10 +426,9 @@ sub make_symlinks {
   }
 
   unless ( -d $params->{dest} ) {
-    Bio::Path::Find::Exception->throw( msg =>
-        'ERROR: destination for symlinks does not exist or is not a directory ('
-        . $params->{dest}
-        . ')' );
+    Bio::Path::Find::Exception->throw(
+      msg => 'ERROR: destination for symlinks does not exist or is not a directory ('
+             . $params->{dest} . ')' );
   }
 
   if ( $params->{filetype} ) {
