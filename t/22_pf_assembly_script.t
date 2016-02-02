@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 14;
+use Test::More tests => 10;
 use Test::Exception;
 use Test::Output;
 use Test::Script::Run;
@@ -57,18 +57,18 @@ like $stderr, qr/ERROR: specified config file \(prod\.conf\) does not exist/,
 #---------------------------------------
 
 # valid command line but non-existent config file
-copy file( qw( t data 16_pf_data_script no_log.conf ) ), $temp_dir;
+copy file( qw( t data 22_pf_assembly_script no_log.conf ) ), $temp_dir;
 $ENV{PF_CONFIG_FILE} = 'no_log.conf';
-( $rv, $stdout, $stderr ) = run_script( $script, [ 'data', '-t', 'lane', '-i', '10018_1#1' ] );
+( $rv, $stdout, $stderr ) = run_script( $script, [ 'assembly', '-t', 'lane', '-i', '10018_1#1' ] );
 
-like $stderr, qr/ERROR: no log file specified by config file/,
+like $stderr, qr/ERROR: specified config file/,
   'error about missing log filename on STDERR';
 
 #-------------------------------------------------------------------------------
 
 # valid config, which includes path to log file
 
-copy file( qw( t data 16_pf_data_script prod.conf ) ), $temp_dir;
+copy file( qw( t data 22_pf_assembly_script prod.conf ) ), $temp_dir;
 $ENV{PF_CONFIG_FILE} = 'prod.conf';
 run_ok( $script, [ qw( -h ) ], 'script runs ok with help flag' );
 run_not_ok( $script, [ ], 'script exits with error status when run with no arguments' );
@@ -83,64 +83,20 @@ like $stderr, qr/Missing command/, 'got expected error message with no flags';
 
 # put the config in the expected location and try the same command again; this
 # time it should work
-copy file( qw( t data 16_pf_data_script prod.conf ) ), $temp_dir;
+copy file( qw( t data 22_pf_assembly_script prod.conf ) ), $temp_dir;
 
-( $rv, $stdout, $stderr ) = run_script( $script, [ 'data', '-t', 'lane', '-i', '10018_1#1' ] );
+( $rv, $stdout, $stderr ) = run_script( $script, [ 'assembly', '-t', 'lane', '-i', '10018_1#1' ] );
 
-is $stderr, '', 'no output on STDERR';
-
-SKIP: {
-  skip "can't check paths except on unix", 1,
-    unless file( qw( t data linked ) ) eq 't/data/linked';
-
-  like $stdout, qr|prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/|,
-    'got expected path on STDOUT';
-};
-
-#---------------------------------------
-
-# check "--force" option
-
-( $rv, $stdout, $stderr ) = run_script( $script, [ 'data', '-t', 'lane', '-i', '10018_1#1', '-s' ] );
-is $stderr, '', 'no problems writing stats';
-
-( $rv, $stdout, $stderr ) = run_script( $script, [ 'data', '-t', 'lane', '-i', '10018_1#1', '-s' ] );
-like $stderr, qr/already exists/, 'error when writing stats again without "-F"';
-
-( $rv, $stdout, $stderr ) = run_script( $script, [ 'data', '-t', 'lane', '-i', '10018_1#1', '-s', '-F' ] );
-is $stderr, '', 'no error when writing stats again with "-F"';
-
-#---------------------------------------
-
-# this is really testing functionality in AppRole::BUILD, but we can't test it
-# without a wrapper script, so here it is
-
-# make sure we can pass in IDs via STDIN
-
-my ( $child_in, $child_out );
-my $pid = open2 $child_out, $child_in, $script, qw( data -t file --file-id-type lane -i - );
-
-print $child_in "10018_1\n";
-print $child_in "5477_6\n";
-
-close $child_in;
-
-waitpid( $pid, 0 );
-
-my $found = 0;
-while ( <$child_out> ) {
-  $found++ if m/10018_1|5477_6/;
-}
-
-is $found, 61, 'got expected paths on STDOUT with IDs on STDIN';
+is $stdout, '', 'no output on STDOUT';
+like $stderr, qr/No data found/, 'expected output on STDERR';
 
 #---------------------------------------
 
 my @log_lines = file('pathfind.log')->slurp;
 
-is scalar @log_lines, 8, 'got expected number of log entries';
+is scalar @log_lines, 4, 'got expected number of log entries';
 
-like $log_lines[3], qr|bin/pf data -t lane -i 10018_1#1$|, 'log line is correct';
+like $log_lines[3], qr|bin/pf assembly -t lane -i 10018_1#1$|, 'log line is correct';
 
 #-------------------------------------------------------------------------------
 

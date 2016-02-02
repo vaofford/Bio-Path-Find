@@ -39,6 +39,10 @@ has 'status_file' => (
 
 # attributes populated when we read a file
 
+# NOTE the "config_file" referred to throughout this class is not the config
+# NOTE file for the Bio::Path::Find classes, but a config file that's part of
+# NOTE the pipeline system
+
 has 'config_file'        => ( is => 'ro', isa => PathClassFile, writer => '_set_config_file' );
 has 'last_update'        => ( is => 'ro', isa => Datetime,      writer => '_set_last_update',       coerce => 1 );
 # (coerce from an epoch time in the status file)
@@ -55,10 +59,8 @@ has 'pipeline_name' => (
 sub _build_pipeline_name {
   my $self = shift;
 
-  unless ( defined $self->config_file ) {
-    carp 'ERROR: no config file loaded' unless defined $self->config_file;
-    return '';
-  }
+  return '' unless ( defined $self->config_file and
+                     -f $self->config_file );
 
   foreach my $file_re ( keys %{ $self->_file_mapping } ) {
     return $self->_file_mapping->{$file_re} if $self->config_file =~ m/$file_re/;
@@ -119,7 +121,7 @@ sub BUILD {
   my $config_file = file $lines[0];
   my @file_stat   = stat $self->status_file;
 
-  $self->_set_config_file( $config_file ) if -f $config_file;
+  $self->_set_config_file( $config_file );
   $self->_set_last_update( $file_stat[9] );
   $self->_set_current_status( $lines[2] );
   $self->_set_number_of_attempts( $lines[3] );

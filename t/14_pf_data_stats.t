@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 10;
+use Test::More tests => 12;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -49,7 +49,7 @@ my @expected_stats              = $expected_stats_file->slurp( chomp => 1, split
 # get some test lanes using the Finder directly
 my $f = Bio::Path::Find::Finder->new(
   config_file => file( qw( t data 14_pf_data_stats test.conf ) ),
-  lane_role   => 'Bio::Path::Find::Lane::Role::PathFind',
+  lane_role   => 'Bio::Path::Find::Lane::Role::Data',
 );
 
 my $lanes = $f->find_lanes( ids => [ '10018_1' ], type => 'lane', filetype => 'fastq' );
@@ -100,6 +100,17 @@ ok -e $stats_file, 'stats named as expected';
 
 $stats = csv( in => $stats_file->stringify );
 is_deeply $stats, \@expected_stats, 'contents of named file look right';
+
+# should get an error when writing to the same file a second time
+throws_ok { $pf->_make_stats($lanes) }
+  qr/already exists/,
+  'exception when calling _make_stats with existing file';
+
+$params{force} = 1;
+$pf = Bio::Path::Find::App::PathFind::Data->new(%params);
+
+lives_ok { $pf->_make_stats($lanes) }
+  'no exception when calling _make_stats with existing file but "force" is set to true';
 
 #-------------------------------------------------------------------------------
 

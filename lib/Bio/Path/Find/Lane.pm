@@ -29,14 +29,9 @@ use Types::Standard qw(
   Dict
   Optional
   Bool
+  Maybe
 );
-use Bio::Path::Find::Types qw(
-  BioPathFindLaneStatus
-  BioTrackSchemaResultLatestLane
-  PathClassFile
-  PathClassDir
-  FileType
-);
+use Bio::Path::Find::Types qw( :types );
 
 with 'MooseX::Log::Log4perl',
      'MooseX::Traits';
@@ -78,12 +73,9 @@ has 'row' => (
 =attr filetype_extensions
 
 Hash ref that maps a filetype, e.g. C<fastq>, to its file extension, e.g.
-C<.fastq.gz>. The default mapping is:
-
-  fastq     => '.fastq.gz',
-  bam       => '*.bam',
-  pacbio    => '*.h5',
-  corrected => '*.corrected.*'
+C<.fastq.gz>. The default mapping is empty and should be overridden by a
+mapping provided by a C<Role|Bio::Path::Find::Lane::Role> applied to the
+C<Lane>.
 
 =cut
 
@@ -93,15 +85,15 @@ C<.fastq.gz>. The default mapping is:
 has 'filetype_extensions' => (
   is      => 'rw',
   isa     => HashRef[Str],
-  default => sub {
-    {
-      fastq     => '.fastq.gz',
-      bam       => '*.bam', # NOTE no wildcard in mapping in original PathFind
-      pacbio    => '*.h5',
-      corrected => '*.corrected.*',
-    };
-  },
+  lazy    => 1,
+  builder => '_build_filetype_extensions',
 );
+
+sub _build_filetype_extensions {
+  {
+    # empty mapping; provided by applied Role, e.g. B::P::F::Lane::Role::Data
+  };
+}
 
 #---------------------------------------
 
@@ -138,7 +130,7 @@ has 'files' => (
   isa     => ArrayRef[PathClassFile],
   default => sub { [] },
   handles => {
-    _add_file    => 'push',      # private method
+    _add_file    => 'push',       # private method
     all_files    => 'elements',
     has_files    => 'count',
     has_no_files => 'is_empty',
@@ -175,7 +167,7 @@ sub _build_root_dir {
   # their IDs etc. don't exist
   unless ( -e $root_dir ) {
     Bio::Path::Find::Exception->throw(
-      msg =>  "ERROR: can't see the filesystem root ($root_dir). This may indicate a problem with mountpoints"
+      msg => "ERROR: can't see the filesystem root ($root_dir). This may indicate a problem with mountpoints"
     );
   }
 
@@ -207,8 +199,8 @@ sub _build_storage_path {
 
 =attr symlink_path
 
-A L<Path::Class::Dir> object representing the symlinked directory for file
-related to this lane.
+A L<Path::Class::Dir> object representing the symlinked directory for data
+files related to this lane.
 
 =cut
 
@@ -226,24 +218,16 @@ sub _build_symlink_path {
 
 #---------------------------------------
 
-=attr found_file_type
+=attr filetype
 
-The type of file that was found when running L<find_files>, or C<undef> if
-L<find_files> has not yet been run. This attribute acts as a proxy for checking
-if this C<Lane> has found files yet. If C<found_file_type> is set, i.e. not
-C<undef>, the L<find_files> method has been called. This can be checked using
-the L<has_found_files> predicate.
-
-The type of tile to find is specified as an argument to L<find_files> and
-cannot be set separately. B<Read only>.
+The type of file that this C<Lane> should find if requested (see
+L<find_files|Bio::Path::Find::Lane>).
 
 =cut
 
-has 'found_file_type' => (
-  is        => 'rw',
-  isa       => Str,
-  writer    => '_set_found_file_type',
-  predicate => 'has_found_files',
+has 'filetype' => (
+  is  => 'rw',
+  isa => Maybe[FileType|AssemblyType],
 );
 
 #---------------------------------------
@@ -316,31 +300,44 @@ Clears the list of found files. No return value.
 Look for files associated with this lane with a given filetype. Returns the
 number of files found.
 
+This method relies on functionality that must be provided by C<Roles>. For
+example, the ability to find fastq files is provided by
+L<Bio::Path::Find::Lane::Role::Data>. The C<Role> should normally be applied to
+the L<Lane|Bio::Path::Find::Lane> at instantiation, something like:
+
+  my $lane = Bio::Path::Find::Lane->with_traits('Bio::Path::Find::Lane::Role::Data')
+                                  ->new( row => $lane_row );
+
+You can also apply roles to existing objects if necessary; refer to the
+L<Moose docs|https://metacpan.org/pod/distribution/Moose/lib/Moose/Manual/Roles.pod#ADDING-A-ROLE-TO-AN-OBJECT-INSTANCE>
+for how to do that.
+
+B<Note> that calling this method will set the L<filetype> attribute on the
+object to C<$filetype>.
+
 =cut
 
-# TODO this method might need to be looked at again when we get to the other
-# TODO "*find" scripts, e.g. annotationfind. Passing in the filetype might get
-# TODO complicated in other cases
-
 sub find_files {
-  state $check = compile( Object, FileType );
+  state $check = compile( Object, FileType|AssemblyType );
   my ( $self, $filetype ) = $check->(@_);
 
-  $self->_set_found_file_type($filetype);
+  $self->filetype($filetype);
 
   $self->clear_files;
 
-  if ( $filetype eq 'fastq' ) {
-    $self->_get_fastqs;
-  }
-  elsif ( $filetype eq 'corrected' ) {
-    $self->_get_corrected;
-  }
+  # see if this Lane has a "_get_<filetype>" method, which will come from a
+  # Role applied when the Lane is instantiated
+  my $method_name = "_get_$filetype";
+  $self->$method_name if $self->can($method_name);
 
+  # can't find files of a specific type; fall back on the mapping between
+  # filetype and filename extension
   if ( $self->has_no_files ) {
     my $extension = $self->filetype_extensions->{$filetype};
     $self->_get_extension($extension)
       if ( defined $extension and $extension =~ m/\*/ );
+    $self->log->debug( 'found ' . $self->file_count . ' files using extension mapping' )
+      if $self->has_files;
   }
 
   return $self->file_count;
@@ -352,11 +349,12 @@ sub find_files {
 
 Prints the paths for this lane.
 
-If a file type was specified when running L<find_files>, this method prints the
-path to that type of file only. If file type was not specified, this method
-prints the path to the directory containing all files for this lane.
+If the L<filetype> attribute is set, either directly or by the L<find_files>
+method when it runs, this method prints the path to that type of file only. If
+file type has not been specified, this method prints the path to the directory
+containing all files for this lane.
 
-Returns the number of files found, if a file type was specified, or 1 if we're
+Returns the number of files found if a file type was specified, or 1 if we're
 printing the path to the lane's directory.
 
 =cut
@@ -365,7 +363,7 @@ sub print_paths {
   my $self = shift;
 
   my $rv = 0;
-  if ( $self->found_file_type ) {
+  if ( $self->filetype ) {
     say $_ for ( $self->all_files );
     $rv += $self->has_files;
   }
@@ -379,7 +377,7 @@ sub print_paths {
 
 #-------------------------------------------------------------------------------
 
-=head2 make_symlinks( dest => ?$dest, rename => $?rename, filetype => ?$filetype)
+=head2 make_symlinks( dest => ?$dest, rename => $?rename, filetype => ?$filetype )
 
 Generate symlinks for files from this lane.
 
@@ -414,10 +412,10 @@ Returns the number of links created.
 sub make_symlinks {
   state $check = compile(
     Object,
-    slurpy Dict [
+    slurpy Dict[
       dest     => Optional[PathClassDir],
       rename   => Optional[Bool],
-      filetype => Optional[FileType]
+      filetype => Optional[FileType],
     ],
   );
   my ( $self, $params ) = $check->(@_);
@@ -429,22 +427,21 @@ sub make_symlinks {
 
   unless ( -d $params->{dest} ) {
     Bio::Path::Find::Exception->throw(
-      msg =>  'ERROR: destination for symlinks does not exist or is not a directory ('
-              . $params->{dest} . ')'
-    );
+      msg => 'ERROR: destination for symlinks does not exist or is not a directory ('
+             . $params->{dest} . ')' );
   }
 
   if ( $params->{filetype} ) {
-    $self->log->debug('find files of type "' . $params->{filetype} . '"');
-    $self->find_files($params->{filetype});
+    $self->log->debug( 'find files of type "' . $params->{filetype} . '"' );
+    $self->find_files( $params->{filetype} );
   }
 
   my $rv = 0;
-  if ( $self->has_found_files and $self->has_files ) {
-    $rv = $self->_make_file_symlinks($params->{dest}, $params->{rename});
+  if ( $self->filetype and $self->has_files ) {
+    $rv = $self->_make_file_symlinks( $params->{dest}, $params->{rename} );
   }
   else {
-    $rv = $self->_make_dir_symlink($params->{dest}, $params->{rename});
+    $rv = $self->_make_dir_symlink( $params->{dest}, $params->{rename} );
   }
 
   return $rv;
@@ -472,29 +469,39 @@ sub _make_file_symlinks {
     # do we need to rename the link (convert hashes to underscores) ?
     $filename =~ s/\#/_/g if $rename;
 
-    my $dst_file = file($dest, $filename);
+    my $dst_file = file( $dest, $filename );
 
+    # provide a hook for Lane Roles to edit filenames, if necessary
+    #
+    # if the Lane has a "_edit_link_filenames" method, which should come from a
+    # Role applied to the Lane, call the method to edit the "from" and "to"
+    # filenames for the link
+    ( $src_file, $dst_file ) = $self->_edit_filenames( $src_file, $dst_file )
+      if $self->can('_edit_link_filenames');
+
+    # sanity check: don't overwrite the destination file
     if ( -f $dst_file ) {
-      carp "WARNING: destination file ($dst_file) already exists; skipping";
+      carp qq(WARNING: destination file ($dst_file) already exists; skipping.);
       next FILE;
     }
 
     if ( -l $dst_file ) {
-      carp "WARNING: destination file ($dst_file) is already a symlink; skipping";
+      carp qq(WARNING: destination file ($dst_file) is already a symlink; skipping.);
       next FILE;
     }
 
     my $success = 0;
     try {
       $success = symlink( $src_file, $dst_file );
-    } catch {
+    }
+    catch {
       # this should only happen if perl can't create symlinks on the current
       # platform
-      Bio::Path::Find::Exception->throw( msg =>  "ERROR: cannot create symlinks: $_" );
+      Bio::Path::Find::Exception->throw( msg => "ERROR: cannot create symlinks: $_" );
     };
     $num_successful_links += $success;
 
-    carp "WARNING: failed to create symlink for '$src_file'" unless $success;
+    carp qq(WARNING: failed to create symlink for "$src_file") unless $success;
   }
 
   $self->log->debug("created $num_successful_links links");
@@ -519,99 +526,51 @@ sub _make_dir_symlink {
   $dir_name =~ s/\#/_/g if $rename;
 
   my $src_dir = $self->symlink_path;
-  my $dst_dir = file($dest, $dir_name);
+  my $dst_dir = file( $dest, $dir_name );
+
+  # TODO should we add a call to "_edit_filenames" here too ?
 
   if ( -e $dst_dir ) {
-    carp "WARNING: destination dir ($dst_dir) already exists; skipping";
-    return 0
+    carp qq(WARNING: destination dir ($dst_dir) already exists; skipping.);
+    return 0;
   }
 
   if ( -l $dst_dir ) {
-    carp "WARNING: destination dir ($dst_dir) is already a symlink; skipping";
-    return 0
+    carp qq(WARNING: destination dir ($dst_dir) is already a symlink; skipping.);
+    return 0;
   }
 
   my $success = 0;
   try {
     $success = symlink( $src_dir, $dst_dir );
-  } catch {
+  }
+  catch {
     # this should only happen if perl can't create symlinks on the current
     # platform
-    Bio::Path::Find::Exception->throw( msg =>  "ERROR: cannot create symlinks: $_" );
+    Bio::Path::Find::Exception->throw(
+      msg => "ERROR: cannot create symlinks: $_" );
   };
 
-  return $success
+  carp qq(WARNING: failed to create symlink for "$dest") unless $success;
+
+  return $success;
 }
 
 #-------------------------------------------------------------------------------
 
-sub _get_fastqs {
-  my $self = shift;
-
-  $self->log->trace('looking for fastq files');
-
-  # we have to save a reference to the "latest_files" relationship for each
-  # lane before iterating over it, otherwise DBIC will continually return the
-  # first row of the ResultSet
-  # (see https://metacpan.org/pod/DBIx::Class::ResultSet#next)
-  my $files = $self->row->latest_files;
-
-  FILE: while ( my $file = $files->next ) {
-    my $filename = $file->name;
-
-    # for illumina, the database stores the names of the fastq files directly.
-    # For pacbio, however, the database stores the names of the bax files. Work
-    # out the names of the fastq files from those bax filenames
-    $filename =~ s/\d\.ba[xs]\.h5$/fastq.gz/
-      if $self->row->database->name =~ m/pacbio/;
-
-    my $filepath = file( $self->symlink_path, $filename );
-
-    if ( $filepath =~ m/fastq/ and
-         $filepath !~ m/pool_1.fastq.gz/ ) {
-
-      # the filename here is obtained from the database, so the file really
-      # should exist on disk. If it doesn't exist, if the symlink in the root
-      # directory tree is broken, we'll show a warning, because that indicates
-      # a fairly serious mismatch between the two halves of the tracking system
-      # (database and filesystem)
-      unless ( -e $filepath ) {
-        carp "ERROR: database says that '$filepath' should exist but it doesn't";
-        next FILE;
-      }
-
-      $self->_add_file($filepath);
-    }
-  }
-}
-
-#-------------------------------------------------------------------------------
-
-sub _get_corrected {
-  my $self = shift;
-
-  $self->log->trace('looking for "corrected" files');
-
-  my $filename = $self->row->hierarchy_name . '.corrected.fastq.gz';
-  my $filepath = file( $self->symlink_path, $filename );
-
-  $self->_add_file($filepath) if -e $filepath;
-}
-
-#-------------------------------------------------------------------------------
+# find files by looking for files with the specified extension
 
 sub _get_extension {
   my ( $self, $extension ) = @_;
 
   $self->log->trace(qq(searching for files with extension "$extension"));
 
-  my @files = File::Find::Rule->file
-                              ->extras( { follow => 1 } )
-                              ->maxdepth($self->search_depth)
-                              ->name($extension)
-                              ->in($self->symlink_path);
+  my @files =
+    File::Find::Rule->file->extras( { follow => 1 } )
+    ->maxdepth( $self->search_depth )->name($extension)
+    ->in( $self->symlink_path );
 
-  $self->log->debug('trace ' . scalar @files . ' files');
+  $self->log->trace( 'found ' . scalar @files . ' files using extension' );
 
   $self->_add_file( file($_) ) for @files;
 }

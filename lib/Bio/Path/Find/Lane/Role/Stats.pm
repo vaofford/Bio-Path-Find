@@ -13,6 +13,7 @@ use Types::Standard qw(
   Str
   Int
   Bool
+  +Num
 );
 
 use Bio::Path::Find::Types qw(
@@ -50,7 +51,7 @@ L<headers>.
 
 has 'stats' => (
   is      => 'ro',
-  isa     => ArrayRef[Str],
+  isa     => ArrayRef[ArrayRef],
   lazy    => 1,
   builder => '_build_stats',
 );
@@ -79,6 +80,7 @@ has '_tables' => (
   isa     => HashRef[BioTrackSchemaResultBase],
   lazy    => 1,
   builder => '_build_tables',
+  writer  => '_set_tables',
 );
 
 sub _build_tables {
@@ -320,8 +322,11 @@ sub _trim {
 
 sub _trimf {
   my ( $self, $string, $format ) = @_;
+
   $format ||= '%.2f';
-  return $self->_trim( sprintf $format, $string );
+  return is_Num($string)
+         ? sprintf( $format, $self->_trim($string) )
+         : $self->_trim($string);
 }
 
 #-------------------------------------------------------------------------------
@@ -342,6 +347,7 @@ sub _mapping_is_complete {
 
 sub _percentage {
   my ( $self, $a, $b, $format ) = @_;
+  return 'NaN' unless ( is_Num($a) and is_Num($b) );
   $format ||= '%.1f';
   return $self->_trim( sprintf $format, ( $a / $b ) * 100 );
 }

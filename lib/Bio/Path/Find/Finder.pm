@@ -27,13 +27,16 @@ use Types::Standard qw(
   Optional
   Maybe
 );
-use Type::Utils qw( enum );
+
+# use Type::Utils qw( enum );
+
 use Bio::Path::Find::Types qw(
   BioPathFindSorter
   IDType
   FileIDType
   QCState
   FileType
+  AssemblyType
 );
 
 use Bio::Path::Find::DatabaseManager;
@@ -76,6 +79,7 @@ parameters, e.g.
       host   path-db
       port   3306
       user   pathogens
+      pass   pathpass
       schema Bio::Track::Schema
     </tracking>
   </connection_params>
@@ -176,12 +180,22 @@ has '_sorter' => (
 
 =head1 METHODS
 
-=head2 find_lanes( ids => ArrayRef[Str], type => IDType, ?qc => QCState, ?filetype => FileType )
+=head2 find_lanes( ids => ArrayRef[Str], type => IDType, ?qc => QCState, ?filetype => FileType, ?lane_attributes => HashRef )
 
-Finds lanes using the specified ID(s) (C<ids>) and entity type (C<type>). If
-the optional C<qc> attribute is given, only lanes with the specified QC status
-will be returned. If the optional C<filetype> is given, the method returns only
-lanes having files of the specified type.
+Finds lanes using the specified ID(s) (C<ids>) and entity type (C<type>).
+
+If the optional C<qc> argument is given, only lanes with the specified QC
+status will be returned.
+
+If the optional C<filetype> is given, the method returns only lanes having
+files of the specified type.
+
+The C<lane_attributes> option can be used to supply a set of attributes and
+values that should be set on every C<Lanei|Bio::Path::Find::Lane> object as it
+is created. This is used, for example, by the
+L<Bio::Path::Find::Role::Assembly> to pass in a list of assemblers, so that the
+results of running C<pf assembly> will be restricted to that list of
+assemblers.
 
 =cut
 
@@ -189,10 +203,11 @@ sub find_lanes {
   state $check = compile(
     Object,
     slurpy Dict [
-      ids      => ArrayRef[Str],
-      type     => IDType,
-      qc       => Optional[QCState],
-      filetype => Optional[FileType],
+      ids             => ArrayRef[Str],
+      type            => IDType,
+      qc              => Optional[QCState],
+      filetype        => Optional[FileType|AssemblyType],
+      lane_attributes => Optional[HashRef],
     ],
   );
   my ( $self, $params ) = $check->(@_);
@@ -201,7 +216,7 @@ sub find_lanes {
                      . ' IDs of type "' . $params->{type} . q(") );
 
   # get a list of Bio::Path::Find::Lane objects
-  my $lanes = $self->_find_lanes( $params->{ids}, $params->{type} );
+  my $lanes = $self->_find_lanes( $params->{ids}, $params->{type}, $params->{lane_attributes} );
 
   $self->log->debug('found ' . scalar @$lanes . ' lanes');
 
@@ -260,13 +275,13 @@ sub find_lanes {
 # actually queries the database(s) to get lane data for the specified ID(s)
 
 sub _find_lanes {
-  my ( $self, $ids, $type ) = @_;
+  my ( $self, $ids, $type, $lane_attributes ) = @_;
 
   my @db_names = $self->_db_manager->database_names;
 
   # set up the progress bar
   my $max = scalar( @db_names ) * scalar( @$ids );
-  my $pb = $self->_build_pb('finding lanes', $max);
+  my $pb = $self->_create_pb('finding lanes', $max);
 
   # walk over the list of available databases and, for each ID, search for
   # lanes matching the specified ID
@@ -295,8 +310,12 @@ sub _find_lanes {
         # row
         my $lane;
 
+        #---------------------------------------
+        # Role hook
+        #
         # if we have the name of a Role to apply, try to do that. Otherwise just
         # hand back the bare Lane, with no Roles applied
+
         if ( $self->lane_role ) {
           try {
             $lane = Bio::Path::Find::Lane->with_traits( $self->lane_role )
@@ -310,6 +329,18 @@ sub _find_lanes {
         else {
           $lane = Bio::Path::Find::Lane->new( row => $lane_row );
         }
+
+        #---------------------------------------
+        # attribute hook
+        #
+        # if we have any attributes that need to set on every lane, do that now
+
+        foreach my $attr ( keys %$lane_attributes ) {
+          my $value = $lane_attributes->{$attr};
+          $lane->$attr( $value ) if $lane->can($attr);
+        }
+
+        #---------------------------------------
 
         push @lanes, $lane;
       }

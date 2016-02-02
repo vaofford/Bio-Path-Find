@@ -22,7 +22,7 @@ path-help@sanger.ac.uk
 # increment the progress bar without any ill effects. If we do create a
 # progress bar, "remove" is always set to true.
 
-sub _build_pb {
+sub _create_pb {
   my ( $self, $name, $max ) = @_;
 
   my $pb = $self->config->{no_progress_bars}

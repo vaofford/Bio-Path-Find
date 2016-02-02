@@ -3,7 +3,7 @@ package Bio::Path::Find::App::PathFind;
 
 # ABSTRACT: find data for sequencing runs
 
-use MooseX::App qw( Man BashCompletion );
+use MooseX::App qw( Man BashCompletion Color );
 
 use Path::Class;
 use Text::CSV_XS;
@@ -73,7 +73,9 @@ file from ENA.
 
 =head2 assembly
 
-Find genome assemblies.
+Find genome assemblies. Lists assembly files, creates archives of or symbolic
+links to assembly data files. Equivalent to the original C<assemblyfind>
+command.
 
 =head2 data
 
@@ -136,6 +138,14 @@ When writing comma separated values (CSV) files (e.g. when writing statistics
 using C<pf data>), use the specified string as a separator. Defaults to comma
 (C<,>).
 
+=item --force, -F
+
+When writing files, you will see an error message if the output file already
+exists. Add C<--force> to force C<pf> to silently overwrite any existing files.
+Note that this will not affect the creation of symbolic links. Trying to create
+links where the destination file or directory already exist will cause an error
+or a warning.
+
 =item --verbose, -v
 
 Show debugging information.
@@ -167,6 +177,10 @@ interactively. Corresponds to C<--no-progress-bars>.
 
 Set the separator to be used when writing comma separated values (CSV) files.
 Corresponds to C<--csv-separator>.
+
+=item PF_FORCE_OVERWRITE
+
+Set to true to force existing files or links to be overwritten.
 
 =item PF_VERBOSE
 
@@ -241,6 +255,22 @@ option 'no_progress_bars' => (
     # should show progress bars when doing work
     $self->config->{no_progress_bars} = $flag;
   },
+);
+
+option 'rename' => (
+  documentation => 'replace hash (#) with underscore (_) in filenames',
+  is            => 'rw',
+  isa           => Bool,
+  cmd_aliases   => 'r',
+);
+
+option 'force' => (
+  documentation => 'force commands to overwrite existing files',
+  is            => 'ro',
+  isa           => Bool,
+  cmd_aliases   => 'F',
+  cmd_env       => 'PF_FORCE_OVERWRITE',
+  default       => 0,
 );
 
 option 'verbose' => (
@@ -438,6 +468,36 @@ sub _load_ids_from_file {
 
 #-------------------------------------------------------------------------------
 
+# generates a new filename by converting hashes to underscores in the supplied
+# filename. Also converts the filename to unix format, for use with tar and
+# zip
+
+sub _rename_file {
+  my ( $self, $old_filename ) = @_;
+
+  my $new_basename = $old_filename->basename;
+
+  # honour the "-rename" option
+  $new_basename =~ s/\#/_/g if $self->rename;
+
+  # add on the folder to get the relative path for the file in the
+  # archive
+  ( my $folder_name = $self->id ) =~ s/\#/_/g;
+
+  my $new_filename = file( $folder_name, $new_basename );
+
+  # filenames in an archive are specified as Unix paths (see
+  # https://metacpan.org/pod/Archive::Tar#tar-rename-file-new_name)
+  $old_filename = file( $old_filename )->as_foreign('Unix');
+  $new_filename = file( $new_filename )->as_foreign('Unix');
+
+  $self->log->debug( "renaming |$old_filename| to |$new_filename|" );
+
+  return $new_filename;
+}
+
+#-------------------------------------------------------------------------------
+
 # modifier for methods that write to file. Takes care of validating arguments
 # and opening a filehandle for writing
 
@@ -453,8 +513,11 @@ around [ '_write_csv', '_write_list' ] => sub {
     unless defined $filename;
 
   # see if the supplied filename exists and complain if it does
-  Bio::Path::Find::Exception->throw( msg => qq(ERROR: output file "$filename" already exists; not overwriting existing file) )
-    if -e $filename;
+  if ( -e $filename and not $self->force ) {
+    Bio::Path::Find::Exception->throw(
+      msg => qq(ERROR: output file "$filename" already exists; not overwriting existing file. Use "-F" to force overwriting)
+    );
+  }
 
   my $fh = FileHandle->new;
 

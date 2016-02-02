@@ -43,7 +43,7 @@ chdir $temp_dir;
 # get some test lanes using the Finder directly
 my $f = Bio::Path::Find::Finder->new(
   config_file => file( qw( t data 13_pf_data_symlinking test.conf ) ),
-  lane_role   => 'Bio::Path::Find::Lane::Role::PathFind',
+  lane_role   => 'Bio::Path::Find::Lane::Role::Data',
 );
 
 my $lanes = $f->find_lanes( ids => [ '10018_1' ], type => 'lane', filetype => 'fastq' );
@@ -67,7 +67,7 @@ lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
 my $dest = dir( $temp_dir, 'pathfind_10018_1' );
 
 stderr_like { $pf->_make_symlinks($lanes) }
-  qr|Creating links in '.*?/pathfind_10018_1'|, # STDOUT
+  qr|Creating links in 'pathfind_10018_1'|, # STDOUT
   'creating links in correct directory; no progress bar';
 
 # remove the links directory and do it again, this time checking for the

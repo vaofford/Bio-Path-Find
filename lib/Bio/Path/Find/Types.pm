@@ -6,25 +6,8 @@ package Bio::Path::Find::Types;
 use Path::Class;
 
 use Type::Library -base, -declare => qw(
-  DBIxClassSchema
-  BioTrackSchema
-  BioTrackSchemaResultBase
-  BioTrackSchemaResultLatestLane
-  BioPathFindDatabaseManager
-  BioPathFindDatabase
-  BioPathFindFinder
-  BioPathFindLane
-  BioPathFindSorter
-  BioPathFindLaneStatus
-  BioPathFindLaneStatusFile
   PathClassFile
   PathClassDir
-  Datetime
-  IDType
-  FileIDType
-  QCState
-  FileType
-  URIURL
 );
 
 use Type::Utils -all;
@@ -64,10 +47,12 @@ coerce Datetime,
   from Int,   via { 'DateTime'->from_epoch( epoch => $_ ) },
   from Undef, via { 'DateTime'->now };
 
-enum IDType,      [qw( lane sample database study file library species )];
-enum FileIDType,  [qw( lane sample study)];
-enum QCState,     [qw( passed failed pending )];
-enum FileType,    [qw( fastq bam pacbio corrected )];
+enum IDType,       [qw( lane sample database study file library species )];
+enum FileIDType,   [qw( lane sample study)];
+enum QCState,      [qw( passed failed pending )];
+enum FileType,     [qw( fastq bam pacbio corrected )];
+enum AssemblyType, [qw( scaffold contigs all )];
+enum Assembler,    [qw( velvet spades iva pacbio )];
 
 1;
 
