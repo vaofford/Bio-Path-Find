@@ -15,15 +15,12 @@ use Types::Standard qw(
   Str
   Maybe
   Bool
+  ClassName
 );
 
-use Bio::Path::Find::Types qw(
-  IDType
-  FileIDType
-  BioPathFindFinder
-  PathClassFile
-);
+use Bio::Path::Find::Types qw( :types );
 
+use Bio::Path::Find::Lane;
 use Bio::Path::Find::Finder;
 use Bio::Path::Find::Exception;
 
@@ -151,8 +148,6 @@ or a warning.
 Show debugging information.
 
 =back
-
-=cut
 
 =head1 CONFIGURATION VIA ENVIRONMENT VARIABLES
 
@@ -333,25 +328,22 @@ sub _build_logger_config {
 
 #---------------------------------------
 
-# this is the name of a Role that should be applied to the
-# Bio::Path::Find::Lane objects that are returned by the finder. The builder
-# method on this parent class returns under, so by default Lanes won't have any
-# Role applied. The command classes, like B::P::F::A::P::Data, should override
-# the builder and make it return the name of the Role that they want applied,
-# e.g. Bio::Path::Find::Lane::Role::PathFind
-#
-# The Role name is used in this class by the builder for the "_finder"
-# attribute, which passes it to the B::P::F::Finder constructor.
+# this is the name of the class of lane object that should be returned by the
+# finder. The builder method on this parent class returns the name of the
+# parent Lane class, so by default Lanes won't have any command-specific
+# functionality. Command classes, like B::P::F::A::P::Data, should override the
+# builder and make it return the name of the lane class that they want returned
+# e.g. Bio::Path::Find::Lane::Data
 
-has '_lane_role' => (
+has '_lane_class' => (
   is      => 'ro',
-  isa     => Maybe[Str],
+  isa     => ClassName,
   lazy    => 1,
-  builder => '_build_lane_role',
+  builder => '_build_lane_class',
 );
 
-sub _build_lane_role {
-  return undef;
+sub _build_lane_class {
+  return 'Bio::Path::Find::Lane';
 }
 
 #---------------------------------------
@@ -367,10 +359,9 @@ sub _build_finder {
   my $self = shift;
 
   my %finder_params = (
-    config => $self->config,
+    config     => $self->config,
+    lane_class => $self->_lane_class,
   );
-
-  $finder_params{lane_role} = $self->_lane_role if defined $self->_lane_role;
 
   return Bio::Path::Find::Finder->new(%finder_params);
 }

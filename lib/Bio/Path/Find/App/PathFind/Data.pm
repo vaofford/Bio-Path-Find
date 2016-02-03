@@ -21,12 +21,9 @@ use Types::Standard qw(
   +Bool
 );
 
-use Bio::Path::Find::Types qw(
-  FileType
-  QCState
-  +PathClassDir  DirFromStr
-  +PathClassFile FileFromStr
-);
+use Bio::Path::Find::Lane::Class::Data;
+
+use Bio::Path::Find::Types qw( :types );
 
 extends 'Bio::Path::Find::App::PathFind';
 
@@ -224,7 +221,7 @@ using C<--rename> to convert hashes to underscores.
 option 'filetype' => (
   documentation => 'type of files to find',
   is            => 'ro',
-  isa           => FileType,
+  isa           => DataType,
   cmd_aliases   => 'f',
 );
 
@@ -239,13 +236,12 @@ option 'qc' => (
 #- private attributes ----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# this is a builder for the "_lane_role" attribute that's defined on the parent
-# class, B::P::F::A::PathFind. The return value specifies the name of a Role
-# that should be applied to the B::P::F::Lane objects that are returned by the
-# B::P::F::Finder.
+# this is a builder for the "_lane_class" attribute, which is defined on the
+# parent class, B::P::F::A::PathFind. The return value specifies the name of
+# the class that should be returned by the B::P::F::Finder::find_lanes method.
 
-sub _build_lane_role {
-  return 'Bio::Path::Find::Lane::Role::Data';
+sub _build_lane_class {
+  return 'Bio::Path::Find::Lane::Class::Data';
 }
 
 #---------------------------------------

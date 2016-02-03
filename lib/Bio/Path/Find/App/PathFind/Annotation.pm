@@ -209,13 +209,12 @@ option 'nucleotides' => (
 #- private attributes ----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# this is a builder for the "_lane_role" attribute that's defined on the parent
-# class, B::P::F::A::PathFind. The return value specifies the name of a Role
-# that should be applied to the B::P::F::Lane objects that are returned by the
-# Finder.
+# this is a builder for the "_lane_class" attribute that's defined on the
+# parent class, B::P::F::A::PathFind. The return value specifies the class of
+# the B::P::F::Lane objects that should be returned by the Finder.
 
-sub _build_lane_role {
-  return 'Bio::Path::Find::Lane::Role::Annotation';
+sub _build_lane_class {
+  return 'Bio::Path::Find::Lane::Class::Annotation';
 }
 
 #---------------------------------------
