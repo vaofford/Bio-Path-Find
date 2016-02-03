@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 16;
+use Test::More tests => 13;
 use Test::Exception;
 use Test::Output;
 use Path::Class;
@@ -21,6 +21,10 @@ unless ( -d dir( qw( t data linked ) ) ) {
   Test::Setup::make_symlinks;
 }
 
+# needed here to make sure this class is loaded before we try to instantiate
+# the finder
+use Bio::Path::Find::Lane::Class::Data;
+
 use_ok('Bio::Path::Find::Finder');
 
 my $config = {
@@ -36,73 +40,41 @@ my $config = {
 
 #---------------------------------------
 
-# check the behaviour of the lane_role attribute
+# check the behaviour of the lane_class attribute
 
 my $f;
 lives_ok { $f = Bio::Path::Find::Finder->new( config => $config ) }
   'got a finder';
 
-# first, we shouldn't have a value for lane_role because it's not specified in
-# the config and this script doesn't appear in the default mapping in the class
-# itself
-is $f->lane_role, undef, 'lane role undef';
+# first, the default value
+isa_ok $f->lane_class, 'Bio::Path::Find::Lane';
 
-# next, we should get back the name of a lane_role when we hand it to the
-# constructor
-lives_ok { $f = Bio::Path::Find::Finder->new( config => $config, lane_role => 'my_role' ) }
-  'got a finder while specifying lane_role';
+throws_ok { $f = Bio::Path::Find::Finder->new( config => $config, lane_class => 'my_class' ) }
+  qr/does not pass the type constraint/,
+  'exception when trying to use non-existent lane class';
 
-is $f->lane_role, 'my_role', 'got expected value for lane_role';
-
-# check that we get an exception from Moose when we try to apply that role but
-# it doesn't exist
-throws_ok { $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
-  qr/couldn't apply role "my_role"/,
-  'exception when lane_role specifies non-existent Role';
-
-# check that we can set the name of the role correctly using lane_role
+# check that we can set the name of the role correctly using lane_class
 $f = Bio::Path::Find::Finder->new(
-  config_file => file( qw( t data 07_finder test.conf ) ),
-  lane_role   => 'Bio::Path::Find::Lane::Role::Data',
+  config     => $config,
+  lane_class => 'Bio::Path::Find::Lane::Class::Data',
 );
 
 my $lanes;
 lives_ok { $lanes = $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
-  'no exception getting lanes when valid lane_role specified';
+  'no exception getting lanes when valid lane_class specified';
 
-ok $lanes->[0]->does('Bio::Path::Find::Lane::Role::Data'),
-  'correct role applied to found lanes';
+isa_ok $lanes->[0], 'Bio::Path::Find::Lane::Class::Data';
+ok $lanes->[0]->does('Bio::Path::Find::Lane::Role::Stats'), 'Stats Role applied to Lane';
 
 #---------------------------------------
 
-# check the behaviour of the lane_roles section of the config
-
-# first, let's see if we can look up the Role to apply using the name of the
-# calling script. We set the name of the command class to one that we know
-# exists in the default script name-to-Role name mapping that's hard coded into
-# the class
-$f = Bio::Path::Find::Finder->new(
-  config    => $config,
-  lane_role => 'Bio::Path::Find::Lane::Role::Data',
-);
-
-lives_ok { $lanes = $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
-  'no exception getting lanes when script named in default lane_roles';
-
-ok $lanes->[0]->does('Bio::Path::Find::Lane::Role::Data'),
-  'correct role applied to lanes';
-
-# and make sure that we don't have any problems when we don't have
-# a Role to apply
-$f = Bio::Path::Find::Finder->new(
-  config    => $config,
-);
+# make sure that we don't have any problems when we don't name a specific class
+$f = Bio::Path::Find::Finder->new( config => $config );
 
 lives_ok { $lanes = $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
   'no exception getting lanes when script not named in default lane_roles';
 
-ok ! $lanes->[0]->does('Bio::Path::Find::Lane::Role::Data'),
-  'no roles applied to lanes';
+isa_ok $lanes->[0], 'Bio::Path::Find::Lane';
 
 #---------------------------------------
 

@@ -8,6 +8,9 @@ use Path::Class;
 use Type::Library -base, -declare => qw(
   PathClassFile
   PathClassDir
+  AnnotationType
+  AssemblyType
+  DataType
 );
 
 use Type::Utils -all;
@@ -47,12 +50,17 @@ coerce Datetime,
   from Int,   via { 'DateTime'->from_epoch( epoch => $_ ) },
   from Undef, via { 'DateTime'->now };
 
-enum IDType,       [qw( lane sample database study file library species )];
-enum FileIDType,   [qw( lane sample study)];
-enum QCState,      [qw( passed failed pending )];
-enum FileType,     [qw( fastq bam pacbio corrected )];
-enum AssemblyType, [qw( scaffold contigs all )];
-enum Assembler,    [qw( velvet spades iva pacbio )];
+enum IDType,         [qw( lane sample database study file library species )];
+enum FileIDType,     [qw( lane sample study )];
+enum QCState,        [qw( passed failed pending )];
+enum Assembler,      [qw( velvet spades iva pacbio )];
+
+enum DataType,       [qw( fastq bam pacbio corrected )];
+enum AssemblyType,   [qw( scaffold contigs all )];
+enum AnnotationType, [qw( gff faa ffn gbk )];
+
+declare FileType,
+  as AnnotationType|AssemblyType|DataType;
 
 1;
 

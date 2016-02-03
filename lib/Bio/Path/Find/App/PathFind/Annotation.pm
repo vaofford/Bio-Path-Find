@@ -1,7 +1,7 @@
 
-package Bio::Path::Find::App::PathFind::Assembly;
+package Bio::Path::Find::App::PathFind::Annotation;
 
-# ABSTRACT: find assemblies
+# ABSTRACT: find annotation results
 
 use v5.10; # for "say"
 
@@ -9,11 +9,16 @@ use MooseX::App::Command;
 use namespace::autoclean;
 use MooseX::StrictConstructor;
 
+use Carp qw( croak );
 use Path::Class;
+
+use Types::Standard qw(
+  Bool
+  Str
+);
 
 use Bio::Path::Find::Types qw( :types );
 
-use Bio::Path::Find::Lane::Class::Assembly;
 use Bio::Path::Find::Exception;
 
 extends 'Bio::Path::Find::App::PathFind';
@@ -27,7 +32,7 @@ with 'Bio::Path::Find::Role::Linker',
 #-------------------------------------------------------------------------------
 
 # this is used when the "pf" app class builds the list of available commands
-command_short_description 'Find genome assemblies';
+command_short_description 'Find annotation results';
 
 =head1 NAME
 
@@ -168,30 +173,48 @@ You can also write the statistics as a more readable tab-separated file:
 option 'filetype' => (
   documentation => 'type of files to find',
   is            => 'ro',
-  isa           => AssemblyType,
+  isa           => AnnotationType,
   cmd_aliases   => 'f',
-  default       => 'scaffold',
+  default       => 'gff',
 );
 
 #---------------------------------------
 
-option 'program' => (
-  documentation => 'look for assemblies created by a specific assembler',
+option 'gene' => (
+  documentation => 'gene name',
   is            => 'ro',
-  isa           => Assembler,
+  isa           => Str,
+  cmd_aliases   => 'g',
+);
+
+#---------------------------------------
+
+option 'product' => (
+  documentation => 'product name',
+  is            => 'ro',
+  isa           => Str,
   cmd_aliases   => 'p',
+);
+
+#---------------------------------------
+
+option 'nucleotides' => (
+  documentation => 'output nucleotide sequence instead of protein sequence',
+  is            => 'ro',
+  isa           => Bool,
+  cmd_aliases   => 'n',
 );
 
 #-------------------------------------------------------------------------------
 #- private attributes ----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# this is a builder for the "_lane_class" attribute that's defined on the parent
-# class, B::P::F::A::PathFind. The return value specifies the class of lane
-# objects that should be returned by the Finder.
+# this is a builder for the "_lane_class" attribute that's defined on the
+# parent class, B::P::F::A::PathFind. The return value specifies the class of
+# the B::P::F::Lane objects that should be returned by the Finder.
 
 sub _build_lane_class {
-  return 'Bio::Path::Find::Lane::Class::Assembly';
+  return 'Bio::Path::Find::Lane::Class::Annotation';
 }
 
 #---------------------------------------
@@ -202,7 +225,7 @@ sub _build_lane_class {
 
 sub _stats_file_builder {
   my $self = shift;
-  return file( $self->_renamed_id . '.assemblyfind_stats.csv' );
+  return file( $self->_renamed_id . '.annotationfind_stats.csv' );
 }
 
 #---------------------------------------
@@ -240,29 +263,7 @@ around [ '_build_tar_filename', '_build_zip_filename' ] => sub {
 sub run {
   my $self = shift;
 
-  # fail fast if we're going to end up overwriting a file later on
-  if ( not $self->force ) {
-
-    # writing stats
-    if ( $self->_stats_flag and -f $self->_stats_file ) {
-      Bio::Path::Find::Exception->throw(
-        msg => q(ERROR: output file ") . $self->_stats_file . q(" already exists; not overwriting existing file. Use "-F" t- force overwriting)
-      );
-    }
-
-    # writing archives
-    if ( $self->_tar_flag and -f $self->_tar ) {
-      Bio::Path::Find::Exception->throw(
-        msg => q(ERROR: output file ") . $self->_tar . q(" already exists; not overwriting existing file. Use "-F" t- force overwriting)
-      );
-    }
-    if ( $self->_zip_flag and -f $self->_zip ) {
-      Bio::Path::Find::Exception->throw(
-        msg => q(ERROR: output file ") . $self->_zip . q(" already exists; not overwriting existing file. Use "-F" t- force overwriting)
-      );
-    }
-
-  }
+  # TODO fail fast if we're going to end up overwriting a file later on
 
   # set up the finder
 
@@ -270,17 +271,8 @@ sub run {
   my %finder_params = (
     ids      => $self->_ids,
     type     => $self->_type,
-    filetype => $self->filetype,    # defaults to "scaffold"
+    filetype => $self->filetype,    # defaults to "gff"
   );
-
-  # should we restrict the search to a specific assembler ?
-  if ( $self->program ) {
-    $self->log->debug( 'finding lanes with assemblies created by ' . $self->program );
-
-    # yes; tell the Finder to set the "assemblers" attribute on every Lane that
-    # it returns
-    $finder_params{lane_attributes}->{assemblers} = [ $self->program ];
-  }
 
  # find lanes
   my $lanes = $self->_finder->find_lanes(%finder_params);

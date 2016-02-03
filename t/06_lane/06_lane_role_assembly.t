@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 25;
+use Test::More tests => 24;
 use Test::Exception;
 use Path::Class;
 
@@ -24,7 +24,7 @@ use Log::Log4perl qw( :easy );
 # initialise l4p to avoid warnings
 Log::Log4perl->easy_init( $FATAL );
 
-use_ok('Bio::Path::Find::Lane');
+use_ok('Bio::Path::Find::Lane::Class::Assembly');
 
 #---------------------------------------
 
@@ -58,12 +58,10 @@ $lane_row->database($database);
 
 my $lane;
 
-lives_ok { $lane = Bio::Path::Find::Lane->with_traits('Bio::Path::Find::Lane::Role::Assembly')
-                                        ->new( row => $lane_row ) }
+lives_ok { $lane = Bio::Path::Find::Lane::Class::Assembly->new( row => $lane_row ) }
   'no exception when creating Lane with Assembly Role applied';
 
 ok $lane->does('Bio::Path::Find::Lane::Role::Stats'), 'lane has Stats Role applied';
-ok $lane->does('Bio::Path::Find::Lane::Role::Assembly'), 'lane has Assembly Role applied';
 
 #-------------------------------------------------------------------------------
 
@@ -72,7 +70,7 @@ ok $lane->does('Bio::Path::Find::Lane::Role::Assembly'), 'lane has Assembly Role
 # stats file parsing
 
 my $stats;
-lives_ok { $stats = $lane->_parse_stats_file( file( qw( t data 06_lane 06_lane_role_assembly spades_assembly contigs.fa.stats ) ) ) }
+lives_ok { $stats = $lane->_parse_stats_file( file( qw( t data 06_lane 06_lane_class_assembly spades_assembly contigs.fa.stats ) ) ) }
   'no exception when parsing assembly stats file';
 
 my $expected_stats = {
@@ -97,7 +95,7 @@ my $expected_stats = {
 
 is_deeply $stats, $expected_stats, 'parsed expected stats from file';
 
-lives_ok { $stats = $lane->_parse_stats_file( file( qw( t data 06_lane 06_lane_role_assembly spades_assembly broken_contigs.fa.stats ) ) ) }
+lives_ok { $stats = $lane->_parse_stats_file( file( qw( t data 06_lane 06_lane_class_assembly spades_assembly broken_contigs.fa.stats ) ) ) }
   'no exception when parsing "broken" assembly stats file';
 
 $expected_stats = {
@@ -122,7 +120,7 @@ is_deeply $stats, $expected_stats, 'parsed expected stats from broken file';
 
 # bamcheck file parsing
 
-lives_ok { $stats = $lane->_parse_bc_file( file( qw( t data 06_lane 06_lane_role_assembly spades_assembly contigs.mapped.sorted.bam.bc ) ) ) }
+lives_ok { $stats = $lane->_parse_bc_file( file( qw( t data 06_lane 06_lane_class_assembly spades_assembly contigs.mapped.sorted.bam.bc ) ) ) }
   'no exception when parsing bamcheck file';
 
 $expected_stats = {
@@ -161,7 +159,7 @@ $expected_stats = {
 
 is_deeply $stats, $expected_stats, 'parsed expected stats from bamcheck file';
 
-lives_ok { $stats = $lane->_parse_bc_file( file( qw( t data 06_lane 06_lane_role_assembly spades_assembly broken.bc ) ) ) }
+lives_ok { $stats = $lane->_parse_bc_file( file( qw( t data 06_lane 06_lane_class_assembly spades_assembly broken.bc ) ) ) }
   'no exception when parsing broken bamcheck file';
 
 $expected_stats = {
@@ -208,14 +206,14 @@ is_deeply $stats, $expected_stats, 'parsed expected stats from bamcheck file';
 my $assembly_type;
 
 # simple spades assembly
-lives_ok { $assembly_type = $lane->_get_assembly_type( dir( qw( t data 06_lane 06_lane_role_assembly spades_assembly ) ), 'unscaffolded_contigs.fa.stats') }
+lives_ok { $assembly_type = $lane->_get_assembly_type( dir( qw( t data 06_lane 06_lane_class_assembly spades_assembly ) ), 'unscaffolded_contigs.fa.stats') }
   'no exception when getting assembly type string for unscaffolded contigs';
 
 is $assembly_type, 'Contig: Correction, Normalisation, Primer Removal + SPAdes + Improvement',
   'got expected assembly type string';
 
 # switch to scaffold
-lives_ok { $assembly_type = $lane->_get_assembly_type( dir( qw( t data 06_lane 06_lane_role_assembly spades_assembly ) ), 'contigs.fa.stats') }
+lives_ok { $assembly_type = $lane->_get_assembly_type( dir( qw( t data 06_lane 06_lane_class_assembly spades_assembly ) ), 'contigs.fa.stats') }
   'no exception when getting assembly type string for scaffold';
 
 is $assembly_type, 'Scaffold: Correction, Normalisation, Primer Removal + SPAdes + Improvement',
@@ -228,7 +226,7 @@ lives_ok { $assembly_type = $lane->_get_assembly_type( dir( qw( t data ) ), 'con
 is $assembly_type, undef, 'assembly type string undef with no pipeline_version_* file';
 
 # change the version number of the pipeline
-lives_ok { $assembly_type = $lane->_get_assembly_type( dir( qw( t data 06_lane 06_lane_role_assembly different_pipeline ) ), 'contigs.fa.stats') }
+lives_ok { $assembly_type = $lane->_get_assembly_type( dir( qw( t data 06_lane 06_lane_class_assembly different_pipeline ) ), 'contigs.fa.stats') }
   'no exception when getting assembly type string';
 
 is $assembly_type, 'Scaffold: Correction + Velvet + Improvement',
