@@ -125,7 +125,7 @@ be one of C<lane>, C<library>, C<sample>, C<species>, C<study>, or C<file>.
 Specify the type ID that is found in a file of IDs. Required when C<--type>
 is set to C<file>.
 
-=item --no-progress-bars, -q
+=item --no-progress-bars, -N
 
 Don't show progress bars.
 
@@ -247,7 +247,7 @@ option 'no_progress_bars' => (
   is            => 'ro',
   isa           => Bool,
   cmd_flag      => 'no-progress-bars',
-  cmd_aliases   => 'q',
+  cmd_aliases   => 'N',
   cmd_env       => 'PF_NO_PROGRESS_BARS',
   trigger       => sub {
     my ( $self, $flag ) = @_;
