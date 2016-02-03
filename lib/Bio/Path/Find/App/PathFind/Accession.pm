@@ -18,10 +18,7 @@ use Types::Standard qw(
   +Bool
 );
 
-use Bio::Path::Find::Types qw(
-  PathClassFile FileFromStr
-  URIURL        URLFromStr
-);
+use Bio::Path::Find::Types qw( :types URLFromStr );
 
 use Bio::Path::Find::Exception;
 
