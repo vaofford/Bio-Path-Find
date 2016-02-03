@@ -221,13 +221,25 @@ sub _build_symlink_path {
 =attr filetype
 
 The type of file that this C<Lane> should find if requested (see
-L<find_files|Bio::Path::Find::Lane>).
+L<find_files|Bio::Path::Find::Lane::find_files>).
 
+B<Note> that the default restriction on this attribute allows all of the
+file types permitted by the L<FileType|Bio::Path::Find::Types> constraint.
+Sub-classes should add more meaningful restrictions like:
+
+  # in Bio::Path::Find::Lane::Class::Data
+  has '+filetype' => (
+    isa => DataType,
+  );
+
+which will make the C<filetype> attribute of a
+L<Bio::Path::Find::Lane::Class::Data> object accept only values that pass the
+C<DataType> constraint.
 =cut
 
 has 'filetype' => (
   is  => 'rw',
-  isa => Maybe[FileType|AssemblyType],
+  isa => FileType,
 );
 
 #---------------------------------------
@@ -318,7 +330,7 @@ object to C<$filetype>.
 =cut
 
 sub find_files {
-  state $check = compile( Object, FileType|AssemblyType );
+  state $check = compile( Object, FileType );
   my ( $self, $filetype ) = $check->(@_);
 
   $self->filetype($filetype);
