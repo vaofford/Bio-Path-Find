@@ -9,12 +9,7 @@ use MooseX::App::Command;
 use namespace::autoclean;
 use MooseX::StrictConstructor;
 
-use Carp qw( croak );
 use Path::Class;
-
-use Types::Standard qw(
-  +Bool
-);
 
 use Bio::Path::Find::Types qw( :types );
 

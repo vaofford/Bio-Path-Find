@@ -9,21 +9,13 @@ use MooseX::App::Command;
 use namespace::autoclean;
 use MooseX::StrictConstructor;
 
-use Carp qw( carp );
 use Path::Class;
 use Cwd;
 
-use Bio::Path::Find::Exception;
-
-use Types::Standard qw(
-  ArrayRef
-  +Str
-  +Bool
-);
-
-use Bio::Path::Find::Lane::Class::Data;
-
 use Bio::Path::Find::Types qw( :types );
+
+use Bio::Path::Find::Exception;
+use Bio::Path::Find::Lane::Class::Data;
 
 extends 'Bio::Path::Find::App::PathFind';
 
