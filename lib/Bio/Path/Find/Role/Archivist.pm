@@ -30,12 +30,7 @@ use Types::Standard qw(
   +Bool
 );
 
-use Bio::Path::Find::Types qw(
-  FileType
-  QCState
-  +PathClassDir  DirFromStr
-  +PathClassFile FileFromStr
-);
+use Bio::Path::Find::Types qw( :types );
 
 with 'Bio::Path::Find::Role::HasProgressBar';
 
