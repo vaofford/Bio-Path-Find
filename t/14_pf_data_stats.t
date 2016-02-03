@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 12;
+use Test::More tests => 13;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -49,11 +49,12 @@ my @expected_stats              = $expected_stats_file->slurp( chomp => 1, split
 # get some test lanes using the Finder directly
 my $f = Bio::Path::Find::Finder->new(
   config_file => file( qw( t data 14_pf_data_stats test.conf ) ),
-  lane_role   => 'Bio::Path::Find::Lane::Role::Data',
+  lane_class  => 'Bio::Path::Find::Lane::Class::Data',
 );
 
 my $lanes = $f->find_lanes( ids => [ '10018_1' ], type => 'lane', filetype => 'fastq' );
 is scalar @$lanes, 50, 'found 50 lanes with ID 10018_1 using Finder';
+ok $lanes->[0]->does('Bio::Path::Find::Lane::Role::Stats'), 'Stats Role applied to Lanes';
 
 #-------------------------------------------------------------------------------
 

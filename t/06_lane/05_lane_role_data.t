@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 28;
+use Test::More tests => 27;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -28,7 +28,7 @@ use Log::Log4perl qw( :easy );
 # initialise l4p to avoid warnings
 Log::Log4perl->easy_init( $FATAL );
 
-use_ok('Bio::Path::Find::Lane');
+use_ok('Bio::Path::Find::Lane::Class::Data');
 
 #---------------------------------------
 
@@ -58,16 +58,14 @@ $lane_row->database($database);
 
 #---------------------------------------
 
-# get a Lane, with Role applied
+# get a Lane
 
 my $lane;
 
-lives_ok { $lane = Bio::Path::Find::Lane->with_traits('Bio::Path::Find::Lane::Role::Data')
-                                        ->new( row => $lane_row ) }
-  'no exception when creating Lane with Data Role applied';
+lives_ok { $lane = Bio::Path::Find::Lane::Class::Data->new( row => $lane_row ) }
+  'no exception when creating B::P::F::Lane::Class::Data';
 
 ok $lane->does('Bio::Path::Find::Lane::Role::Stats'), 'lane has Stats Role applied';
-ok $lane->does('Bio::Path::Find::Lane::Role::Data'), 'lane has Data Role applied';
 
 #-------------------------------------------------------------------------------
 
