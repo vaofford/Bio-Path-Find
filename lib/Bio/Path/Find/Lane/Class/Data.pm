@@ -1,20 +1,25 @@
 
-package Bio::Path::Find::Lane::Role::Data;
+package Bio::Path::Find::Lane::Class::Data;
 
-# ABSTRACT: a role that adds pathfind-specific functionality to the B::P::F::Lane class
+# ABSTRACT: a class that adds pathfind-specific functionality to the B::P::F::Lane class
 
-use Moose::Role;
+use Moose;
 use Path::Class;
 use Carp qw( carp );
+
+use Types::Standard qw( Maybe );
+
+use Bio::Path::Find::Types qw( :types );
+
+extends 'Bio::Path::Find::Lane';
 
 with 'Bio::Path::Find::Lane::Role::Stats';
 
 =head1 DESCRIPTION
 
-This L<Role|Moose::Role> provides functionality to
-L<Lanes|Bio::Path::Find::Lane>, allowing them to find statistics and files for
-sequencing data. This C<Role> provides the following methods for finding
-files:
+This class adds functionality to L<Lanes|Bio::Path::Find::Lane>, allowing them
+to find statistics and files for sequencing data. This class provides the
+following methods for finding files:
 
 =over
 
@@ -26,7 +31,7 @@ files:
 
 both of which are used for C<pathfind>-like searching for files.
 
-The C<Role> also provides a mapping between filetype and file extension, via
+It also provides a mapping between filetype and file extension, via
 the L<_build_filetype_extensions> builder. The mapping is:
 
   fastq     => '.fastq.gz',
@@ -34,7 +39,7 @@ the L<_build_filetype_extensions> builder. The mapping is:
   pacbio    => '*.h5',
   corrected => '*.corrected.*',
 
-Finally, the C<Role> provides builders for attributes that generate stats about
+Finally, the class provides builders for attributes that generate stats about
 sequencing lanes:
 
 =over
@@ -48,6 +53,18 @@ sequencing lanes:
 again, both of which are used to generate stats as provided by C<pathfind>.
 
 =cut
+
+#-------------------------------------------------------------------------------
+#- public attributes -----------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+# make the "filetype" attribute require values of type DataType. This is to
+# make sure that this class correctly restrict the sorts of files that it will
+# return.
+
+has '+filetype' => (
+  isa => Maybe[DataType],
+);
 
 #-------------------------------------------------------------------------------
 #- builders --------------------------------------------------------------------
@@ -110,8 +127,8 @@ sub _build_stats {
   # shortcut to a hash containing Bio::Track::Schema::Result objects
   my $t = $self->_tables;
 
-  # NOTE has to return an array ref of array refs (to match up with the return
-  # NOTE value from B::P::F::Lane::Role::Assembly)
+  # NOTE has to return an array ref of array refs (necessary to match up with
+  # NOTE the return value from B::P::F::Lane::Role::Assembly)
   return [
     [
       $t->{project}->ssid,

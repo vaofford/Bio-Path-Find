@@ -1,26 +1,26 @@
 
-package Bio::Path::Find::Lane::Role::Assembly;
+package Bio::Path::Find::Lane::Class::Assembly;
 
-# ABSTRACT: a role that adds assembly-specific functionality to the B::P::F::Lane class
+# ABSTRACT: a class that adds assembly-specific functionality to the B::P::F::Lane class
 
-use Moose::Role;
+use Moose;
 use Path::Class;
 
 use Types::Standard qw(
   ArrayRef
   HashRef
   Str
+  Maybe
 );
 
-use Bio::Path::Find::Types qw(
-  AssemblyType
-  Assembler
-);
+use Bio::Path::Find::Types qw( :types );
+
+extends 'Bio::Path::Find::Lane';
 
 with 'Bio::Path::Find::Lane::Role::Stats';
 
 #-------------------------------------------------------------------------------
-#- private attributes ----------------------------------------------------------
+#- public attributes -----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
 =head1 ATTRIBUTES
@@ -46,7 +46,7 @@ default list is:
 
 has 'assemblers' => (
   is      => 'rw',
-  isa     => ArrayRef [Assembler],
+  isa     => ArrayRef[Assembler],
   lazy    => 1,
   builder => '_build_assemblers',
 );
@@ -98,6 +98,16 @@ sub _register_assembly_files {
     $self->_set_assembly_files( [ 'contigs.fa.stats' ] );
   }
 }
+
+#---------------------------------------
+
+# make the "filetype" attribute require values of type AssemblyType. This is to
+# make sure that this class correctly restrict the sorts of files that it will
+# return.
+
+has '+filetype' => (
+  isa => Maybe[AssemblyType],
+);
 
 #-------------------------------------------------------------------------------
 #- private attributes ----------------------------------------------------------
@@ -262,9 +272,8 @@ sub _get_all {
 #-------------------------------------------------------------------------------
 
 # given a "from" and "to" filename, edit the destination to change the format
-# of the filename. This gives a Role on the Lane a chance to edit the filenames
-# that are used, so that they can be specialised to the type of data that the
-# Role is handling.
+# of the filename. This gives this Lane a chance to edit the filenames that are
+# used, so that they can be specialised to assembly data.
 #
 # For example, this method is called by B::P::F::Role::Linker before it creates
 # links. This method makes the link destination look like:
@@ -292,10 +301,12 @@ sub _edit_filenames {
 }
 
 #-------------------------------------------------------------------------------
-#- builders for statistics gathering -------------------------------------------
+#- builders --------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
 # build an array of headers for the statistics report
+#
+# required by the Stats Role
 
 sub _build_stats_headers {
   return [
@@ -336,8 +347,10 @@ sub _build_stats_headers {
 
 #-------------------------------------------------------------------------------
 
-
 # collect together the fields for the statistics report
+#
+# required by the Stats Role
+
 sub _build_stats {
   my $self = shift;
 

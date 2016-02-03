@@ -1,24 +1,26 @@
 
-package Bio::Path::Find::Lane::Role::Annotation;
+package Bio::Path::Find::Lane::Class::Annotation;
 
-# ABSTRACT: a role that adds annotation-specific functionality to the B::P::F::Lane class
+# ABSTRACT: a class that adds annotation-specific functionality to the B::P::F::Lane class
 
-use Moose::Role;
+use Moose;
 use Path::Class;
 
-use Types::Standard qw(
-  ArrayRef
-  HashRef
-  Str
-);
+use Types::Standard qw( Maybe );
 
 use Bio::Path::Find::Types qw( :types );
+
+extends 'Bio::Path::Find::Lane';
 
 with 'Bio::Path::Find::Lane::Role::Stats';
 
 #-------------------------------------------------------------------------------
 #- attribute modifiers ---------------------------------------------------------
 #-------------------------------------------------------------------------------
+
+# make the "filetype" attribute require values of type AnnotationType. This is
+# to make sure that this class correctly restrict the sorts of files that it
+# will return.
 
 has '+filetype' => (
   isa => Maybe[AnnotationType],
