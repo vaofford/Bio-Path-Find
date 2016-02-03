@@ -26,18 +26,10 @@ use Types::Standard qw(
   Dict
   Optional
   Maybe
+  ClassName
 );
 
-# use Type::Utils qw( enum );
-
-use Bio::Path::Find::Types qw(
-  BioPathFindSorter
-  IDType
-  FileIDType
-  QCState
-  FileType
-  AssemblyType
-);
+use Bio::Path::Find::Types qw( :types );
 
 use Bio::Path::Find::DatabaseManager;
 use Bio::Path::Find::Lane;
@@ -102,18 +94,19 @@ L<Bio::Path::Find::Lane> objects.
 
 Inherits C<config> from L<Bio::Path::Find::Role::HasConfig>.
 
-=attr lane_role
+=attr lane_class
 
-Simple string giving the name of a L<Bio::Path::Find::Lane::Role> that should
-be applied to the L<Bio::Path::Find::Lane> objects that we build. The Role is
-used to adapt the C<Lane> for use with a particular find command, e.g.
-C<pf data> or C<pf assembly>.
+Simple string giving the name of the class of lane objects that we should
+return. The default value, L<Bio::Path::Find::Lane>, is the bare lane class.
+Any class specified in this attribute should be one that is adapted for use
+with a specific find command, such as C<pf data> or C<pf assembly>.
 
 =cut
 
-has 'lane_role' => (
-  is   => 'ro',
-  isa  => Maybe[Str],
+has 'lane_class' => (
+  is      => 'ro',
+  isa     => ClassName,
+  default => 'Bio::Path::Find::Lane',
 );
 
 #---------------------------------------
@@ -206,7 +199,7 @@ sub find_lanes {
       ids             => ArrayRef[Str],
       type            => IDType,
       qc              => Optional[QCState],
-      filetype        => Optional[FileType|AssemblyType],
+      filetype        => Optional[FileType],
       lane_attributes => Optional[HashRef],
     ],
   );
@@ -311,24 +304,17 @@ sub _find_lanes {
         my $lane;
 
         #---------------------------------------
-        # Role hook
+        # lane class hook
         #
-        # if we have the name of a Role to apply, try to do that. Otherwise just
-        # hand back the bare Lane, with no Roles applied
+        # return the type of class that's specified by the "lane_class" attribute
 
-        if ( $self->lane_role ) {
-          try {
-            $lane = Bio::Path::Find::Lane->with_traits( $self->lane_role )
-                                         ->new( row => $lane_row );
-          } catch {
-            Bio::Path::Find::Exception->throw(
-              msg => q(ERROR: couldn't apply role ") . $self->lane_role . qq(" to lanes: $_)
-            );
-          };
-        }
-        else {
-          $lane = Bio::Path::Find::Lane->new( row => $lane_row );
-        }
+        try {
+          $lane = $self->lane_class->new( row => $lane_row );
+        } catch {
+          Bio::Path::Find::Exception->throw(
+            msg => q(ERROR: couldn't build lane class ") . $self->lane_class . qq(": $_)
+          );
+        };
 
         #---------------------------------------
         # attribute hook
