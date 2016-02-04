@@ -309,20 +309,25 @@ Clears the list of found files. No return value.
 
 =head2 find_files($filetype)
 
-Look for files associated with this lane with a given filetype. Returns the
-number of files found.
+Look for files associated with this lane with a given filetype. In scalar
+context, the method returns the number of files found. In list context, returns
+a list of the found files.
 
-This method relies on functionality that must be provided by C<Roles>. For
-example, the ability to find fastq files is provided by
-L<Bio::Path::Find::Lane::Role::Data>. The C<Role> should normally be applied to
-the L<Lane|Bio::Path::Find::Lane> at instantiation, something like:
+Given a specific filetype, this method checks to see if its class has a method
+named C<_get_${filetype}> and runs it if the method exists. If there is no such
+method, we fall back on a mechanism for finding files based on their extension.
+We first look up an extension pattern in the mapping provided by
+C<filename_extension>, then call
+L<_get_extension|Bio::Path::Find::Lane::_get_extension> to try to find files
+matching the pattern.
 
-  my $lane = Bio::Path::Find::Lane->with_traits('Bio::Path::Find::Lane::Role::Data')
-                                  ->new( row => $lane_row );
-
-You can also apply roles to existing objects if necessary; refer to the
-L<Moose docs|https://metacpan.org/pod/distribution/Moose/lib/Moose/Manual/Roles.pod#ADDING-A-ROLE-TO-AN-OBJECT-INSTANCE>
-for how to do that.
+This base class has an empty C<filename_extension> mapping and no C<_get_*>
+methods, beyond C<_get_extensions>. The intention is that the mapping and
+C<_get_*> methods will be provided by sub-classes, which are specialised to
+finding files in a specific context. For example, the C<data> command needs to
+find C<fastq> files, so it uses a specialised C<Lane> class,
+L<Bio::Path::Find::Lane::Class::Data>, which implements a
+C<_get_fastq|Bio::Path::Find::Lane::Class::Data::_get_fastq> method.
 
 B<Note> that calling this method will set the L<filetype> attribute on the
 object to C<$filetype>.
@@ -352,7 +357,7 @@ sub find_files {
       if $self->has_files;
   }
 
-  return $self->file_count;
+  return wantarray ? $self->all_files : $self->file_count;
 }
 
 #-------------------------------------------------------------------------------

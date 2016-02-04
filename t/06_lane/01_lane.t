@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 16;
+use Test::More tests => 18;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -56,7 +56,7 @@ $lane_row->database($database);
 
 #---------------------------------------
 
-# check creation without a role
+# check creation
 
 use_ok('Bio::Path::Find::Lane');
 
@@ -79,7 +79,20 @@ throws_ok { $lane->root_dir }
 
 $database->_set_hierarchy_root_dir($old_hrd);
 
-is $lane->find_files('fastq'), 0, 'no files found without trait';
+is $lane->find_files('fastq'), 0, 'no files found without mapping';
+
+my $lane_with_extension_mapping = Bio::Path::Find::Lane->new(
+  row => $lane_row,
+  filetype_extensions => {
+    fastq => '*.fastq.gz',
+  },
+);
+
+is $lane_with_extension_mapping->find_files('fastq'), 1, 'found 1 files with mapping';
+
+# check that running "find_files" in array context returns a list of files
+my @found_files = $lane_with_extension_mapping->find_files('fastq');
+is scalar @found_files, 1, '"find_files" returns found files in list context';
 
 #---------------------------------------
 
