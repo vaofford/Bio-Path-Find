@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 18;
+use Test::More tests => 20;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -79,20 +79,41 @@ throws_ok { $lane->root_dir }
 
 $database->_set_hierarchy_root_dir($old_hrd);
 
+
+#---------------------------------------
+
+# file finding
+
 is $lane->find_files('fastq'), 0, 'no files found without mapping';
 
 my $lane_with_extension_mapping = Bio::Path::Find::Lane->new(
-  row => $lane_row,
+  row                 => $lane_row,
   filetype_extensions => {
     fastq => '*.fastq.gz',
   },
 );
 
-is $lane_with_extension_mapping->find_files('fastq'), 1, 'found 1 files with mapping';
+is $lane_with_extension_mapping->find_files('fastq'), 1, 'found 1 file using mapping';
 
 # check that running "find_files" in array context returns a list of files
 my @found_files = $lane_with_extension_mapping->find_files('fastq');
 is scalar @found_files, 1, '"find_files" returns found files in list context';
+
+# check "store_filenames" behaviour
+
+isa_ok $found_files[0], 'Path::Class::File';
+
+my $lane_storing_filenames = Bio::Path::Find::Lane->new(
+  row                 => $lane_row,
+  store_filenames     => 1,
+  filetype_extensions => {
+    fastq => '*.fastq.gz',
+  },
+);
+
+@found_files = $lane_storing_filenames->find_files('fastq');
+
+ok ! ref $found_files[0], 'files stored as filenames when attribute set';
 
 #---------------------------------------
 

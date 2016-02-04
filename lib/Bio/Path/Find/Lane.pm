@@ -127,7 +127,7 @@ associated with this lane.
 has 'files' => (
   traits  => ['Array'],
   is      => 'ro',
-  isa     => ArrayRef[PathClassFile],
+  isa     => ArrayRef[PathClassFile|Str],
   default => sub { [] },
   handles => {
     _add_file    => 'push',       # private method
@@ -265,6 +265,27 @@ sub _build_status {
 
   return Bio::Path::Find::Lane::Status->new( lane => $self );
 }
+
+#---------------------------------------
+
+=attr store_filenames
+
+Boolean flag controlling whether we store found files as filenames (simple
+strings), or as L<Path::Class::File> objects.
+
+In most cases the default behaviour of storing objects is preferable, but in
+some situations, such as when the list of files is going to be handed to a
+third-party module that doesn't expect L<Path::Class::File> objects, it makes
+sense to store filenames. Set this flag to true at instantiation to make the
+object store its found files as strings.
+
+=cut
+
+has 'store_filenames' => (
+  is      => 'ro',
+  isa     => Bool,
+  default => 0,
+);
 
 #-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
@@ -589,7 +610,14 @@ sub _get_extension {
 
   $self->log->trace( 'found ' . scalar @files . ' files using extension' );
 
-  $self->_add_file( file($_) ) for @files;
+  # if the "store_filenames" attribute is true, we should store filenames
+  # as strings, rather than Path::Class::File objects
+  if ( $self->store_filenames ) {
+    $self->_add_file(@files);
+  }
+  else {
+    $self->_add_file( file($_) ) for @files;
+  }
 }
 
 #-------------------------------------------------------------------------------
