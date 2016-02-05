@@ -57,7 +57,7 @@ enum Assembler,      [qw( velvet spades iva pacbio )];
 
 enum DataType,       [qw( fastq bam pacbio corrected )];
 enum AssemblyType,   [qw( scaffold contigs all )];
-enum AnnotationType, [qw( gff faa ffn gbk )];
+enum AnnotationType, [qw( gff faa ffn gbk fasta fastn genbank )];
 
 declare FileType,
   as AnnotationType|AssemblyType|DataType;
