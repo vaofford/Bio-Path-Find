@@ -224,8 +224,8 @@ sub _build_filetype_extensions {
 # (if there is a "_get_*" method for one of the keys, then calling
 # $lane->find_files(filetype=>'<key>') will call that method to find files.  If
 # there's no corresponding "_get_*" method, "find_files" will fall back on
-# calling "_get_extension", which will use Find::File::Rule to look for files
-# according to the pattern given in the hash value.)
+# calling "_get_files_by_extension", which will use Find::File::Rule to look
+# for files according to the pattern given in the hash value.)
 
 #-------------------------------------------------------------------------------
 #- methods for file finding ----------------------------------------------------

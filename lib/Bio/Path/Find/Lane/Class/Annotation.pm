@@ -19,8 +19,8 @@ with 'Bio::Path::Find::Lane::Role::Stats';
 #-------------------------------------------------------------------------------
 
 # make the "filetype" attribute require values of type AnnotationType. This is
-# to make sure that this class correctly restrict the sorts of files that it
-# will return.
+# to make sure that this class correctly restricts the sorts of files that it
+# will handle/return.
 
 has '+filetype' => (
   isa => Maybe[AnnotationType],
@@ -43,18 +43,19 @@ has '+filetype' => (
 
 sub _build_filetype_extensions {
   return {
-    gff => '*.gff',
-    faa => '*.faa',
-    ffn => '*.ffn',
-    gbk => '*.gbk',
+    # old mapping         friendlier version...
+    gff     => '*.gff',
+    faa     => '*.faa',   fasta   => '*.faa',
+    ffn     => '*.ffn',   fastn   => '*.ffn',
+    gbk     => '*.gbk',   genbank => '*.gbk',
   };
 }
 
 # (if there is a "_get_*" method for one of the keys, then calling
 # $lane->find_files(filetype=>'<key>') will call that method to find files.  If
 # there's no corresponding "_get_*" method, "find_files" will fall back on
-# calling "_get_extension", which will use Find::File::Rule to look for files
-# according to the pattern given in the hash value.)
+# calling "_get_files_by_extension", which will use Find::File::Rule to look
+# for files according to the pattern given in the hash value.)
 
 #-------------------------------------------------------------------------------
 #- builders for statistics gathering -------------------------------------------
