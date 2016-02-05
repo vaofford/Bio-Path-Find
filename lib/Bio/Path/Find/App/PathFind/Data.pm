@@ -314,10 +314,24 @@ sub run {
     ids  => $self->_ids,
     type => $self->_type,
   );
-  $finder_params{qc}       = $self->qc       if defined $self->qc;
-  $finder_params{filetype} = $self->filetype if defined $self->filetype;
 
-  # find lanes
+  # should we filter on QC status ?
+  $finder_params{qc} = $self->qc if defined $self->qc;
+
+  # if the user specifies a filetype, tell the finder to search for that type
+  # of file...
+  if ( $self->filetype ) {
+    $finder_params{filetype} = $self->filetype;
+  }
+  # if we're archiving but there was no specified filetype, collect fastq files
+  # by default
+  else {
+    if ( $self->_tar_flag or $self->_zip_flag ) {
+      $finder_params{filetype} = 'fastq';
+    }
+  }
+
+  # actually go and find lanes
   my $lanes = $self->_finder->find_lanes(%finder_params);
 
   $self->log->debug( 'found a total of ' . scalar @$lanes . ' lanes' );
