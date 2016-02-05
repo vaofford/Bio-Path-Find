@@ -34,7 +34,8 @@ use Types::Standard qw(
 use Bio::Path::Find::Types qw( :types );
 
 with 'MooseX::Log::Log4perl',
-     'MooseX::Traits';
+     'MooseX::Traits',
+     'Bio::Path::Find::Role::HasProgressBar';
 
 =head1 CONTACT
 
@@ -129,6 +130,7 @@ has 'files' => (
   is      => 'ro',
   isa     => ArrayRef[PathClassFile|Str],
   default => sub { [] },
+  writer  => '_set_files',
   handles => {
     _add_file    => 'push',       # private method
     all_files    => 'elements',
@@ -288,6 +290,17 @@ has 'store_filenames' => (
 );
 
 #-------------------------------------------------------------------------------
+#- private attributes ----------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+has '_finding_run' => (
+  is      => 'rw',
+  isa     => Bool,
+  default => 0,
+  clearer => '_clear_finding_run',
+);
+
+#-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
@@ -339,12 +352,12 @@ named C<_get_${filetype}> and runs it if the method exists. If there is no such
 method, we fall back on a mechanism for finding files based on their extension.
 We first look up an extension pattern in the mapping provided by
 C<filename_extension>, then call
-L<_get_extension|Bio::Path::Find::Lane::_get_extension> to try to find files
-matching the pattern.
+L<_get_files_by_extension|Bio::Path::Find::Lane::_get_files_by_extension> to
+try to find files matching the pattern.
 
 This base class has an empty C<filename_extension> mapping and no C<_get_*>
-methods, beyond C<_get_extensions>. The intention is that the mapping and
-C<_get_*> methods will be provided by sub-classes, which are specialised to
+methods, beyond C<_get_files_by_extensions>. The intention is that the mapping
+and C<_get_*> methods will be provided by sub-classes, which are specialised to
 finding files in a specific context. For example, the C<data> command needs to
 find C<fastq> files, so it uses a specialised C<Lane> class,
 L<Bio::Path::Find::Lane::Class::Data>, which implements a
@@ -356,12 +369,20 @@ object to C<$filetype>.
 =cut
 
 sub find_files {
-  state $check = compile( Object, FileType );
-  my ( $self, $filetype ) = $check->(@_);
+  state $check = compile( Object, FileType, Optional[Maybe[ArrayRef[PathClassDir]]] );
+  my ( $self, $filetype, $subdirs ) = $check->(@_);
+
+  # this is a pretty involved method signature. The $subdirs param is optional,
+  # but if it's supplied it should be a ref to an array of Path::Class::Dir
+  # objects. However, because it's sometimes hard to avoid passing it in as
+  # undef without a lot of hacking in the caller, we also accept undef as a
+  # valid value (via the "Maybe"). A value of undef is just ignored in the
+  # method.
 
   $self->filetype($filetype);
 
   $self->clear_files;
+  $self->_clear_finding_run;
 
   # see if this Lane has a "_get_<filetype>" method, which will come from a
   # Role applied when the Lane is instantiated
@@ -372,11 +393,33 @@ sub find_files {
   # filetype and filename extension
   if ( $self->has_no_files ) {
     my $extension = $self->filetype_extensions->{$filetype};
-    $self->_get_extension($extension)
+    $self->_get_files_by_extension($extension)
       if ( defined $extension and $extension =~ m/\*/ );
     $self->log->debug( 'found ' . $self->file_count . ' files using extension mapping' )
       if $self->has_files;
   }
+
+  # if we have a list of sub-directories, return only files that are in one
+  # of the specified directories
+  if ( $subdirs ) {
+    my $pb = $self->_create_pb('filtering', $self->file_count * scalar(@$subdirs) );
+    my @filtered_files;
+    foreach my $file ( $self->all_files ) {
+      foreach my $subdir ( @$subdirs ) {
+        my $subdir_path = dir( $self->symlink_path, $subdir );
+        if ( $subdir_path->contains($file) ) {
+          push @filtered_files, $self->store_filenames ? $file : file($file);
+        }
+        $pb++
+      }
+    }
+
+    $self->_set_files( \@filtered_files );
+  }
+  # TODO right now we're finding files either by the "_get_<filetype>" methods
+  # or using "_get_files_by_extensions" as a fall-back.
+
+  $self->_finding_run(1);
 
   return wantarray ? $self->all_files : $self->file_count;
 }
@@ -475,7 +518,11 @@ sub make_symlinks {
   }
 
   my $rv = 0;
-  if ( $self->filetype and $self->has_files ) {
+  if ( $self->_finding_run ) {
+    if ( $self->has_no_files ) {
+      carp 'WARNING: no files found for linking';
+      return 0;
+    }
     $rv = $self->_make_file_symlinks( $params->{dest}, $params->{rename} );
   }
   else {
@@ -493,11 +540,6 @@ sub make_symlinks {
 
 sub _make_file_symlinks {
   my ( $self, $dest, $rename ) = @_;
-
-  if ( $self->has_no_files ) {
-    carp 'WARNING: no files found for linking';
-    return 0;
-  }
 
   my $num_successful_links = 0;
   FILE: foreach my $src_file ( $self->all_files ) {
@@ -598,7 +640,7 @@ sub _make_dir_symlink {
 
 # find files by looking for files with the specified extension
 
-sub _get_extension {
+sub _get_files_by_extension {
   my ( $self, $extension ) = @_;
 
   $self->log->trace(qq(searching for files with extension "$extension"));

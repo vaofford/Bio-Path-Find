@@ -183,12 +183,16 @@ status will be returned.
 If the optional C<filetype> is given, the method returns only lanes having
 files of the specified type.
 
-The C<lane_attributes> option can be used to supply a set of attributes and
-values that should be set on every C<Lanei|Bio::Path::Find::Lane> object as it
-is created. This is used, for example, by the
-L<Bio::Path::Find::Role::Assembly> to pass in a list of assemblers, so that the
-results of running C<pf assembly> will be restricted to that list of
-assemblers.
+The C<lane_attributes> option can be used to pass in a reference to a hash that
+supples a set of attributes (key) and values (value) that should be set on
+every C<Lane|Bio::Path::Find::Lane> object as it is created. This is used, for
+example, by the L<Bio::Path::Find::App::PathFind::Assembly> command to pass in
+a list of assemblers, so that the results of running C<pf assembly> will be
+restricted to that list of assemblers.
+
+B<Note> that we do no validation of the attributes list. If you pass in an
+attribute name that's not supported by the C<Lane> class, you'll get an ugly
+Moose error for your troubles.
 
 =cut
 
@@ -201,6 +205,7 @@ sub find_lanes {
       qc              => Optional[QCState],
       filetype        => Optional[FileType],
       lane_attributes => Optional[HashRef],
+      subdirs         => Optional[ArrayRef[PathClassDir]],
     ],
   );
   my ( $self, $params ) = $check->(@_);
@@ -209,7 +214,11 @@ sub find_lanes {
                      . ' IDs of type "' . $params->{type} . q(") );
 
   # get a list of Bio::Path::Find::Lane objects
-  my $lanes = $self->_find_lanes( $params->{ids}, $params->{type}, $params->{lane_attributes} );
+  my $lanes = $self->_find_lanes(
+    $params->{ids},
+    $params->{type},
+    $params->{lane_attributes}
+  );
 
   $self->log->debug('found ' . scalar @$lanes . ' lanes');
 
@@ -235,7 +244,7 @@ sub find_lanes {
     # return lanes that have a specific type of file
     if ( $params->{filetype} ) {
 
-      $lane->find_files($params->{filetype});
+      $lane->find_files( $params->{filetype}, $params->{subdirs} );
 
       if ( $lane->has_files ) {
         push @$filtered_lanes, $lane;
@@ -303,28 +312,15 @@ sub _find_lanes {
         # row
         my $lane;
 
-        #---------------------------------------
-        # lane class hook
-        #
-        # return the type of class that's specified by the "lane_class" attribute
-
+        # return the type of class that's specified by the "lane_class"
+        # attribute. Set attributes on the lanes at instantiation
         try {
-          $lane = $self->lane_class->new( row => $lane_row );
+          $lane = $self->lane_class->new( row => $lane_row, %$lane_attributes );
         } catch {
           Bio::Path::Find::Exception->throw(
             msg => q(ERROR: couldn't build lane class ") . $self->lane_class . qq(": $_)
           );
         };
-
-        #---------------------------------------
-        # attribute hook
-        #
-        # if we have any attributes that need to set on every lane, do that now
-
-        foreach my $attr ( keys %$lane_attributes ) {
-          my $value = $lane_attributes->{$attr};
-          $lane->$attr( $value ) if $lane->can($attr);
-        }
 
         #---------------------------------------
 

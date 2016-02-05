@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 20;
+use Test::More tests => 23;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -129,12 +129,26 @@ SKIP: {
   my $temp_dir = File::Temp->newdir;
   my $symlink_dir = dir $temp_dir;
 
-  # should work
-  lives_ok { $lane->make_symlinks( dest => $symlink_dir ) }
-    'no exception when creating symlinks';
+  # should work but not create links (no files found)
+  warning_like { $lane->make_symlinks( dest => $symlink_dir ) }
+    { carped => qr/no files found for linking/ },
+    'warning about no files when creating symlinks';
 
   my @files_in_temp_dir = $symlink_dir->children;
+  is scalar @files_in_temp_dir, 0, 'no links created';
+
+  # switch to a lane which has a file extension mapping set and can therefore
+  # actually find files
+  $lane = $lane_with_extension_mapping;
+
+  lives_ok { $lane->find_files('fastq') } 'no problem finding fastq files';
+
+  lives_ok { $lane->make_symlinks( dest => $symlink_dir ) }
+    'no problem creating links';
+
+  @files_in_temp_dir = $symlink_dir->children;
   is scalar @files_in_temp_dir, 1, 'found 1 link';
+
   like $files_in_temp_dir[0], qr/10018_1#1/, 'link looks correct';
 
   # should warn that link already exists
@@ -151,6 +165,8 @@ SKIP: {
     'warning when destination file already exists';
 
   $files_in_temp_dir[0]->remove;
+  $lane->_clear_finding_run;
+  $lane->clear_files;
 
   # set the permissions on the directory to remove write permission
   chmod 0500, $symlink_dir;
