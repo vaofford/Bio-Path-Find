@@ -335,14 +335,12 @@ sub _create_zip_archive {
 sub _compress_data {
   my ( $self, $data ) = @_;
 
-  $DB::single = 1;
-
   my $max        = length $data;
   my $num_chunks = 100;
-  my $chunk_size = int( $max / $num_chunks );
+  my $chunk_size = int( $max / $num_chunks ) +1;
 
   # set up the progress bar
-  my $pb = $self->_create_pb('gzipping', $num_chunks + 1);
+  my $pb = $self->_create_pb('gzipping', $num_chunks);
 
   my $compressed_data;
   my $offset      = 0;
@@ -383,9 +381,9 @@ sub _write_data {
 
   my $max        = length $data;
   my $num_chunks = 100;
-  my $chunk_size = int( $max / $num_chunks );
+  my $chunk_size = int( $max / $num_chunks ) + 1;
 
-  my $pb = $self->_create_pb('writing', $num_chunks + 1);
+  my $pb = $self->_create_pb('writing', $num_chunks);
 
   open ( FILE, '>', $filename )
     or Bio::Path::Find::Exception->throw( msg => "ERROR: couldn't write output file ($filename): $!" );
@@ -395,11 +393,13 @@ sub _write_data {
   my $written;
   my $offset      = 0;
   my $remaining   = $max;
+  my $cycle = 0;
   while ( $remaining > 0 ) {
     $written = syswrite FILE, $data, $chunk_size, $offset;
     $offset    += $written;
     $remaining -= $written;
     $pb++;
+    $cycle++;
   }
 
   close FILE;
