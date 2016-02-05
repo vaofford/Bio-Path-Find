@@ -11,8 +11,10 @@ use MooseX::StrictConstructor;
 
 use Carp qw( croak );
 use Path::Class;
+use Capture::Tiny qw( capture_stderr );
 
 use Types::Standard qw(
+  ArrayRef
   Bool
   Str
 );
@@ -20,6 +22,9 @@ use Types::Standard qw(
 use Bio::Path::Find::Types qw( :types );
 
 use Bio::Path::Find::Exception;
+use Bio::Path::Find::Lane::Class::Annotation;
+
+use Bio::AutomatedAnnotation::ParseGenesFromGFFs;
 
 extends 'Bio::Path::Find::App::PathFind';
 
@@ -175,7 +180,8 @@ option 'filetype' => (
   is            => 'ro',
   isa           => AnnotationType,
   cmd_aliases   => 'f',
-  default       => 'gff',
+  # default       => 'gff',
+  # don't specify a default here; it screws up the gene finding method
 );
 
 #---------------------------------------
@@ -194,6 +200,15 @@ option 'product' => (
   is            => 'ro',
   isa           => Str,
   cmd_aliases   => 'p',
+);
+
+#---------------------------------------
+
+option 'output' => (
+  documentation => 'output filename for genes',
+  is            => 'ro',
+  isa           => Str,
+  cmd_aliases   => 'o',
 );
 
 #---------------------------------------
@@ -251,10 +266,30 @@ around [ '_build_tar_filename', '_build_zip_filename' ] => sub {
   my $self = shift;
 
   my $filename = $self->$orig->stringify;
-  $filename =~ s/^pf_/assemblyfind_/;
+  $filename =~ s/^pf_/annotationfind_/;
 
   return file( $filename );
 };
+
+#---------------------------------------
+
+# these are the sub-directories of a lane's data directory where we will look
+# for annotation files
+
+has '_subdirs' => (
+  is => 'ro',
+  isa => ArrayRef[PathClassDir],
+  builder => '_build_subdirs',
+);
+
+sub _build_subdirs {
+  return [
+    dir(qw( iva_assembly annotation )),
+    dir(qw( spades_assembly annotation )),
+    dir(qw( velvet_assembly annotation )),
+    dir(qw( pacbio_assembly annotation )),
+  ];
+}
 
 #-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
@@ -271,10 +306,23 @@ sub run {
   my %finder_params = (
     ids      => $self->_ids,
     type     => $self->_type,
-    filetype => $self->filetype,    # defaults to "gff"
+    filetype => $self->filetype || 'gff',
+    subdirs  => $self->_subdirs,
   );
 
- # find lanes
+  # tell the finder to set "search_depth" to 3 for the Lane objects that it
+  # returns. The files that we want to find using Lane::find_files are in the
+  # sub-directory containing assembly information, so the default search depth
+  # of 1 will miss them.
+  $finder_params{lane_attributes}->{search_depth}    = 3;
+
+  # make Lanes store found files as simple strings, rather than
+  # Path::Class::File objects. The list of files is handed off to
+  # Bio::AutomatedAnnotation::ParseGenesFromGFFs, which spits the dummy if it's
+  # handed objects.
+  $finder_params{lane_attributes}->{store_filenames} = 1;
+
+  # find lanes
   my $lanes = $self->_finder->find_lanes(%finder_params);
 
   $self->log->debug( 'found a total of ' . scalar @$lanes . ' lanes' );
@@ -288,20 +336,79 @@ sub run {
   if ( $self->_symlink_flag or
        $self->_tar_flag or
        $self->_zip_flag or
-       $self->_stats_flag ) {
+       $self->_stats_flag or
+       $self->gene or
+       $self->product ) {
     $self->_make_symlinks($lanes) if $self->_symlink_flag;
     $self->_make_tar($lanes)      if $self->_tar_flag;
     $self->_make_zip($lanes)      if $self->_zip_flag;
     $self->_make_stats($lanes)    if $self->_stats_flag;
+    $self->_find_genes($lanes)    if ( $self->gene or $self->product );
   }
   else {
-    # we've set a default ("scaffold") for the "filetype" on the Finder, so
-    # when it looks for lanes it will automatically tell each lane to find
-    # files of type "scaffold". Hence, "print_paths" will print the paths for
-    # those found files.
-    $_->print_paths for ( @$lanes );
+
+    my $pb = $self->_create_pb('collecting files', scalar @$lanes);
+
+    my @files;
+    foreach my $lane ( @$lanes ) {
+      push @files, $lane->all_files;
+      $pb++;
+    }
+
+    say $_ for @files;
+  }
+}
+
+#-------------------------------------------------------------------------------
+#- private methods -------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+sub _find_genes {
+  my ( $self, $lanes ) = @_;
+
+  my @gffs;
+  if ( defined $self->filetype and $self->filetype eq 'gff' ) {
+    push @gffs, $_->all_files for @$lanes;
+  }
+  else {
+    my $pb = $self->_create_pb('finding GFFs', scalar @$lanes);
+    for ( @$lanes ) {
+      push @gffs, $_->find_files('gff', $self->_subdirs);
+      $pb++;
+    }
   }
 
+  my %params = (
+    gff_files   => \@gffs,
+    amino_acids => $self->nucleotides,
+  );
+
+  if ( $self->product ) {
+    $params{search_query}      = $self->product;
+    $params{search_qualifiers} = [ 'product' ];
+  }
+  elsif ( $self->gene ) {
+    $params{search_query}      = $self->gene;
+    $params{search_qualifiers} = [ 'gene', 'ID' ];
+  }
+  elsif ( $self->gene and $self->product ) {
+    $params{search_query} = $self->gene;
+    $params{search_qualifiers} = [ 'gene', 'ID', 'product' ];
+  }
+
+  my $gf = Bio::AutomatedAnnotation::ParseGenesFromGFFs->new(%params);
+
+  $gf->output_base($self->output) if defined $self->output;
+
+  print "finding genes... ";
+
+  # TODO check if it's sensible simply to ignore the bioperl warnings
+  capture_stderr { $gf->create_fasta_file };
+
+  print "\r"; # make the next line overwrite "finding genes..."
+
+  say "Samples containing gene/product:\t" . $gf->files_with_hits;
+  say "Samples missing gene/product:   \t" . $gf->files_without_hits;
 }
 
 #-------------------------------------------------------------------------------
