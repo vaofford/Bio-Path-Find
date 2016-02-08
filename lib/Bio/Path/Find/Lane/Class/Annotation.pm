@@ -8,11 +8,49 @@ use Path::Class;
 
 use Types::Standard qw( Maybe );
 
-use Bio::Path::Find::Types qw( :types );
+use Bio::Path::Find::Types qw( :all );
 
 extends 'Bio::Path::Find::Lane';
 
 with 'Bio::Path::Find::Lane::Role::Stats';
+
+#-------------------------------------------------------------------------------
+#- public attributes -----------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+=head1 ATTRIBUTES
+
+=attr assemblers
+
+A list of names of assemblers that the assembly-related code understands. The
+default list is taken from the definition of the C<Assemblers> type in the
+L<type library|Bio::Path::Find::Types>:
+
+=over
+
+=item iva
+
+=item pacbio
+
+=item spades
+
+=item velvet
+
+=back
+
+=cut
+
+has 'assemblers' => (
+  is      => 'rw',
+  isa     => Assemblers->plus_coercions(AssemblerToAssemblers),
+  coerce  => 1,
+  lazy    => 1,
+  builder => '_build_assemblers',
+);
+
+sub _build_assemblers {
+  return Assembler->values;
+}
 
 #-------------------------------------------------------------------------------
 #- attribute modifiers ---------------------------------------------------------
@@ -102,8 +140,8 @@ sub _build_stats_headers {
 
 #-------------------------------------------------------------------------------
 
-
 # collect together the fields for the statistics report
+
 sub _build_stats {
   my $self = shift;
 

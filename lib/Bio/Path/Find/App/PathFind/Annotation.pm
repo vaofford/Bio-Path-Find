@@ -220,6 +220,16 @@ option 'nucleotides' => (
   cmd_aliases   => 'n',
 );
 
+#---------------------------------------
+
+option 'program' => (
+  documentation => 'look for annotation created by a specific assembly pipeline',
+  is            => 'ro',
+  isa           => Assemblers,
+  cmd_aliases   => 'P',
+  cmd_split     => qr/,/,
+);
+
 #-------------------------------------------------------------------------------
 #- private attributes ----------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -321,6 +331,13 @@ sub run {
   # Bio::AutomatedAnnotation::ParseGenesFromGFFs, which spits the dummy if it's
   # handed objects.
   $finder_params{lane_attributes}->{store_filenames} = 1;
+
+  # should we restrict the search to a specific assembler ?
+  if ( $self->program ) {
+    # yes; tell the Finder to set the "assemblers" attribute on every Lane that
+    # it returns
+    $finder_params{lane_attributes}->{assemblers} = $self->program;
+  }
 
   # find lanes
   my $lanes = $self->_finder->find_lanes(%finder_params);
