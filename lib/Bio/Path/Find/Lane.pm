@@ -401,7 +401,7 @@ sub find_files {
 
   # if we have a list of sub-directories, return only files that are in one
   # of the specified directories
-  if ( $subdirs ) {
+  if ( $subdirs and $self->has_files ) {
     my $pb = $self->_create_pb('filtering', $self->file_count * scalar(@$subdirs) );
     my @filtered_files;
     foreach my $file ( $self->all_files ) {
@@ -416,9 +416,8 @@ sub find_files {
 
     $self->_set_files( \@filtered_files );
   }
-  # TODO right now we're finding files either by the "_get_<filetype>" methods
-  # or using "_get_files_by_extensions" as a fall-back.
 
+  # set the flag showing that we've run file finding on this Lane
   $self->_finding_run(1);
 
   return wantarray ? $self->all_files : $self->file_count;
