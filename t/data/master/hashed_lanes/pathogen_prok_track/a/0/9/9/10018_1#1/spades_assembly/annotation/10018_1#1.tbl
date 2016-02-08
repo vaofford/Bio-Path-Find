@@ -1,0 +1,21 @@
+>Feature ERS005794|SC|contig000001
+>Feature ERS005794|SC|contig000002
+77	116	ncRNA
+			inference	COORDINATES:profile:Infernal:1.1
+			locus_tag	5008_5#4_00001
+			product	HIV-1_DIS
+257	327	ncRNA
+			inference	COORDINATES:profile:Infernal:1.1
+			locus_tag	5008_5#4_00002
+			product	HIV_GSL3
+>Feature ERS005794|SC|contig000003
+>Feature ERS005794|SC|contig000004
+>Feature ERS005794|SC|contig000005
+1	282	CDS
+			gene	gag-pol
+			inference	ab initio prediction:Prodigal:2.60
+			inference	similar to AA sequence:UniProtKB:O12158
+			locus_tag	5008_5#4_00003
+			product	Pr160Gag-Pol
+			protein_id	gnl|SC|5008_5#4_00003
+>Feature ERS005794|SC|contig000006
