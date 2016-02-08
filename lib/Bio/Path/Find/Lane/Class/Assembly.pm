@@ -13,7 +13,7 @@ use Types::Standard qw(
   Maybe
 );
 
-use Bio::Path::Find::Types qw( :types );
+use Bio::Path::Find::Types qw( :types AssemblerToAssemblers );
 
 extends 'Bio::Path::Find::Lane';
 
@@ -46,26 +46,17 @@ default list is:
 
 has 'assemblers' => (
   is      => 'rw',
-  isa     => ArrayRef[Assembler],
+  isa     => Assemblers->plus_coercions(AssemblerToAssemblers),
+  coerce  => 1,
   lazy    => 1,
   builder => '_build_assemblers',
 );
 
 sub _build_assemblers {
-  return [ qw(
-    velvet
-    spades
-    iva
-    pacbio
-  ) ];
+  # get the list of allowed values straight from the Assembler type, which is
+  # defined in Bio::Path::Find::Types. Neat. I like that.
+  return Assembler->values;
 }
-
-# TODO ideally we need to get this list from the Types library. It's daft
-# TODO having it in two places
-
-# TODO or we could get it from the config, but that would mean passing in the
-# TODO config hash when we instantiate the Lane, which would have to be done
-# TODO in the B::P::F::Finder::find_lanes method
 
 #---------------------------------------
 

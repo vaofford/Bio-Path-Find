@@ -11,6 +11,7 @@ use Type::Library -base, -declare => qw(
   AnnotationType
   AssemblyType
   DataType
+  Assembler
 );
 
 use Type::Utils -all;
@@ -54,6 +55,13 @@ enum IDType,         [qw( lane sample database study file library species )];
 enum FileIDType,     [qw( lane sample study )];
 enum QCState,        [qw( passed failed pending )];
 enum Assembler,      [qw( velvet spades iva pacbio )];
+
+declare Assemblers,
+  as ArrayRef[Assembler];
+
+declare_coercion 'AssemblerToAssemblers',
+  to_type Assemblers,
+  from    Assembler,  via { [ $_ ] };
 
 enum DataType,       [qw( fastq bam pacbio corrected )];
 enum AssemblyType,   [qw( scaffold contigs all )];

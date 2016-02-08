@@ -3,10 +3,10 @@
 #- wrapping class --------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# the idea of this class is to wrap up the original PathFind::Assembly command
-# class and replace the various _make_* methods, which are tested in separate
-# test scripts, with dummy "around" modifiers. That will allow us to test the
-# run method without actually calling the concrete methods.
+# the idea of this class is to wrap up the original PathFind::Annotation
+# command class and replace the various _make_* methods, which are tested in
+# separate test scripts, with dummy "around" modifiers. That will allow us to
+# test the run method without actually calling the concrete methods.
 
 package Bio::Path::Find::App::TestFind;
 
@@ -14,7 +14,7 @@ use Moose;
 use namespace::autoclean;
 use MooseX::StrictConstructor;
 
-extends 'Bio::Path::Find::App::PathFind::Assembly';
+extends 'Bio::Path::Find::App::PathFind::Annotation';
 
 around '_make_symlinks' => sub {
   print STDERR 'called _make_symlinks';
@@ -30,6 +30,10 @@ around '_make_zip' => sub {
 
 around '_make_stats' => sub {
   print STDERR 'called _make_stats';
+};
+
+around '_find_genes' => sub {
+  print STDERR 'called _find_genes';
 };
 
 #-------------------------------------------------------------------------------
