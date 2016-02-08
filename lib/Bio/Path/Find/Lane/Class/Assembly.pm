@@ -13,7 +13,7 @@ use Types::Standard qw(
   Maybe
 );
 
-use Bio::Path::Find::Types qw( :types AssemblerToAssemblers );
+use Bio::Path::Find::Types qw( :all );
 
 extends 'Bio::Path::Find::Lane';
 
@@ -28,17 +28,18 @@ with 'Bio::Path::Find::Lane::Role::Stats';
 =attr assemblers
 
 A list of names of assemblers that the assembly-related code understands. The
-default list is:
+default list is taken from the definition of the C<Assemblers> type in the
+L<type library|Bio::Path::Find::Types>:
 
 =over
-
-=item velvet
-
-=item spades
 
 =item iva
 
 =item pacbio
+
+=item spades
+
+=item velvet
 
 =back
 
