@@ -209,7 +209,7 @@ sub _build_lane_class {
 # B::P::F::Role::Statistician. This attribute provides the default name of the
 # stats file that the command writes out
 
-sub _stats_file_builder {
+sub _build_stats_file {
   my $self = shift;
   return file( $self->_renamed_id . '.assemblyfind_stats.csv' );
 }

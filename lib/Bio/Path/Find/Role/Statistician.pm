@@ -61,10 +61,10 @@ has '_stats_file' => (
   is      => 'rw',
   isa     => PathClassFile,
   lazy    => 1,
-  builder => '_stats_file_builder',
+  builder => '_build_stats_file',
 );
 
-sub _stats_file_builder {
+sub _build_stats_file {
   my $self = shift;
   return file( $self->_renamed_id . '.pathfind_stats.csv' );
 }
