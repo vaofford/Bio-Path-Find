@@ -358,12 +358,7 @@ has '_finder' => (
 sub _build_finder {
   my $self = shift;
 
-  my %finder_params = (
-    config     => $self->config,
-    lane_class => $self->_lane_class,
-  );
-
-  return Bio::Path::Find::Finder->new(%finder_params);
+  return Bio::Path::Find::Finder->new( lane_class => $self->_lane_class );
 }
 
 #---------------------------------------

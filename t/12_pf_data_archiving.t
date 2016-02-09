@@ -51,17 +51,10 @@ chdir $temp_dir;
 
 # check filename collection
 
-my %params = (
-  config_file      => file( qw( t data 12_pf_data_archiving test.conf ) ),
-  id               => '10018_1',
-  type             => 'lane',
-  no_progress_bars => 1,
-);
-
 # get the lanes using the Finder directly
 my $f = Bio::Path::Find::Finder->new(
-  config_file => file( qw( t data 12_pf_data_archiving test.conf ) ),
-  lane_class  => 'Bio::Path::Find::Lane::Class::Data',
+  config     => file( qw( t data 12_pf_data_archiving test.conf ) ),
+  lane_class => 'Bio::Path::Find::Lane::Class::Data',
 );
 
 my $lanes = $f->find_lanes( ids => [ '10018_1' ], type => 'lane', filetype => 'fastq' );
@@ -85,7 +78,18 @@ for ( my $i = 0; $i < scalar @expected_filenames; $i++ ) {
 }
 
 # check against filenames from the app
+my %params = (
+  config           => file( qw( t data 12_pf_data_archiving test.conf ) ),
+  id               => '10018_1',
+  type             => 'lane',
+  no_progress_bars => 1,
+);
+
+# (clear config singleton first)
+$f->clear_config;
+
 my $pf;
+
 lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
   'got a new pathfind app object';
 
@@ -113,7 +117,7 @@ is_deeply \@got_stats, \@expected_stats, 'written stats file looks correct';
 # check the creation of a tar archive
 
 %params = (
-  config_file      => file( qw( t data 12_pf_data_archiving test.conf ) ),
+  # no need to pass "config_file"; it will come from the HasConfig Role
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
@@ -165,7 +169,7 @@ pop @expected_filenames;
 
 # check renaming of files in the archive
 %params = (
-  config_file      => file( qw( t data 12_pf_data_archiving test.conf ) ),
+  # no need to pass "config_file"; it will come from the HasConfig Role
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
@@ -188,7 +192,7 @@ is scalar( grep(m/\#/, @archived_files) ), 0, 'filenames have been renamed';
 # check compression
 
 %params = (
-  config_file      => file( qw( t data 12_pf_data_archiving test.conf ) ),
+  # no need to pass "config_file"; it will come from the HasConfig Role
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
@@ -244,7 +248,7 @@ is $uncompressed_slurped_data, $data, 'file written to disk matches original';
 # check creation of a zip archive
 
 %params = (
-  config_file      => file( qw( t data 12_pf_data_archiving test.conf ) ),
+  # no need to pass "config_file"; it will come from the HasConfig Role
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
@@ -282,7 +286,7 @@ is $zip_members[-1], '10018_1/stats.csv', 'last member has correct name';
 # first, make a tar archive
 
 %params = (
-  config_file      => file( qw( t data 12_pf_data_archiving test.conf ) ),
+  # no need to pass "config_file"; it will come from the HasConfig Role
   id               => '10018_1#1',
   type             => 'lane',
   no_progress_bars => 1,

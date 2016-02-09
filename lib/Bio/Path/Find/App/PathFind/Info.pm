@@ -204,7 +204,6 @@ sub _build_ss_db_mgr {
   my $self = shift;
 
   return Bio::Path::Find::DatabaseManager->new(
-    config      => $self->config,
     schema_name => $self->sequencescape_schema_name,
     # this should match the name of the configuration section under
     # "connection_params"

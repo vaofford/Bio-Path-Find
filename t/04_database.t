@@ -18,7 +18,7 @@ package main;
 use strict;
 use warnings;
 
-use Test::More tests => 29;
+use Test::More tests => 31;
 use Test::Exception;
 use Test::Warn;
 use Try::Tiny;
@@ -86,10 +86,35 @@ throws_ok { $db->schema }
 
 #---------------------------------------
 
+# if we don't clear the config, we'll get an error telling us that the configuration
+# singleton is already initialized
+
+throws_ok {
+  $db = Bio::Path::Find::Database->new(
+    name        => 'pathogen_prok_track',
+    schema_name => 'tracking',
+    config      => $config,
+  );
+} qr/Singleton is already initialized/,
+  'exception when trying to re-initialized config';
+
+# shouldn't get an exception if we don't try handing in the config again
+lives_ok {
+  $db = Bio::Path::Find::Database->new(
+    name        => 'pathogen_prok_track',
+    schema_name => 'tracking',
+  );
+} 'no exception if config is left out of instantiation call';
+
+#---------------------------------------
+
 # check we get an exception if "driver" isn't defined
 
 $config->{connection_params}->{tracking}->{schema_class} = 'non-existent-schema-class';
 delete $config->{connection_params}->{tracking}->{driver};
+
+# clear config singleton to avoid exception and initialization
+$db->clear_config;
 
 $db = Bio::Path::Find::Database->new(
   name        => 'pathogen_prok_track',
@@ -111,7 +136,6 @@ $config->{connection_params}->{tracking}->{driver} = 'SQLite';
 $db = Bio::Path::Find::Database->new(
   name        => 'pathogen_prok_track',
   schema_name => 'tracking',
-  config      => $config,
 );
 
 throws_ok { $db->schema }
@@ -142,6 +166,8 @@ $config = {
   },
 };
 
+$db->clear_config;
+
 my $tracking_db = Bio::Path::Find::Database->new(
   name        => 'pathogen_prok_track',
   schema_name => 'tracking',
@@ -151,7 +177,6 @@ my $tracking_db = Bio::Path::Find::Database->new(
 my $seqw_db = Bio::Path::Find::Database->new(
   name        => 'sequencescape_warehouse',
   schema_name => 'seqw',
-  config      => $config,
 );
 
 my ( $tracking_schema, $seqw_schema );
@@ -167,14 +192,30 @@ is undef, $seqw_db->db_root, 'no db_root, but no exception, when no_db_root true
 
 #-------------------------------------------------------------------------------
 
-# reading config from file
+# check DSN generation
+
+$config = {
+  db_root => 't/data/linked',
+  connection_params => {
+    tracking => {
+      driver => 'mysql',
+      host   => 'test_db_host',
+      port   => 3306,
+      user   => 'ro_user',
+      pass   => 'password',
+      schema_class => 'Bio::Track::Schema',
+    },
+  },
+};
+
+$tracking_db->clear_config;
 
 # check we can get a DSN for a mysql database
 lives_ok {
     $db = Bio::Path::Find::Database->new(
       name        => 'pathogen_prok_track',
       schema_name => 'tracking',
-      config_file => file( qw( t data 04_database mysql.conf ) ),
+      config      => $config,
     )
   }
   'got a B::P::F::Database object for a MySQL connection using config file';
@@ -186,12 +227,25 @@ isa_ok $db->schema, 'Bio::Track::Schema', 'schema';
 
 #---------------------------------------
 
+$db->clear_config;
+
+$config = {
+  db_root           => file(qw( t data linked )),
+  connection_params => {
+    tracking => {
+      driver       => 'SQLite',
+      dbname       => 't/data/pathogen_prok_track.db',
+      schema_class => 'Bio::Track::Schema',
+    },
+  },
+};
+
 # and for an SQLite DB
 lives_ok {
     $db = Bio::Path::Find::Database->new(
       name        => 'pathogen_prok_track',
       schema_name => 'tracking',
-      config_file => file( qw( t data 04_database sqlite.conf ) ),
+      config      => $config,
     )
   }
   'got a B::P::F::Database object for a SQLite connection using config file';
@@ -205,6 +259,7 @@ isa_ok $db->schema, 'Bio::Track::Schema', 'schema';
 # look for warnings and exceptions
 
 # missing db_root
+$db->clear_config;
 $config = {
   # no db_root
   hierarchy_template => 'genus:species:TRACKING:sample:lane',
@@ -237,6 +292,7 @@ is $db->hierarchy_template, $config->{hierarchy_template},
   'found valid template in config';
 
 # missing template
+
 $config = {
   db_root => file(qw( t data linked )),
   # no template
@@ -252,6 +308,7 @@ $config = {
   },
 };
 
+$db->clear_config;
 $db = Bio::Path::Find::Database->new(
   name        => 'pathogen_prok_track',
   schema_name => 'tracking',
@@ -264,6 +321,7 @@ is $template, 'genus:species-subspecies:TRACKING:projectssid:sample:technology:l
 
 # invalid template
 $config->{hierarchy_template} = '*notavalidtemplate*';
+$db->clear_config;
 $db = Bio::Path::Find::Database->new(
   name        => 'pathogen_prok_track',
   schema_name => 'tracking',
@@ -286,6 +344,7 @@ $config = {
   },
 };
 
+$db->clear_config;
 $db = Bio::Path::Find::Database->new(
   name        => 'pathogen_prok_track',
   schema_name => 'tracking',
@@ -316,6 +375,7 @@ $config = {
   },
 };
 
+$db->clear_config;
 $db = Bio::Path::Find::Database->new(
   name        => 'pathogen_prok_track',
   schema_name => 'tracking',
@@ -330,6 +390,7 @@ throws_ok { $db->_get_dsn }
 
 # bad driver
 $config->{connection_params}->{tracking}->{driver} = 'not-a-real-driver';
+$db->clear_config;
 $db = Bio::Path::Find::Database->new(
   name        => 'pathogen_prok_track',
   schema_name => 'tracking',
@@ -353,6 +414,7 @@ $config = {
   # no mapping
 };
 
+$db->clear_config;
 $db = Bio::Path::Find::Database->new(
   name        => 'pathogen_prok_track',
   schema_name => 'tracking',
@@ -389,6 +451,7 @@ SKIP: {
     },
   };
 
+  $db->clear_config;
   $db = Bio::Path::Find::Database->new(
     name        => 'pathogen_track_test',
     schema_name => 'tracking',

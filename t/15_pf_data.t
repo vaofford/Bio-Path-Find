@@ -75,9 +75,9 @@ chdir $temp_dir;
 
 # the basic params. These will stay unchanged for all of the subsequent runs
 my %params = (
-  config_file      => file( qw( t data 15_pf_data test.conf ) ),
-  id               => '10018_1',
-  type             => 'lane',
+  config => file(qw( t data 15_pf_data test.conf )),
+  id     => '10018_1',
+  type   => 'lane',
 );
 
 my $tf;
@@ -91,6 +91,10 @@ stdout_is { $tf->run }
   'printed correct paths';
 
 # make symlinks
+
+# no need to pass in config; it will come from HasConfig Role
+delete $params{config};
+
 $params{symlink} = 'my_links_dir';
 $tf = Bio::Path::Find::App::TestFind->new(%params);
 stderr_is { $tf->run } 'called _make_symlinks', 'correctly called _make_symlinks';

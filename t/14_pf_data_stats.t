@@ -48,8 +48,8 @@ my @expected_stats              = $expected_stats_file->slurp( chomp => 1, split
 
 # get some test lanes using the Finder directly
 my $f = Bio::Path::Find::Finder->new(
-  config_file => file( qw( t data 14_pf_data_stats test.conf ) ),
-  lane_class  => 'Bio::Path::Find::Lane::Class::Data',
+  config     => file( qw( t data 14_pf_data_stats test.conf ) ),
+  lane_class => 'Bio::Path::Find::Lane::Class::Data',
 );
 
 my $lanes = $f->find_lanes( ids => [ '10018_1' ], type => 'lane', filetype => 'fastq' );
@@ -61,7 +61,7 @@ ok $lanes->[0]->does('Bio::Path::Find::Lane::Role::Stats'), 'Stats Role applied 
 # get a PathFind object
 
 my %params = (
-  config_file      => file( qw( t data 14_pf_data_stats test.conf ) ),
+  # no need to pass "config_file"; it will come from the HasConfig Role
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
@@ -86,7 +86,7 @@ is_deeply $stats, \@expected_stats, 'written contents look right';
 $stats_file = file( $temp_dir, 'named_file.csv' );
 
 %params = (
-  config_file      => file( qw( t data 14_pf_data_stats test.conf ) ),
+  # no need to pass "config_file"; it will come from the HasConfig Role
   id               => '10018_1',
   type             => 'lane',
   stats            => $stats_file->stringify,

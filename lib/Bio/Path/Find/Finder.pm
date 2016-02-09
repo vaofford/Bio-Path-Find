@@ -150,7 +150,7 @@ has '_db_manager' => (
 sub _build_db_manager {
   my $self = shift;
   return Bio::Path::Find::DatabaseManager->new(
-    config      => $self->config,
+    # config      => $self->config,
     schema_name => $self->schema_name,
   );
 }
@@ -161,11 +161,12 @@ has '_sorter' => (
   is      => 'rw',
   isa     => BioPathFindSorter,
   lazy    => 1,
-  default => sub {
-    my $self = shift;
-    Bio::Path::Find::Sorter->new( config => $self->config );
-  },
+  builder => '_build_sorter',
 );
+
+sub _build_sorter {
+  Bio::Path::Find::Sorter->new;
+}
 
 #-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
