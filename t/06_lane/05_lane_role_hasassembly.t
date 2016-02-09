@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 12;
+use Test::More tests => 14;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -67,6 +67,93 @@ lives_ok { $lane = Bio::Path::Find::Lane->with_traits('Bio::Path::Find::Lane::Ro
   'no exception when creating Lane with HasAssembly Role applied';
 
 ok $lane->does('Bio::Path::Find::Lane::Role::HasAssembly'), 'lane has HasAssembly Role applied';
+
+#---------------------------------------
+
+# check pipeline_versions, making sure we can override the mapping by
+# putting it in the config
+
+# this should come from the Role itself
+my $got_pv = $lane->_pipeline_versions;
+
+my $expected_pv = {
+  '2.0.0' => 'Velvet',
+  '2.0.1' => 'Velvet + Improvement',
+  '2.1.0' => 'Correction, Normalisation, Primer Removal + Velvet',
+  '2.1.1' => 'Correction, Normalisation, Primer Removal + Velvet + Improvement',
+  '2.2.0' => 'Correction, Normalisation + Velvet',
+  '2.2.1' => 'Correction, Normalisation + Velvet + Improvement',
+  '2.3.0' => 'Correction, Primer Removal + Velvet',
+  '2.3.1' => 'Correction, Primer Removal + Velvet + Improvement',
+  '2.4.0' => 'Normalisation, Primer Removal + Velvet',
+  '2.4.1' => 'Normalisation, Primer Removal + Velvet + Improvement',
+  '2.5.0' => 'Correction + Velvet',
+  '2.5.1' => 'Correction + Velvet + Improvement',
+  '2.6.0' => 'Normalisation + Velvet',
+  '2.6.1' => 'Normalisation + Velvet + Improvement',
+  '2.7.0' => 'Primer Removal + Velvet',
+  '2.7.1' => 'Primer Removal + Velvet + Improvement',
+  '3.0.0' => 'SPAdes',
+  '3.0.1' => 'SPAdes + Improvement',
+  '3.1.0' => 'Correction, Normalisation, Primer Removal + SPAdes',
+  '3.1.1' => 'Correction, Normalisation, Primer Removal + SPAdes + Improvement',
+  '3.2.0' => 'Correction, Normalisation + SPAdes',
+  '3.2.1' => 'Correction, Normalisation + SPAdes + Improvement',
+  '3.3.0' => 'Correction, Primer Removal + SPAdes',
+  '3.3.1' => 'Correction, Primer Removal + SPAdes + Improvement',
+  '3.4.0' => 'Normalisation, Primer Removal + SPAdes',
+  '3.4.1' => 'Normalisation, Primer Removal + SPAdes + Improvement',
+  '3.5.0' => 'Correction + SPAdes',
+  '3.5.1' => 'Correction + SPAdes + Improvement',
+  '3.6.0' => 'Normalisation + SPAdes',
+  '3.6.1' => 'Normalisation + SPAdes + Improvement',
+  '3.7.0' => 'Primer Removal + SPAdes',
+  '3.7.1' => 'Primer Removal + SPAdes + Improvement',
+  '5.0.0' => 'IVA',
+  '5.0.1' => 'IVA + Improvement',
+  '5.1.0' => 'Correction, Normalisation, Primer Removal + IVA',
+  '5.1.1' => 'Correction, Normalisation, Primer Removal + IVA + Improvement',
+  '5.2.0' => 'Correction, Normalisation + IVA',
+  '5.2.1' => 'Correction, Normalisation + IVA + Improvement',
+  '5.3.0' => 'Correction, Primer Removal + IVA',
+  '5.3.1' => 'Correction, Primer Removal + IVA + Improvement',
+  '5.4.0' => 'Normalisation, Primer Removal + IVA',
+  '5.4.1' => 'Normalisation, Primer Removal + IVA + Improvement',
+  '5.5.0' => 'Correction + IVA',
+  '5.5.1' => 'Correction + IVA + Improvement',
+  '5.6.0' => 'Normalisation + IVA',
+  '5.6.1' => 'Normalisation + IVA + Improvement',
+  '5.7.0' => 'Primer Removal + IVA',
+  '5.7.1' => 'Primer Removal + IVA + Improvement',
+  '2'     => 'Velvet + Improvement',
+  '2.1'   => 'Velvet + Improvement',
+  '3'     => 'Correction, Normalisation, Primer Removal + SPAdes + Improvement',
+  '3.1'   => 'Correction, Normalisation, Primer Removal + Velvet + Improvement',
+  '3.2'   => 'Normalisation + SPAdes + Improvement',
+  '4'     => 'Correction + Velvet + Improvement',
+  '5'     => 'IVA',
+  '6.0'   => 'SMRT analysis 2.2.0'
+};
+
+is_deeply $got_pv, $expected_pv, 'got expected pipeline version mapping from assembly Role';
+
+$config->{pipeline_versions} = {
+  '1.0.0' => 'Assembler',
+  '2.0.0' => 'Different assembler',
+};
+
+$lane->clear_config;
+
+$lane = Bio::Path::Find::Lane->with_traits('Bio::Path::Find::Lane::Role::HasAssembly')
+                             ->new( config => $config, row => $lane_row );
+
+$got_pv = $lane->_pipeline_versions;
+$expected_pv = {
+  '1.0.0' => 'Assembler',
+  '2.0.0' => 'Different assembler',
+};
+
+is_deeply $got_pv, $expected_pv, 'got expected pipeline version mapping from config';
 
 #---------------------------------------
 

@@ -15,6 +15,8 @@ use Types::Standard qw(
 
 use Bio::Path::Find::Types qw( :all );
 
+with 'Bio::Path::Find::Role::HasConfig';
+
 #-------------------------------------------------------------------------------
 #- public attributes -----------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -111,11 +113,14 @@ has '_pipeline_versions' => (
   builder => '_build_pipeline_versions',
 );
 
-# TODO we could get thisfrom the config, but that would mean passing in the
-# TODO config hash when we instantiate the Lane, which would have to be done
-# TODO in the B::P::F::Finder::find_lanes method
-
 sub _build_pipeline_versions {
+  my $self = shift;
+
+  # defer to the config
+  return $self->config->{pipeline_versions}
+    if $self->config->{pipeline_versions};
+
+  # fall back on the hard coded mapping
   return {
     '2.0.0' => 'Velvet',
     '2.0.1' => 'Velvet + Improvement',
