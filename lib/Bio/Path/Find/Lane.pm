@@ -92,7 +92,7 @@ has 'filetype_extensions' => (
 
 sub _build_filetype_extensions {
   {
-    # empty mapping; provided by applied Role, e.g. B::P::F::Lane::Role::Data
+    # empty mapping; provided by sub-class, e.g. B::P::F::Lane::Class::Data
   };
 }
 
