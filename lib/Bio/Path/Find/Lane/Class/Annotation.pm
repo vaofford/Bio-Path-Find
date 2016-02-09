@@ -16,7 +16,7 @@ use Bio::Path::Find::Types qw( :all );
 
 extends 'Bio::Path::Find::Lane';
 
-with 'Bio::Path::Find::Lane::Role::Stats',
+with 'Bio::Path::Find::Lane::Role::Assembly',
      'Bio::Path::Find::Lane::Role::Stats';
 
 #-------------------------------------------------------------------------------
