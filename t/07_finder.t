@@ -49,15 +49,12 @@ lives_ok { $f = Bio::Path::Find::Finder->new( config => $config ) }
 # first, the default value
 isa_ok $f->lane_class, 'Bio::Path::Find::Lane';
 
-throws_ok { $f = Bio::Path::Find::Finder->new( config => $config, lane_class => 'my_class' ) }
+throws_ok { $f = Bio::Path::Find::Finder->new(  lane_class => 'my_class' ) }
   qr/does not pass the type constraint/,
   'exception when trying to use non-existent lane class';
 
 # check that we can set the name of the role correctly using lane_class
-$f = Bio::Path::Find::Finder->new(
-  config     => $config,
-  lane_class => 'Bio::Path::Find::Lane::Class::Data',
-);
+$f = Bio::Path::Find::Finder->new( lane_class => 'Bio::Path::Find::Lane::Class::Data' );
 
 my $lanes;
 lives_ok { $lanes = $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
@@ -69,7 +66,7 @@ ok $lanes->[0]->does('Bio::Path::Find::Lane::Role::Stats'), 'Stats Role applied 
 #---------------------------------------
 
 # make sure that we don't have any problems when we don't name a specific class
-$f = Bio::Path::Find::Finder->new( config => $config );
+$f = Bio::Path::Find::Finder->new;
 
 lives_ok { $lanes = $f->find_lanes( ids => [ '10263_4' ], type => 'lane' ) }
   'no exception getting lanes when script not named in default lane_roles';

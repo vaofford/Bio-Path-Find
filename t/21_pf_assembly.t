@@ -100,6 +100,10 @@ stdout_is { $tf->run }
   'printed correct paths';
 
 # make symlinks
+
+# clear config or we'll get errors about re-initializing singletons
+$tf->clear_config;
+
 $params{symlink} = 'my_links_dir';
 $tf = Bio::Path::Find::App::TestFind->new(%params);
 stderr_is { $tf->run } 'called _make_symlinks', 'correctly called _make_symlinks';
@@ -107,18 +111,21 @@ stderr_is { $tf->run } 'called _make_symlinks', 'correctly called _make_symlinks
 # make tar
 delete $params{symlink};
 $params{archive} = 'my_archive';
+$tf->clear_config;
 $tf = Bio::Path::Find::App::TestFind->new(%params);
 stderr_is { $tf->run } 'called _make_tar', 'correctly called _make_tar';
 
 # make tar
 delete $params{archive};
 $params{zip} = 'my_zip';
+$tf->clear_config;
 $tf = Bio::Path::Find::App::TestFind->new(%params);
 stderr_is { $tf->run } 'called _make_zip', 'correctly called _make_zip';
 
 # make stats
 delete $params{zip};
 $params{stats} = 'my_stats';
+$tf->clear_config;
 $tf = Bio::Path::Find::App::TestFind->new(%params);
 stderr_is { $tf->run } 'called _make_stats', 'correctly called _make_stats';
 
@@ -126,6 +133,7 @@ stderr_is { $tf->run } 'called _make_stats', 'correctly called _make_stats';
 $params{archive} = 'my_tar';
 $params{stats}   = 'my_stats';
 $params{zip}     = 'my_zip';
+$tf->clear_config;
 $tf = Bio::Path::Find::App::TestFind->new(%params);
 stderr_like { $tf->run }
   qr/called _make_tar.*?_make_zip.*?_make_stats/,

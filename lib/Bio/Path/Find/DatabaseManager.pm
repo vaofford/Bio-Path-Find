@@ -226,7 +226,6 @@ sub _build_database_objects {
     # attribute)
     my $database = Bio::Path::Find::Database->new(
       name        => $database_name,
-      config      => $self->config,
       schema_name => $self->schema_name,
     );
 

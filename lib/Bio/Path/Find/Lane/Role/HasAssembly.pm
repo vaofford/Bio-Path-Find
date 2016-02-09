@@ -43,7 +43,7 @@ L<type library|Bio::Path::Find::Types>:
 
 has 'assemblers' => (
   is      => 'rw',
-  isa     => Assemblers->plus_coercions(AssemblerToAssemblers),
+  isa     => Assemblers->plus_coercions(AssemblersFromAssembler),
   coerce  => 1,
   lazy    => 1,
   builder => '_build_assemblers',

@@ -42,8 +42,8 @@ chdir $temp_dir;
 
 # get some test lanes using the Finder directly
 my $f = Bio::Path::Find::Finder->new(
-  config_file => file( qw( t data 13_pf_data_symlinking test.conf ) ),
-  lane_class  => 'Bio::Path::Find::Lane::Class::Data',
+  config     => file( qw( t data 13_pf_data_symlinking test.conf ) ),
+  lane_class => 'Bio::Path::Find::Lane::Class::Data',
 );
 
 my $lanes = $f->find_lanes( ids => [ '10018_1' ], type => 'lane', filetype => 'fastq' );
@@ -53,7 +53,7 @@ is scalar @$lanes, 50, 'found 50 lanes with ID 10018_1 using Finder';
 
 # symlink attribute but no filename
 my %params = (
-  config_file      => file( qw( t data 13_pf_data_symlinking test.conf ) ),
+  # no need to pass "config_file"; it will come from the HasConfig Role
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
