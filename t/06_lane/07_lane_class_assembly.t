@@ -70,14 +70,14 @@ ok $lane->does('Bio::Path::Find::Lane::Role::Stats'), 'lane has Stats Role appli
 my $assembly_type;
 
 # simple spades assembly
-lives_ok { $assembly_type = $lane->_get_assembly_type( dir( qw( t data 06_lane 06_lane_class_assembly spades_assembly ) ), 'unscaffolded_contigs.fa.stats') }
+lives_ok { $assembly_type = $lane->_get_assembly_type( dir( qw( t data 06_lane 07_lane_class_assembly spades_assembly ) ), 'unscaffolded_contigs.fa.stats') }
   'no exception when getting assembly type string for unscaffolded contigs';
 
 is $assembly_type, 'Contig: Correction, Normalisation, Primer Removal + SPAdes + Improvement',
   'got expected assembly type string';
 
 # switch to scaffold
-lives_ok { $assembly_type = $lane->_get_assembly_type( dir( qw( t data 06_lane 06_lane_class_assembly spades_assembly ) ), 'contigs.fa.stats') }
+lives_ok { $assembly_type = $lane->_get_assembly_type( dir( qw( t data 06_lane 07_lane_class_assembly spades_assembly ) ), 'contigs.fa.stats') }
   'no exception when getting assembly type string for scaffold';
 
 is $assembly_type, 'Scaffold: Correction, Normalisation, Primer Removal + SPAdes + Improvement',
@@ -90,7 +90,7 @@ lives_ok { $assembly_type = $lane->_get_assembly_type( dir( qw( t data ) ), 'con
 is $assembly_type, undef, 'assembly type string undef with no pipeline_version_* file';
 
 # change the version number of the pipeline
-lives_ok { $assembly_type = $lane->_get_assembly_type( dir( qw( t data 06_lane 06_lane_class_assembly different_pipeline ) ), 'contigs.fa.stats') }
+lives_ok { $assembly_type = $lane->_get_assembly_type( dir( qw( t data 06_lane 07_lane_class_assembly different_pipeline ) ), 'contigs.fa.stats') }
   'no exception when getting assembly type string';
 
 is $assembly_type, 'Scaffold: Correction + Velvet + Improvement',

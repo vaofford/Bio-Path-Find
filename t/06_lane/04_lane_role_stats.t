@@ -22,7 +22,7 @@ package main;
 use strict;
 use warnings;
 
-use Test::More tests => 55;
+use Test::More tests => 47;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -174,140 +174,6 @@ is $lane->_percentage('word',1), 'NaN', '"_percentage" returns "NaN" for non-num
 is $lane->_percentage(1), 'NaN', '"_percentage" returns "NaN" with single numeric argument';
 is $lane->_percentage(1, 10), '10.0', '"_percentage" returns correct value for integer args';
 is $lane->_percentage(1, 10, '%5.2f'), '10.00', '"_percentage" returns correct when format given';
-
-#---------------------------------------
-
-# stats file parsing
-
-my $stats;
-lives_ok { $stats = $lane->_parse_stats_file( file( qw( t data 06_lane 04_lane_role_stats spades_assembly contigs.fa.stats ) ) ) }
-  'no exception when parsing assembly stats file';
-
-$expected_stats = {
-  average_contig_length => 80.42,
-  largest_contig        => 408,
-  n_count               => 0,
-  num_contigs           => 36,
-  N50                   => 73,
-  N50_n                 => 12,
-  N60                   => 70,
-  N60_n                 => 16,
-  N70                   => 66,
-  N70_n                 => 20,
-  N80                   => 62,
-  N80_n                 => 25,
-  N90                   => 48,
-  N90_n                 => 30,
-  N100                  => 46,
-  N100_n                => 36,
-  total_length          => 2895,
-};
-
-is_deeply $stats, $expected_stats, 'parsed expected stats from file';
-
-lives_ok { $stats = $lane->_parse_stats_file( file( qw( t data 06_lane 04_lane_role_stats spades_assembly broken_contigs.fa.stats ) ) ) }
-  'no exception when parsing "broken" assembly stats file';
-
-$expected_stats = {
-  average_contig_length => 80.42,
-  largest_contig        => 408,
-  n_count               => 0,
-  num_contigs           => 36,
-  N50                   => 73,
-  N50_n                 => 12,
-  N60                   => 70,
-  N60_n                 => 16,
-  N80                   => 62,
-  N80_n                 => 25,
-  N90                   => 48,
-  N90_n                 => 30,
-  total_length          => 2895,
-};
-
-is_deeply $stats, $expected_stats, 'parsed expected stats from broken file';
-
-#---------------------------------------
-
-# bamcheck file parsing
-
-lives_ok { $stats = $lane->_parse_bc_file( file( qw( t data 06_lane 04_lane_role_stats spades_assembly contigs.mapped.sorted.bam.bc ) ) ) }
-  'no exception when parsing bamcheck file';
-
-$expected_stats = {
-  '1st fragments'                  => 304667,
-  'average length'                 => 54,
-  'average quality'                => 30.9,
-  'bases duplicated'               => 0,
-  'bases mapped'                   => 16664940,
-  'bases mapped (cigar)'           => 16634476,
-  'bases trimmed'                  => 0,
-  'error rate'                     => '6.159557e-03',
-  'filtered sequences'             => 0,
-  'insert size average'            => 73.4,
-  'insert size standard deviation' => 12.9,
-  'inward oriented pairs'          => 29112,
-  'is paired'                      => 1,
-  'is sorted'                      => 1,
-  'last fragments'                 => 304667,
-  'maximum length'                 => 54,
-  'mismatches'                     => 102461,
-  'non-primary alignments'         => 0,
-  'outward oriented pairs'         => 111,
-  'pairs on different chromosomes' => 13108,
-  'pairs with other orientation'   => 6361,
-  'raw total sequences'            => 609334,
-  'reads duplicated'               => 0,
-  'reads mapped'                   => 308610,
-  'reads MQ0'                      => 32238,
-  'reads paired'                   => 97634,
-  'reads QC failed'                => 0,
-  'reads unmapped'                 => 300724,
-  'reads unpaired'                 => 210976,
-  'sequences'                      => 609334,
-  'total length'                   => 32904036,
-};
-
-is_deeply $stats, $expected_stats, 'parsed expected stats from bamcheck file';
-
-lives_ok { $stats = $lane->_parse_bc_file( file( qw( t data 06_lane 04_lane_role_stats spades_assembly broken.bc ) ) ) }
-  'no exception when parsing broken bamcheck file';
-
-$expected_stats = {
-  'fake field'                     => 'blah',
-  '1st fragments'                  => 304667,
-  'average length'                 => 54,
-  'average quality'                => 30.9,
-  'bases duplicated'               => 0,
-  'bases mapped'                   => 16664940,
-  'bases mapped (cigar)'           => 16634476,
-  'bases trimmed'                  => 0,
-  'error rate'                     => '6.159557e-03',
-  'filtered sequences'             => 0,
-  'insert size average'            => 73.4,
-  'insert size standard deviation' => 12.9,
-  'inward oriented pairs'          => 29112,
-  'is paired'                      => 1,
-  'is sorted'                      => 1,
-  'last fragments'                 => 304667,
-  'maximum length'                 => 54,
-  'mismatches'                     => 102461,
-  'non-primary alignments'         => 0,
-  'outward oriented pairs'         => 111,
-  'pairs on different chromosomes' => 13108,
-  'pairs with other orientation'   => 6361,
-  # removed  'raw total sequences'            => 609334,
-  'reads duplicated'               => 0,
-  'reads mapped'                   => 308610,
-  'reads MQ0'                      => 32238,
-  'reads paired'                   => 97634,
-  'reads QC failed'                => 0,
-  'reads unmapped'                 => 300724,
-  'reads unpaired'                 => 210976,
-  'sequences'                      => 609334,
-  'total length'                   => 32904036,
-};
-
-is_deeply $stats, $expected_stats, 'parsed expected stats from bamcheck file';
 
 #---------------------------------------
 

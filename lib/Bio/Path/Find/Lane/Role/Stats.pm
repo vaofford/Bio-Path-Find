@@ -123,7 +123,7 @@ sub _mapped_percentage {
   my $self = shift;
 
   return '0.0' unless $self->_mapping_is_complete;
-  return $self->_percentage( $self->_tables->{mapstats}->reads_mapped /
+  return $self->_percentage( $self->_tables->{mapstats}->reads_mapped,
                              $self->_tables->{mapstats}->raw_reads );
 }
 
@@ -360,59 +360,6 @@ sub _percentage {
   return 'NaN' unless ( is_Num($a) and is_Num($b) );
   $format ||= '%.1f';
   return $self->_trim( sprintf $format, ( $a / $b ) * 100 );
-}
-
-#-------------------------------------------------------------------------------
-
-# parse the stats file that comes with the assembly
-
-sub _parse_stats_file {
-  my ( $self, $stats_file ) = @_;
-
-  my %assembly_stats;
-  foreach ( $stats_file->slurp(chomp => 1) ) {
-    # I don't really like using regexes with lack matches like this, but at
-    # least one of these fields, "ave", can be a float, and who knows what else
-    # might be in there if things go wrong in the pipeline. Better to return
-    # everything, so that at least the end-user gets to see the bad data.
-    if ( m/^sum = (\S+), n = (\S+), ave = (\S+), largest = (\S+)/ ) {
-      $assembly_stats{total_length}          = $1;
-      $assembly_stats{num_contigs}           = $2;
-      $assembly_stats{average_contig_length} = $3;
-      $assembly_stats{largest_contig}        = $4;
-    }
-    elsif ( m/^(N\d+) = (\d+), n = (\d+)/ ) {
-      $assembly_stats{$1}          = $2;
-      $assembly_stats{ $1 . '_n' } = $3;
-    }
-    elsif ( m/^N_count = (\d+)/ ) {
-      $assembly_stats{n_count} = $1;
-    }
-  }
-
-  return \%assembly_stats;
-}
-
-#-------------------------------------------------------------------------------
-
-# parse the bamcheck file
-
-sub _parse_bc_file {
-  my ( $self, $bc_file ) = @_;
-
-  my %bc_stats;
-  foreach ( $bc_file->slurp(chomp => 1) ) {
-    # TODO not sure if this is a sensible optimisation. Do the FFQ fields
-    # TODO *always* come after the SN fields ?
-    last if m/^FFQ/;
-
-    # anyway, we're only interested in the summary numbers
-    next unless m/^SN\t(.*?):\t(\S+)/;
-
-    $bc_stats{$1} = $2;
-  }
-
-  return \%bc_stats;
 }
 
 #-------------------------------------------------------------------------------
