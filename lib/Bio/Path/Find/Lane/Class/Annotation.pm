@@ -16,7 +16,7 @@ use Bio::Path::Find::Types qw( :all );
 
 extends 'Bio::Path::Find::Lane';
 
-with 'Bio::Path::Find::Lane::Role::Assembly',
+with 'Bio::Path::Find::Lane::Role::HasAssembly',
      'Bio::Path::Find::Lane::Role::Stats';
 
 #-------------------------------------------------------------------------------
@@ -65,6 +65,7 @@ sub _build_filetype_extensions {
 sub _build_stats_headers {
   return [
     'Study ID',
+    'Assembly Type',
     'Lane Name',
     'Reads',
     'Reference',
@@ -131,7 +132,7 @@ sub _get_stats_row {
 
   return [
     $t->{project}->ssid,
-    'pipeline version here',
+    $self->_get_assembly_type($assembly_dir, $assembly_file) || 'NA', # not sure if it's ever undef...
     $t->{lane}->name,
     $t->{lane}->raw_reads,
     $t->{assembly}->name,
