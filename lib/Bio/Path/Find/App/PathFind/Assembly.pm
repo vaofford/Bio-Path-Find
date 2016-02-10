@@ -31,7 +31,7 @@ command_short_description 'Find genome assemblies';
 
 =head1 NAME
 
-pf assemblies - Find genome assemblies
+pf assembly - Find genome assemblies
 
 =head1 USAGE
 
