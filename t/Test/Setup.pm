@@ -46,10 +46,10 @@ sub make_symlinks {
   # read permissions on a job status file
 
   my $from = dir( 't', 'data', 'master', 'hashed_lanes', 'pathogen_prok_track', 'e', 'd', '2', 'd', '10018_1#11' );
-  my $to   = dir( 't', 'data', 'linked', 'prokaryotes', 'seq-pipelines', 'Actinobacillus', 'pleuropneumoniae', 'TRACKING', '607', 'APP_T2_OP1', 'SLX', 'APP_T2_OP1_7492534' );
+  my $to   = dir( 't', 'data', 'linked', 'prokaryotes', 'seq-pipelines', 'Actinobacillus', 'pleuropneumoniae', 'TRACKING', '607', 'APP_T2_OP1', 'SLX', 'APP_T2_OP1_7492534', '10018_1#11' );
 
   # first, remove the soft link that we just created
-  unlink dir( $to_dir, '10018_1#11');
+  unlink $to;
 
   # and then copy files from the source directory
   dircopy $from, $to;
