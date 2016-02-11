@@ -34,6 +34,10 @@ has 'lane' => (
   is       => 'ro',
   isa      => BioPathFindLane,
   required => 1,
+  weak_ref => 1,
+  # NOTE this is a weakened reference. Since the Lane object has a reference
+  # to this Status object, we end up with a circular reference, which could
+  # cause a memory leak
 );
 
 #---------------------------------------
@@ -153,6 +157,10 @@ sub pipeline_status {
   my $bit_pattern = $self->lane->row->processed;
   my $bit_value   = $self->processed_flags->{$pipeline_name};
 
+  # if there's no status file for a pipeline, or if we get an error when trying
+  # to read the status files, we'll flag it differently
+  # return 'Unavailable' if not $self->status_files->{$pipeline_name};
+
   # not a valid flag
   return 'NA' if not defined $bit_value;
 
@@ -163,8 +171,8 @@ sub pipeline_status {
   # bail unless:
   # 1. we found at least one pipeline status file, and
   # 2. it's a status file for the specified pipeline
-  return '-' unless ( $self->has_status_files and
-                      $self->status_files->{$pipeline_name} );
+  return 'Unavailable' unless ( $self->has_status_files and
+                                $self->status_files->{$pipeline_name} );
 
   my $status_file_objects = $self->status_files->{$pipeline_name};
 

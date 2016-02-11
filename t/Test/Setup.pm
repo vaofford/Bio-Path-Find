@@ -4,6 +4,7 @@ package Test::Setup;
 use Carp qw( croak );
 use Path::Class;
 use Cwd;
+use File::Copy::Recursive 'dircopy';
 
 sub make_symlinks {
 
@@ -40,6 +41,21 @@ sub make_symlinks {
 
     chdir $root;
   }
+
+  # set up the files for a particular lane so that we can mess with the
+  # read permissions on a job status file
+
+  my $from = dir( 't', 'data', 'master', 'hashed_lanes', 'pathogen_prok_track', 'e', 'd', '2', 'd', '10018_1#11' );
+  my $to   = dir( 't', 'data', 'linked', 'prokaryotes', 'seq-pipelines', 'Actinobacillus', 'pleuropneumoniae', 'TRACKING', '607', 'APP_T2_OP1', 'SLX', 'APP_T2_OP1_7492534' );
+
+  # first, remove the soft link that we just created
+  unlink dir( $to_dir, '10018_1#11');
+
+  # and then copy files from the source directory
+  dircopy $from, $to;
+
+  # and, finally, remove the read permissions on one particular _job_status file
+  chmod 0220, file( $to, '_job_status' );
 }
 
 1;
