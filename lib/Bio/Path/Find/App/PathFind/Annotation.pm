@@ -366,19 +366,14 @@ sub run {
     $self->_make_tar($lanes)      if $self->_tar_flag;
     $self->_make_zip($lanes)      if $self->_zip_flag;
     $self->_make_stats($lanes)    if $self->_stats_flag;
-    $self->_find_genes($lanes)    if ( $self->gene or $self->product );
+
+    if ( $self->gene or $self->product ) {
+      $self->_print_files($lanes);
+      $self->_find_genes($lanes);
+    }
   }
   else {
-
-    my $pb = $self->_create_pb('collecting files', scalar @$lanes);
-
-    my @files;
-    foreach my $lane ( @$lanes ) {
-      push @files, $lane->all_files;
-      $pb++;
-    }
-
-    say $_ for @files;
+    $self->_print_files($lanes);
   }
 }
 
@@ -386,8 +381,27 @@ sub run {
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
+sub _print_files {
+  my ( $self, $lanes ) = @_;
+
+  my $pb = $self->_create_pb('collecting files', scalar @$lanes);
+
+  my @files;
+  foreach my $lane ( @$lanes ) {
+    push @files, $lane->all_files;
+    $pb++;
+  }
+
+  say $_ for @files;
+}
+
+#-------------------------------------------------------------------------------
+
 sub _find_genes {
   my ( $self, $lanes ) = @_;
+
+  croak 'ERROR: either "gene" or "product" must be set'
+    unless ( $self->gene or $self->product );
 
   my @gffs;
   if ( defined $self->filetype and $self->filetype eq 'gff' ) {
@@ -401,9 +415,10 @@ sub _find_genes {
     }
   }
 
+  # set up the parameters for the GFF parser
   my %params = (
     gff_files   => \@gffs,
-    amino_acids => $self->nucleotides,
+    amino_acids => $self->nucleotides ? 0 : 1,
   );
 
   if ( $self->product ) {
@@ -415,21 +430,26 @@ sub _find_genes {
     $params{search_qualifiers} = [ 'gene', 'ID' ];
   }
   elsif ( $self->gene and $self->product ) {
+    # TODO we're not searching for the value of "product" here. Should we be ?
     $params{search_query} = $self->gene;
     $params{search_qualifiers} = [ 'gene', 'ID', 'product' ];
   }
 
+  $params{output_file} = $self->output if defined $self->output;
+
   my $gf = Bio::AutomatedAnnotation::ParseGenesFromGFFs->new(%params);
 
-  $gf->output_base($self->output) if defined $self->output;
 
   print "finding genes... ";
 
-  # TODO check if it's sensible simply to ignore the bioperl warnings
+  # the "ParseGenesFromGFFs" method calls out to BioPerl which issues several
+  # apparently harmless warnings -- the original annotationfind shows them too.
+  # Capture (and discard) STDERR to avoid the user seeing the warnings.
   capture_stderr { $gf->create_fasta_file };
 
   print "\r"; # make the next line overwrite "finding genes..."
 
+  say 'Outputting nucleotide sequences' if $self->nucleotides;
   say "Samples containing gene/product:\t" . $gf->files_with_hits;
   say "Samples missing gene/product:   \t" . $gf->files_without_hits;
 }

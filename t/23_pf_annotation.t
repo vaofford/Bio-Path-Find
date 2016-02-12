@@ -32,9 +32,7 @@ around '_make_stats' => sub {
   print STDERR 'called _make_stats';
 };
 
-around '_find_genes' => sub {
-  print STDERR 'called _find_genes';
-};
+# we want to test "_find_genes", so we won't override that method
 
 #-------------------------------------------------------------------------------
 #- main test script ------------------------------------------------------------
@@ -45,7 +43,7 @@ package main;
 use strict;
 use warnings;
 
-use Test::More tests => 8;
+use Test::More; # tests => 8;
 use Test::Exception;
 use Test::Output;
 use Path::Class;
@@ -78,19 +76,20 @@ symlink dir( $orig_cwd, qw( t data ) ), dir( $temp_dir, qw( t data ) )
 chdir $temp_dir;
 
 # the basic params. These will stay unchanged for all of the subsequent runs
-my %params = (
-  config => {
-    db_root           => dir(qw( t data linked )),
-    connection_params => {
-      tracking => {
-        driver       => 'SQLite',
-        dbname       => file(qw( t data pathogen_prok_track.db )),
-        schema_class => 'Bio::Track::Schema',
-      },
+my $config = {
+  db_root           => dir(qw( t data linked )),
+  connection_params => {
+    tracking => {
+      driver       => 'SQLite',
+      dbname       => file(qw( t data pathogen_prok_track.db )),
+      schema_class => 'Bio::Track::Schema',
     },
   },
-  id   => '10018_1',
-  type => 'lane',
+};
+my %params = (
+  config => $config,
+  id     => '10018_1',
+  type   => 'lane',
 );
 
 my $tf;
@@ -142,11 +141,95 @@ stderr_like { $tf->run }
 
 #-------------------------------------------------------------------------------
 
-# done_testing;
+# test "_find_genes"
+
+# we don't really care about these params; we're going to get a reference to
+# the Finder object and tell it the parameters directly
+my %tf_params = (
+  config => $config,
+  id     => '10018_1#3',
+  type   => 'lane',
+);
+
+$tf->clear_config;
+$tf = Bio::Path::Find::App::TestFind->new(%tf_params);
+
+my %finder_params = (
+  ids      => ['10018_1'],
+  type     => 'lane',
+  filetype => 'gff',
+  subdirs  => [
+    dir(qw( iva_assembly annotation )),
+    dir(qw( spades_assembly annotation )),
+    dir(qw( velvet_assembly annotation )),
+    dir(qw( pacbio_assembly annotation )),
+  ],
+  lane_attributes => {
+    search_depth    => 3,
+    store_filenames => 1,
+  },
+);
+
+my $lanes = $tf->_finder->find_lanes(%finder_params);
+
+throws_ok { $tf->_find_genes($lanes) }
+  qr/must be set/,
+  'exception from _find_genes when neither gene or product is given';
+
+# add a gene name
+$tf_params{gene} = 'gag';
+$tf->clear_config;
+$tf = Bio::Path::Find::App::TestFind->new(%tf_params);
+
+$lanes = $tf->_finder->find_lanes(%finder_params);
+
+stdout_like { $tf->_find_genes($lanes) }
+  qr/containing.*?\t3.*?missing.*?\t1/s,
+  'got expected counts from "_find_genes" when looking for a gene';
+
+# check for an output file
+ok -f 'output.gag.fa', 'found expected output file';
+
+# add a product name
+
+$tf_params{product} = 'HIV_PBS';
+
+$tf->clear_config;
+$tf = Bio::Path::Find::App::TestFind->new(%tf_params);
+
+$lanes = $tf->_finder->find_lanes(%finder_params);
+
+stdout_like { $tf->_find_genes($lanes) }
+  qr/containing.*?\t1.*?missing.*?\t3/s,
+  'got expected counts from "_find_genes" when looking for a product';
+
+ok -f 'output.HIV_PBS.fa', 'found expected output file';
+
+ok grep( m/LW\*LEIPQTPFVSVENL\*QWRPNRDLKAKVRPE/, file('output.HIV_PBS.fa')->slurp ),
+  'got amino-acid sequences in output file';
+
+# check the nucleotide output and check we can change the output filename
+
+$tf_params{nucleotides} = 1;
+$tf_params{output}      = 'nucleotide_seq.fa';
+$tf->clear_config;
+$tf = Bio::Path::Find::App::TestFind->new(%tf_params);
+
+stdout_like { $tf->_find_genes($lanes) }
+  qr/Outputting nucleotide sequences/,
+  'got message about outputting nucleotides';
+
+ok grep( m/CTCTGGTAACTAGAGATCCCTCAGACACCTTTTGTCAGTGTGGAAAATCTCTAGCAGTGG/, file('nucleotide_seq.fa')->slurp ),
+  'got nucleotide sequences in output file';
+
+#-------------------------------------------------------------------------------
+
+done_testing;
 
 chdir $orig_cwd;
 
 __DATA__
 t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/spades_assembly/annotation/10018_1#1.gff
 t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/iva_assembly/annotation/10018_1#1.gff
-t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_IN_2/SLX/APP_IN_2_7492527/10018_1#2/spades_assembly/annotation/10018_1#1.gff
+t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_IN_2/SLX/APP_IN_2_7492527/10018_1#2/spades_assembly/annotation/10018_1#2.gff
+t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_T1_OP2/SLX/APP_T1_OP2_7492533/10018_1#3/spades_assembly/annotation/10018_1#3.gff
