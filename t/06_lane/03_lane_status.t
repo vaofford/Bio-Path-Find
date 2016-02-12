@@ -130,7 +130,7 @@ warning_like { $status = $lane_status->pipeline_status('annotated') }
   { carped => qr/Permission denied/ },
   'got "permission denied" warning when reading status file';
 
-is $status, 'Unavailable', 'status is "Unavailable" when status file is unreadable';
+is $status, '-', 'status is "-" when status file is unreadable';
 
 # done_testing;
 
