@@ -52,14 +52,11 @@ my $lane_rows = $database->schema->get_lanes_by_id('10018_1', 'lane');
 my $lane_row = $lane_rows->first;
 $lane_row->database($database);
 
-#---------------------------------------
-
-# get a Lane, with Role applied
-
+# get a Lane
 my $lane;
 
 lives_ok { $lane = Bio::Path::Find::Lane::Class::Assembly->new( row => $lane_row ) }
-  'no exception when creating Lane with Assembly Role applied';
+  'no exception when creating an Assembly Lane';
 
 ok $lane->does('Bio::Path::Find::Lane::Role::Stats'), 'lane has Stats Role applied';
 
@@ -222,7 +219,7 @@ is_deeply $stats, $expected_stats, 'got expected stats';
 
 #-------------------------------------------------------------------------------
 #
-# the Role also includes three methods, "_get_scaffold", "_get_contigs", and
+# the class also includes three methods, "_get_scaffold", "_get_contigs", and
 # "_get_all", which aren't tested here. They're exercised by the tests for the
 # command class, Bio::Path::Find::App::PathFind::Assembly.
 #

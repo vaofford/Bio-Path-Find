@@ -98,8 +98,16 @@ sub _build_stats {
     my $assembly_dir = dir( $self->symlink_path, "${assembler}_assembly" );
     next unless -d $assembly_dir;
 
-    foreach my $assembly_file ( @{ $self->_assembly_files } ) {
-      push @rows, $self->_get_stats_row( $assembler, $assembly_file );
+    foreach my $gff_file_path ( @{ $self->files } ) {
+      my $gff_file = file $gff_file_path;
+
+      # don't show stats for this assembler unless the GFF file is actually in
+      # the assembler's output directory
+      next unless $assembly_dir->subsumes($gff_file);
+
+      foreach my $assembly_file ( @{ $self->_assembly_files } ) {
+        push @rows, $self->_get_stats_row( $assembler, $assembly_file, $gff_file );
+      }
     }
 
   }
@@ -114,7 +122,7 @@ sub _build_stats {
 # get the statistics for the specified assembler from the specified file
 
 sub _get_stats_row {
-  my ( $self, $assembler, $assembly_file ) = @_;
+  my ( $self, $assembler, $assembly_file, $gff_file ) = @_;
 
   # shortcut to a hash containing Bio::Track::Schema::Result objects
   my $t = $self->_tables;
@@ -127,7 +135,6 @@ sub _get_stats_row {
   my $bamcheck_file  = file( $assembly_dir, 'contigs.mapped.sorted.bam.bc' );
   my $bamcheck_stats = $self->_parse_bc_file($bamcheck_file);
 
-  my $gff_file       = file( $self->files->[0] );
   my $gff_stats      = $self->_parse_gff_file($gff_file);
 
   return [
