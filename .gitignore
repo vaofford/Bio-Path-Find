@@ -1,5 +1,6 @@
 # tool-specific directories
 .cached_test_files
+t/data/linked
 
 # vim swap files
 .*.sw?

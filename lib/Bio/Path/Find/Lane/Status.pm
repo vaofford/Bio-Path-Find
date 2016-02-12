@@ -34,6 +34,10 @@ has 'lane' => (
   is       => 'ro',
   isa      => BioPathFindLane,
   required => 1,
+  weak_ref => 1,
+  # NOTE this is a weakened reference. Since the Lane object has a reference
+  # to this Status object, we end up with a circular reference, which could
+  # cause a memory leak
 );
 
 #---------------------------------------
@@ -153,19 +157,27 @@ sub pipeline_status {
   my $bit_pattern = $self->lane->row->processed;
   my $bit_value   = $self->processed_flags->{$pipeline_name};
 
-  # not a valid flag
+  # the next set of tests try to work out what's going on with the specified
+  # pipeline, looking at the database and the job status file
+
+  # the specified pipeline name isn't a valid flag in the "processed" bit
+  # pattern. In principle, I think, this shouldn't happen.
   return 'NA' if not defined $bit_value;
 
   # if the specified flag is set in the "processed" bit pattern, that stage of
   # the pipeline is done
   return 'Done' if $bit_pattern & $bit_value;
 
-  # bail unless:
-  # 1. we found at least one pipeline status file, and
-  # 2. it's a status file for the specified pipeline
-  return '-' unless ( $self->has_status_files and
-                      $self->status_files->{$pipeline_name} );
+  # we can't say anything about the status of the specified pipeline unless we
+  # found at least one pipeline status file. This is where we get to if the the
+  # specified pipeline isn't done, but there is no job status file for the lane
+  return '-' unless $self->has_status_files;
 
+  # bail if there is a job status file, but it's not giving us the status of
+  # the specified pipeline
+  return '-' unless $self->status_files->{$pipeline_name};
+
+  # finally, we should have one or more readable status files for this pipeline
   my $status_file_objects = $self->status_files->{$pipeline_name};
 
   # sort on (descending) date of last update, so that we get status from the

@@ -10,6 +10,7 @@ use MooseX::StrictConstructor;
 use Carp qw( carp );
 use Path::Class;
 use DateTime;
+use Try::Tiny;
 
 use Types::Standard qw(
   HashRef
@@ -111,10 +112,18 @@ sub BUILD {
     );
   }
 
-  my @lines = $self->status_file->slurp(chomp => 1);
+  my $read_error = 0;
+  my @lines;
+  try {
+    @lines = $self->status_file->slurp(chomp => 1);
+  } catch {
+    carp 'WARNING: failed to read job status file (' . $self->status_file . "): $_";
+    $read_error++;
+  };
+  return if $read_error;
 
   unless ( scalar @lines == 4 ) {
-    carp 'WARNING: not a valid status file (' . $self->status_file . ')';
+    carp 'WARNING: not a valid job status file (' . $self->status_file . ')';
     return;
   }
 

@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 44;
+use Test::More tests => 45;
 use Test::Exception;
 use Test::Output;
 use Capture::Tiny qw( :all );
@@ -93,7 +93,11 @@ my $pf;
 lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
   'got a new pathfind app object';
 
-my ( $got_filenames, $got_stats ) = $pf->_collect_filenames($lanes);
+my ( $got_filenames, $got_stats );
+
+warning_like { ( $got_filenames, $got_stats ) = $pf->_collect_filenames($lanes) }
+  qr/Permission denied/,
+  'got "permission denied" warning with unreadable job status file';
 
 is_deeply $got_filenames, \@expected_filenames,
   'got expected list of filenames from _collect_filenames';
