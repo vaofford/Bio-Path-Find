@@ -157,23 +157,27 @@ sub pipeline_status {
   my $bit_pattern = $self->lane->row->processed;
   my $bit_value   = $self->processed_flags->{$pipeline_name};
 
-  # if there's no status file for a pipeline, or if we get an error when trying
-  # to read the status files, we'll flag it differently
-  # return 'Unavailable' if not $self->status_files->{$pipeline_name};
+  # the next set of tests try to work out what's going on with the specified
+  # pipeline, looking at the database and the job status file
 
-  # not a valid flag
+  # the specified pipeline name isn't a valid flag in the "processed" bit
+  # pattern. In principle, I think, this shouldn't happen.
   return 'NA' if not defined $bit_value;
 
   # if the specified flag is set in the "processed" bit pattern, that stage of
   # the pipeline is done
   return 'Done' if $bit_pattern & $bit_value;
 
-  # bail unless:
-  # 1. we found at least one pipeline status file, and
-  # 2. it's a status file for the specified pipeline
-  return 'Unavailable' unless ( $self->has_status_files and
-                                $self->status_files->{$pipeline_name} );
+  # we can't say anything about the status of the specified pipeline unless we
+  # found at least one pipeline status file. This is where we get to if the the
+  # specified pipeline isn't done, but there is no job status file for the lane
+  return '-' unless $self->has_status_files;
 
+  # bail if there is a job status file, but it's not giving us the status of
+  # the specified pipeline
+  return '-' unless $self->status_files->{$pipeline_name};
+
+  # finally, we should have one or more readable status files for this pipeline
   my $status_file_objects = $self->status_files->{$pipeline_name};
 
   # sort on (descending) date of last update, so that we get status from the
