@@ -1,7 +1,7 @@
 
 package Test::Setup;
 
-use Carp qw( croak );
+use Carp qw( croak carp );
 use Path::Class;
 use Cwd;
 use File::Copy::Recursive 'dircopy';
@@ -21,8 +21,10 @@ sub make_symlinks {
   my $root     = dir( getcwd )->absolute;
   my $link_dir = dir( $root, 't', 'data', 'linked' );
 
-  croak "ERROR: link directory (t/data/linked) already exists; stopping"
-    if -d dir$link_dir;
+  if ( -d dir$link_dir ) {
+    carp "WARNING: link directory (t/data/linked) already exists; not re-creating";
+    return;
+  }
 
   $link_dir->mkpath;
 
