@@ -184,7 +184,7 @@ option 'filetype' => (
 #---------------------------------------
 
 option 'program' => (
-  documentation => 'look for assemblies created by a specific assembler',
+  documentation => 'look for assemblies created by specific assembler(s)',
   is            => 'ro',
   isa           => Assemblers,
   cmd_aliases   => 'P',
