@@ -171,15 +171,25 @@ with underscores (_).
 By default the C<pf annotation> command finds and prints the locations of any
 GFF files for a set of lanes:
 
-  % pf assembly -t lane -i 5008_5
+  % pf annotation -t lane -i 5008_5
 
 You can find different types of annotation file e.g. fasta files:
 
   % pf annotation -t lane -i 5008_5 -f fasta
 
-If you want to see both scaffolds and contigs for each assembly:
+The available annotation file types are:
 
-  % pf assembly -t lane -i 5008_5#1 -f all
+=over
+
+=item C<faa>, which is equivalent to C<fasta>
+
+=item C<ffn> or C<fastn>
+
+=item C<gbk> or C<genbank>
+
+=item C<gff> (default)
+
+=back
 
 =head2 Find genes or products
 
@@ -192,16 +202,19 @@ To search for products, use the C<-p> option with the product description:
 
   pf annotation -t lane -i 12345_1 -p "transcriptional regulator"
 
-The C<-g> and C<-p> options will write out fasta files containing the
-sequences found, and print a summary of what they found.
+The C<-g> and C<-p> options will write out fasta files containing the sequences
+found (something like "output.<gene>.fa" or "output.<product>.fa"), and print a
+summary of what they found, showing how many of the annotation files contained
+or were missing the specified gene/product.
 
 Note that you can specify both C<-g> and C<-p>, which will search for genes or
-products with the given name, but you can only give one search name, i.e.
+products with the given name, but you can only give one search name, which
+must be given as the argument to C<-g>, i.e.
 
   pf annotation -t lane -i 12345_1 -g gryA -p
 
-Giving a value for both C<-g> and C<-p> will print a warning and the search
-will ignore the value given with C<-p>.
+Giving values for both C<-g> and C<-p> will print a warning and the search will
+ignore the value given with C<-p>.
 
 =head2 Archive all annotations for a study
 
@@ -209,6 +222,10 @@ You can search for all of the GFF files for a given study and collect them
 in a single tar or zip archive:
 
   pf annotation -t study -i 123 -a study_123_annotations.tar.gz
+
+or you can create symlinks to the GFF files in another directory:
+
+  pf annotation -t study -i 123 -l
 
 =head2 Get statistics for a lane's annotation results
 
@@ -218,7 +235,7 @@ for a particular lane:
   pf annotation -t lane -i 12345_1#1 -s lane_12345_1#1_stats.csv
 
 Note that a lane may have annotations from multiple pipelines. In this case you
-can restrict your output to only annotations from a particular assembly
+can restrict your output to show only annotations from a particular assembly
 pipeline:
 
   pf annotation -t lane -i 12345_1#1 -s -P iva
