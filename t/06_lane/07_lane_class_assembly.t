@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 16;
+use Test::More tests => 25;
 use Test::Exception;
 use Path::Class;
 
@@ -92,6 +92,19 @@ lives_ok { $assembly_type = $lane->_get_assembly_type( dir( qw( t data 06_lane 0
 
 is $assembly_type, 'Scaffold: Correction + Velvet + Improvement',
   'got correct assembly type with different pipeline version';
+
+#---------------------------------------
+
+# "_edit_filenames'
+
+my $src_path = file( '12345_1#1', 'spades_assembly', 'contigs.fa' );
+my $dst_path = file( 'my_output_dir', 'output.txt' );
+
+my ( $returned_src_path, $returned_dst_path ) = $lane->_edit_filenames( $src_path, $dst_path );
+
+is $returned_src_path, $src_path, '"_edit_filenames" returns original src_path';
+is $returned_dst_path, file('my_output_dir', '12345_1#1.contigs_spades.fa'),
+  '"_edit_filenames" returns expected path';
 
 #---------------------------------------
 
@@ -218,11 +231,48 @@ $expected_stats = [
 is_deeply $stats, $expected_stats, 'got expected stats';
 
 #-------------------------------------------------------------------------------
-#
-# the class also includes three methods, "_get_scaffold", "_get_contigs", and
-# "_get_all", which aren't tested here. They're exercised by the tests for the
-# command class, Bio::Path::Find::App::PathFind::Assembly.
-#
+
+# "_get_scaffold"
+
+my @all_lane_rows = $lane_rows->all;
+$lane_row = $all_lane_rows[21];
+$lane_row->database($database);
+
+$lane = Bio::Path::Find::Lane::Class::Assembly->new( row => $lane_row );
+$lane->_get_scaffold;
+
+my @all_files = $lane->all_files;
+is scalar @all_files, 1, 'found one contigs.fa';
+is $all_files[0]->stringify, 't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_T1_OP2/SLX/APP_T1_OP2_7492533/10018_1#3/spades_assembly/contigs.fa',
+  'path to contigs.fa is correct';
+
+#---------------------------------------
+
+# "_get_contigs"
+
+$lane->_get_contigs;
+
+@all_files = $lane->all_files;
+is scalar @all_files, 2, 'found one contigs.fa, one unscaffolded_contigs.fa';
+is $all_files[1]->stringify, 't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_T1_OP2/SLX/APP_T1_OP2_7492533/10018_1#3/spades_assembly/unscaffolded_contigs.fa',
+  'path to unscaffolded_contigs.fa is correct';
+
+$lane->clear_files;
+
+#---------------------------------------
+
+# "_get_all"
+
+$lane->_get_all;
+
+@all_files = $lane->all_files;
+is scalar @all_files, 2, 'found one contigs.fa, one unscaffolded_contigs.fa';
+
+is $all_files[0]->stringify, 't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_T1_OP2/SLX/APP_T1_OP2_7492533/10018_1#3/spades_assembly/contigs.fa',
+  'path to contigs.fa is correct';
+is $all_files[1]->stringify, 't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_T1_OP2/SLX/APP_T1_OP2_7492533/10018_1#3/spades_assembly/unscaffolded_contigs.fa',
+  'path to unscaffolded_contigs.fa is correct';
+
 #-------------------------------------------------------------------------------
 
 # done_testing;
