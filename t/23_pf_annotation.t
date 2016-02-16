@@ -45,6 +45,7 @@ use warnings;
 
 use Test::More; # tests => 8;
 use Test::Exception;
+use Test::Warn;
 use Test::Output;
 use Path::Class;
 use File::Temp;
@@ -173,10 +174,10 @@ my %finder_params = (
 my $lanes = $tf->_finder->find_lanes(%finder_params);
 
 throws_ok { $tf->_find_genes($lanes) }
-  qr/must be set/,
+  qr/\(search_qualifiers\) is required/,
   'exception from _find_genes when neither gene or product is given';
 
-# add a gene name
+# search by gene name
 $tf_params{gene} = 'gag';
 $tf->clear_config;
 $tf = Bio::Path::Find::App::TestFind->new(%tf_params);
@@ -190,8 +191,9 @@ stdout_like { $tf->_find_genes($lanes) }
 # check for an output file
 ok -f 'output.gag.fa', 'found expected output file';
 
-# add a product name
+# search by product name
 
+delete $tf_params{gene};
 $tf_params{product} = 'HIV_PBS';
 
 $tf->clear_config;
@@ -221,6 +223,25 @@ stdout_like { $tf->_find_genes($lanes) }
 
 ok grep( m/CTCTGGTAACTAGAGATCCCTCAGACACCTTTTGTCAGTGTGGAAAATCTCTAGCAGTGG/, file('nucleotide_seq.fa')->slurp ),
   'got nucleotide sequences in output file';
+
+# try searching with both gene and product name
+
+$tf_params{gene} = 'gag';
+$tf_params{product} = 'HIV_PBS';
+
+$tf->clear_config;
+$tf = Bio::Path::Find::App::TestFind->new(%tf_params);
+
+$lanes = $tf->_finder->find_lanes(%finder_params);
+
+# need to test this using stderr_like, not warning_like, because it's not
+# a warning or a carp, but some text printed to STDERR
+combined_like { $tf->_find_genes($lanes) }
+  qr/searching for genes and products/,
+  'got warning when specifying both gene and product name';
+
+# (can't check case where command line has "-g X -p"; check that in the test
+# script that covers the shell command)
 
 #-------------------------------------------------------------------------------
 
