@@ -249,29 +249,16 @@ sub _make_zip {
 sub _collect_filenames {
   my ( $self, $lanes ) = @_;
 
-  my $pb = $self->_create_pb('finding files', scalar @$lanes);
+  my $pb = $self->_create_pb('collecting files', scalar @$lanes);
 
   # collect the lane stats as we go along. Store the headers for the stats
   # report as the first row
   my @stats = ( $lanes->[0]->stats_headers );
 
   my @filenames;
-  my $i = 0;
   foreach my $lane ( @$lanes ) {
-
-    # if the Finder was set up to look for a specific filetype, we don't need
-    # to do a find here. If it was not given a filetype, it won't have looked
-    # for data files, just the directory for the lane, so we need to find data
-    # files here explicitly
-    $lane->find_files('fastq') if not $self->filetype;
-
-    foreach my $filename ( $lane->all_files ) {
-      push @filenames, $filename;
-    }
-
-    # store the stats for this lane
-    push @stats, @{ $lane->stats };
-
+    push @filenames, $lane->all_files;
+    push @stats,     @{ $lane->stats };
     $pb++;
   }
 
@@ -348,11 +335,9 @@ sub _create_zip_archive {
 sub _compress_data {
   my ( $self, $data ) = @_;
 
-  $DB::single = 1;
-
   my $max        = length $data;
   my $num_chunks = 100;
-  my $chunk_size = int( $max / $num_chunks );
+  my $chunk_size = int( $max / $num_chunks ) +1;
 
   # set up the progress bar
   my $pb = $self->_create_pb('gzipping', $num_chunks);
@@ -396,7 +381,7 @@ sub _write_data {
 
   my $max        = length $data;
   my $num_chunks = 100;
-  my $chunk_size = int( $max / $num_chunks );
+  my $chunk_size = int( $max / $num_chunks ) + 1;
 
   my $pb = $self->_create_pb('writing', $num_chunks);
 
@@ -408,11 +393,13 @@ sub _write_data {
   my $written;
   my $offset      = 0;
   my $remaining   = $max;
+  my $cycle = 0;
   while ( $remaining > 0 ) {
     $written = syswrite FILE, $data, $chunk_size, $offset;
     $offset    += $written;
     $remaining -= $written;
     $pb++;
+    $cycle++;
   }
 
   close FILE;

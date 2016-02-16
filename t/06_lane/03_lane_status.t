@@ -2,8 +2,9 @@
 use strict;
 use warnings;
 
-use Test::More tests => 16;
+use Test::More tests => 20;
 use Test::Exception;
+use Test::Warn;
 use Path::Class;
 
 use Log::Log4perl qw( :easy );
@@ -111,6 +112,25 @@ system( "touch -t 201501010000 $status_2" );
 $lane_status = Bio::Path::Find::Lane::Status->new( lane => $lane );
 
 is $lane_status->pipeline_status('mapped'), 'Failed (01-01-2015)', 'got correct status for "mapped" pipeline';
+
+# check exceptions when we can't read the job status file
+
+# the _job_status file for this lane has no read permissions set
+$lane_row = $lane_rows[2];
+$lane_row->database($database);
+$lane = Bio::Path::Find::Lane->new( row => $lane_row );
+
+lives_ok { $lane_status = Bio::Path::Find::Lane::Status->new( lane => $lane ) }
+  'no exception when getting Status object having unreadable status files';
+
+warnings_are { $lane_status->pipeline_status('qc') } [], 'no warning getting status for QC pipeline';
+
+my $status;
+warning_like { $status = $lane_status->pipeline_status('annotated') }
+  { carped => qr/Permission denied/ },
+  'got "permission denied" warning when reading status file';
+
+is $status, '-', 'status is "-" when status file is unreadable';
 
 # done_testing;
 

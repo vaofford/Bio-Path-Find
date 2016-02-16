@@ -63,6 +63,10 @@ isa_ok $af->_filereport_url, 'URI::URL';
 is $af->_filereport_url->as_string, 'http://some.where/', 'filereport URL from config is correct';
 
 # remove the URL from the config and make sure we get the expected value
+
+# clear config or we'll get errors about re-initializing singletons
+$af->clear_config;
+
 delete $params{config}->{filereport_url};
 $af = Bio::Path::Find::App::PathFind::Accession->new(%params);
 is $af->_filereport_url->as_string, 'http://www.ebi.ac.uk/ena/data/warehouse/filereport',
@@ -80,6 +84,7 @@ stdout_is { $af->run }
 
 $params{outfile} = 'af.csv';
 $params{id}      = '10018_1#1';
+$af->clear_config;
 
 lives_ok { $af = Bio::Path::Find::App::PathFind::Accession->new(%params) }
   'got a new Accession command object set up to write CSV files';
@@ -123,6 +128,7 @@ ftp.ebi.ac.uk/vol1/ERA020/ERA020634/srf/5477_6#1.srf'),
 $params{_ua}   = $ua;           # pass in the fake UA
 $params{id}    = '5477_6#1';    # switch to an ID that actually has accessions
 $params{fastq} = 'f.txt';
+$af->clear_config;
 
 lives_ok { $af = Bio::Path::Find::App::PathFind::Accession->new(%params) }
   'got a new Accession command object set up to write fastq URLs';
@@ -153,6 +159,7 @@ unlink 'af.csv';
 
 delete $params{fastq};
 $params{submitted} = 's.txt';
+$af->clear_config;
 
 lives_ok { $af = Bio::Path::Find::App::PathFind::Accession->new(%params) }
   'got a new Accession command object set up to write submitted file URLs';

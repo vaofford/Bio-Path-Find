@@ -27,10 +27,21 @@ use_ok('Bio::Path::Find::DatabaseManager');
 
 # read config from file
 
+my $config = {
+  db_root           => file(qw( t data 05_database_manager root_dir )),
+  connection_params => {
+    tracking => {
+      driver       => 'SQLite',
+      dbname       => 't/data/empty_tracking_database.db',
+      schema_class => 'Bio::Track::Schema',
+    },
+  },
+};
+
 my $dbm;
 lives_ok {
     $dbm = Bio::Path::Find::DatabaseManager->new(
-      config_file => file( qw( t data 05_database_manager test.conf ) )->stringify,
+      config      => $config,
       schema_name => 'tracking',
     )
   }
@@ -40,7 +51,7 @@ lives_ok {
 
 # use a config hash
 
-my $config = {
+$config = {
   db_root => file(qw( t data 05_database_manager root_dir ))->stringify,
   hierarchy_template =>
     'genus:species-subspecies:TRACKING:projectssid:sample:technology:library:lane',
@@ -57,6 +68,10 @@ my $config = {
   },
 };
 
+# clear the config using the old object, otherwise we'll get a "singleton
+# already initialized" error
+$dbm->clear_config;
+
 lives_ok { $dbm = Bio::Path::Find::DatabaseManager->new( config => $config, schema_name => 'tracking' ) }
   'no exception instantiating with valid config';
 
@@ -65,6 +80,7 @@ lives_ok { $dbm = Bio::Path::Find::DatabaseManager->new( config => $config, sche
 # check exceptions with invalid configuration
 
 # no params for specified schema name
+$dbm->clear_config;
 throws_ok {
     Bio::Path::Find::DatabaseManager->new( config => $config, schema_name => 'non-existent' )->connection_params
   }
@@ -74,6 +90,7 @@ throws_ok {
 # missing params entirely
 delete $config->{connection_params};
 
+$dbm->clear_config;
 throws_ok {
     Bio::Path::Find::DatabaseManager->new( config => $config, schema_name => 'tracking' )->connection_params
   }
@@ -87,6 +104,7 @@ $config->{connection_params}->{tracking} = {
   schema_class => 'Bio::Track::Schema',
 };
 
+$dbm->clear_config;
 throws_ok {
     Bio::Path::Find::DatabaseManager->new( config => $config, schema_name => 'tracking' )->connection_params
   }
@@ -96,6 +114,7 @@ throws_ok {
 # missing driver
 $config->{connection_params}->{tracking}->{driver} = 'not-a-supported-driver';
 
+$dbm->clear_config;
 throws_ok {
     Bio::Path::Find::DatabaseManager->new( config => $config, schema_name => 'tracking' )->connection_params
   }
@@ -111,6 +130,7 @@ $config->{connection_params}->{tracking} = {
   schema_class => 'Bio::Track::Schema',
 };
 
+$dbm->clear_config;
 throws_ok {
     Bio::Path::Find::DatabaseManager->new( config => $config, schema_name => 'tracking' )->connection_params
   }
@@ -124,6 +144,7 @@ $config->{connection_params}->{tracking} = {
   schema_class => 'Bio::Track::Schema',
 };
 
+$dbm->clear_config;
 throws_ok {
     Bio::Path::Find::DatabaseManager->new( config => $config, schema_name => 'tracking' )->connection_params
   }
@@ -152,6 +173,7 @@ $config = {
   },
 };
 
+$dbm->clear_config;
 lives_ok { $dbm = Bio::Path::Find::DatabaseManager->new( config => $config, schema_name => 'tracking' ) }
   'no exception with valid SQLite config';
 
@@ -192,6 +214,7 @@ SKIP: {
     },
   };
 
+  $dbm->clear_config;
   lives_ok { $dbm = Bio::Path::Find::DatabaseManager->new( config => $config, schema_name => 'tracking' ) }
     'no exception with valid live mysql config';
 

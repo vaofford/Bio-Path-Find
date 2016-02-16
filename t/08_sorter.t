@@ -27,14 +27,22 @@ Log::Log4perl->easy_init( $FATAL );
 
 use_ok('Bio::Path::Find::Sorter');
 
+my $config = {
+  db_root           => file(qw( t data linked )),
+  connection_params => {
+    tracking => {
+      driver       => 'SQLite',
+      dbname       => 't/data/pathogen_prok_track.db',
+      schema_class => 'Bio::Track::Schema',
+    },
+  },
+};
+
 my $sorter;
-lives_ok { $sorter = Bio::Path::Find::Sorter->new(config_file => file( qw( t data 08_sorter test.conf ) )) }
+lives_ok { $sorter = Bio::Path::Find::Sorter->new( config => $config ) }
   'got a sorter';
 
-my $dbm = Bio::Path::Find::DatabaseManager->new(
-  config_file => file( qw( t data 08_sorter test.conf ) ),
-  schema_name => 'tracking',
-);
+my $dbm = Bio::Path::Find::DatabaseManager->new( schema_name => 'tracking' );
 
 my $schema = $dbm->get_database('pathogen_prok_track')->schema;
 # my $schema = $dbm->get_database('pathogen_track_test')->schema;

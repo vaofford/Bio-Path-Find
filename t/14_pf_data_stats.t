@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 13;
+use Test::More tests => 14;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -12,6 +12,7 @@ use Cwd;
 use Compress::Zlib;
 use Try::Tiny;
 use Text::CSV_XS qw( csv );
+use Capture::Tiny ':all';
 
 # set up the "linked" directory for the test suite
 use lib 't';
@@ -48,8 +49,8 @@ my @expected_stats              = $expected_stats_file->slurp( chomp => 1, split
 
 # get some test lanes using the Finder directly
 my $f = Bio::Path::Find::Finder->new(
-  config_file => file( qw( t data 14_pf_data_stats test.conf ) ),
-  lane_class  => 'Bio::Path::Find::Lane::Class::Data',
+  config     => file( qw( t data 14_pf_data_stats test.conf ) ),
+  lane_class => 'Bio::Path::Find::Lane::Class::Data',
 );
 
 my $lanes = $f->find_lanes( ids => [ '10018_1' ], type => 'lane', filetype => 'fastq' );
@@ -61,7 +62,7 @@ ok $lanes->[0]->does('Bio::Path::Find::Lane::Role::Stats'), 'Stats Role applied 
 # get a PathFind object
 
 my %params = (
-  config_file      => file( qw( t data 14_pf_data_stats test.conf ) ),
+  # no need to pass "config_file"; it will come from the HasConfig Role
   id               => '10018_1',
   type             => 'lane',
   no_progress_bars => 1,
@@ -72,8 +73,10 @@ lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
   'got a new pathfind data command object';
 
 # write to automatically generated filename
-
-lives_ok { $pf->_make_stats($lanes) } 'no exception when calling _make_stats';
+my $stderr;
+lives_ok { $stderr = capture_stderr { $pf->_make_stats($lanes) } }
+  'no exception when calling _make_stats';
+like $stderr, qr/Permission denied/, 'warning about unreadable job status file when making stats';
 
 my $stats_file = file( $temp_dir, '10018_1.pathfind_stats.csv' );
 ok -e $stats_file, 'stats named as expected';
@@ -86,7 +89,7 @@ is_deeply $stats, \@expected_stats, 'written contents look right';
 $stats_file = file( $temp_dir, 'named_file.csv' );
 
 %params = (
-  config_file      => file( qw( t data 14_pf_data_stats test.conf ) ),
+  # no need to pass "config_file"; it will come from the HasConfig Role
   id               => '10018_1',
   type             => 'lane',
   stats            => $stats_file->stringify,

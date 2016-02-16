@@ -77,6 +77,9 @@ $params{config}->{connection_params}->{ss} = $ss;
 
 $params{sequencescape_schema_name} = 'ss';
 
+# clear config or we'll get errors about re-initializing singletons
+$if->clear_config;
+
 lives_ok { $if = Bio::Path::Find::App::PathFind::Info->new(%params) }
   'got a new Info command object with different name for SS DB config';
 
@@ -90,6 +93,7 @@ stdout_is { $if->run }
 
 $params{outfile} = 'if.csv';
 $params{id}      = '10018_1#1';
+$if->clear_config;
 
 lives_ok { $if = Bio::Path::Find::App::PathFind::Info->new(%params) }
   'got a new Info command object set up to write CSV files';

@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 16;
+use Test::More tests => 23;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -56,7 +56,7 @@ $lane_row->database($database);
 
 #---------------------------------------
 
-# check creation without a role
+# check creation
 
 use_ok('Bio::Path::Find::Lane');
 
@@ -79,7 +79,41 @@ throws_ok { $lane->root_dir }
 
 $database->_set_hierarchy_root_dir($old_hrd);
 
-is $lane->find_files('fastq'), 0, 'no files found without trait';
+
+#---------------------------------------
+
+# file finding
+
+is $lane->find_files('fastq'), 0, 'no files found without mapping';
+
+my $lane_with_extension_mapping = Bio::Path::Find::Lane->new(
+  row                 => $lane_row,
+  filetype_extensions => {
+    fastq => '*.fastq.gz',
+  },
+);
+
+is $lane_with_extension_mapping->find_files('fastq'), 1, 'found 1 file using mapping';
+
+# check that running "find_files" in array context returns a list of files
+my @found_files = $lane_with_extension_mapping->find_files('fastq');
+is scalar @found_files, 1, '"find_files" returns found files in list context';
+
+# check "store_filenames" behaviour
+
+isa_ok $found_files[0], 'Path::Class::File';
+
+my $lane_storing_filenames = Bio::Path::Find::Lane->new(
+  row                 => $lane_row,
+  store_filenames     => 1,
+  filetype_extensions => {
+    fastq => '*.fastq.gz',
+  },
+);
+
+@found_files = $lane_storing_filenames->find_files('fastq');
+
+ok ! ref $found_files[0], 'files stored as filenames when attribute set';
 
 #---------------------------------------
 
@@ -95,12 +129,26 @@ SKIP: {
   my $temp_dir = File::Temp->newdir;
   my $symlink_dir = dir $temp_dir;
 
-  # should work
-  lives_ok { $lane->make_symlinks( dest => $symlink_dir ) }
-    'no exception when creating symlinks';
+  # should work but not create links (no files found)
+  warning_like { $lane->make_symlinks( dest => $symlink_dir ) }
+    { carped => qr/no files found for linking/ },
+    'warning about no files when creating symlinks';
 
   my @files_in_temp_dir = $symlink_dir->children;
+  is scalar @files_in_temp_dir, 0, 'no links created';
+
+  # switch to a lane which has a file extension mapping set and can therefore
+  # actually find files
+  $lane = $lane_with_extension_mapping;
+
+  lives_ok { $lane->find_files('fastq') } 'no problem finding fastq files';
+
+  lives_ok { $lane->make_symlinks( dest => $symlink_dir ) }
+    'no problem creating links';
+
+  @files_in_temp_dir = $symlink_dir->children;
   is scalar @files_in_temp_dir, 1, 'found 1 link';
+
   like $files_in_temp_dir[0], qr/10018_1#1/, 'link looks correct';
 
   # should warn that link already exists
@@ -117,6 +165,8 @@ SKIP: {
     'warning when destination file already exists';
 
   $files_in_temp_dir[0]->remove;
+  $lane->_clear_finding_run;
+  $lane->clear_files;
 
   # set the permissions on the directory to remove write permission
   chmod 0500, $symlink_dir;

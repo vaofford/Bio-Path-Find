@@ -32,7 +32,7 @@ with 'MooseX::Log::Log4perl',
 
 # don't automatically run a guessed command; shows a "did you mean X" message
 # instead
-# app_fuzzy 0;
+app_fuzzy 0;
 
 # throw an exception if extra options or parameters are found on the command
 # line
@@ -358,12 +358,7 @@ has '_finder' => (
 sub _build_finder {
   my $self = shift;
 
-  my %finder_params = (
-    config     => $self->config,
-    lane_class => $self->_lane_class,
-  );
-
-  return Bio::Path::Find::Finder->new(%finder_params);
+  return Bio::Path::Find::Finder->new( lane_class => $self->_lane_class );
 }
 
 #---------------------------------------

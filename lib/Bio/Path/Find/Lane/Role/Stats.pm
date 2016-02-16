@@ -119,6 +119,16 @@ sub _build_tables {
 
 #-------------------------------------------------------------------------------
 
+sub _mapped_percentage {
+  my $self = shift;
+
+  return '0.0' unless $self->_mapping_is_complete;
+  return $self->_percentage( $self->_tables->{mapstats}->reads_mapped,
+                             $self->_tables->{mapstats}->raw_reads );
+}
+
+#-------------------------------------------------------------------------------
+
 sub _map_type {
   my $self = shift;
   return 'NA' if not defined $self->_tables->{mapstats};

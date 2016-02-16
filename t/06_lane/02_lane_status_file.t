@@ -2,10 +2,12 @@
 use strict;
 use warnings;
 
-use Test::More tests => 15;
+use Test::More tests => 16;
 use Test::Exception;
 use Test::Warn;
 use Path::Class;
+use File::Temp qw( tempdir );
+use File::Copy 'cp';
 
 use_ok('Bio::Path::Find::Lane::StatusFile');
 
@@ -14,7 +16,7 @@ throws_ok { Bio::Path::Find::Lane::StatusFile->new( status_file => file('non-exi
   'exception when status file is not found';
 
 warning_like { Bio::Path::Find::Lane::StatusFile->new( status_file => file( qw( t data 06_lane 02_lane_status_file bad.txt ) ) ) }
-  qr/not a valid status file/,
+  qr/not a valid job status file/,
   'warning with bad status file';
 
 my $s;
@@ -40,6 +42,18 @@ is $s->config_file, file( qw( t data 06_lane 02_lane_status_file new_pipeline.co
 warning_like { $s->pipeline_name }
   qr/unrecognised pipeline in config/,
   'warning about unrecognised config';
+
+# see what happens when we try to read a file when we don't have read
+# permissions on it
+my $tempdir = tempdir;
+my $from = file( qw( t data 06_lane 02_lane_status_file no_read_permissions.txt ) );
+my $to   = file( $tempdir, 'no_read_permissions.txt' );
+cp $from, $to;
+chmod 0220, $to;
+
+warning_like { $s = Bio::Path::Find::Lane::StatusFile->new( status_file => $to ) }
+  { carped => qr/WARNING: failed to read job status file/ },
+  'warning with status file with no read permissions';
 
 # done_testing;
 
