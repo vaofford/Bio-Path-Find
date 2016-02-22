@@ -15,6 +15,7 @@ use Types::Standard qw(
   Str
   Maybe
   Bool
+  Int
   ClassName
 );
 
@@ -271,7 +272,8 @@ option 'force' => (
 option 'verbose' => (
   documentation => 'show debugging messages',
   is            => 'rw',
-  isa           => Bool,
+  isa           => Int,
+  cmd_count     => 1,
   cmd_aliases   => 'v',
   cmd_env       => 'PF_VERBOSE',
   default       => 0,

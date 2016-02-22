@@ -92,6 +92,8 @@ sub _make_stats {
   }
 
   $self->_write_csv(\@stats, $self->_stats_file);
+
+  say q(Wrote statistics to ") . $self->_stats_file . q(");
 }
 
 #-------------------------------------------------------------------------------

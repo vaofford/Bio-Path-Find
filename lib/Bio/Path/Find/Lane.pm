@@ -543,7 +543,7 @@ sub _make_file_symlinks {
   my $num_successful_links = 0;
   FILE: foreach my $src_file ( $self->all_files ) {
 
-    my $filename = $src_file->basename;
+    my $filename = file($src_file)->basename;
 
     # do we need to rename the link (convert hashes to underscores) ?
     $filename =~ s/\#/_/g if $rename;
@@ -580,7 +580,12 @@ sub _make_file_symlinks {
     };
     $num_successful_links += $success;
 
-    carp qq(WARNING: failed to create symlink for "$src_file") unless $success;
+    if ( $success ) {
+      say $src_file;
+    }
+    else {
+      carp qq(WARNING: failed to create symlink for "$src_file");
+    }
   }
 
   $self->log->debug("created $num_successful_links links");

@@ -43,7 +43,7 @@ package main;
 use strict;
 use warnings;
 
-use Test::More; # tests => 8;
+use Test::More tests => 17;
 use Test::Exception;
 use Test::Warn;
 use Test::Output;
@@ -245,7 +245,7 @@ combined_like { $tf->_find_genes($lanes) }
 
 #-------------------------------------------------------------------------------
 
-done_testing;
+# done_testing;
 
 chdir $orig_cwd;
 

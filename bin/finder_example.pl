@@ -1,5 +1,8 @@
 #!/usr/bin/env perl
 
+# PODNAME: finder_example.pl
+# ABSTRACT: usage example for Bio::Path::Find::Finder
+
 use v5.10; # for "say"
 
 use strict;

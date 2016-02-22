@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More; # tests => 10;
+use Test::More tests => 8;
 use Test::Exception;
 use Test::Output;
 use Test::Script::Run;
@@ -91,7 +91,7 @@ like $log_lines[-1], qr|bin/pf annotation -t lane -i 10018_1#1|, 'log line is co
 
 #-------------------------------------------------------------------------------
 
-done_testing;
+# done_testing;
 
 chdir $orig_cwd;
 
