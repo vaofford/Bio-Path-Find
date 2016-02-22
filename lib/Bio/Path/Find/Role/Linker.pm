@@ -3,6 +3,8 @@ package Bio::Path::Find::Role::Linker;
 
 # ABSTRACT: role providing methods for creating symlinks for found files
 
+use v5.10; # for "say"
+
 use MooseX::App::Role;
 
 =head1 CONTACT
@@ -113,10 +115,24 @@ sub _make_symlinks {
   my $pb = $self->_create_pb('linking', scalar @$lanes);
 
   my $i = 0;
+  my @links = ();
   foreach my $lane ( @$lanes ) {
-    $lane->make_symlinks( dest => $dest, rename => $self->rename );
+    # the call to "make_symlinks" returns a reference to an array containing a
+    # list of the entities (files or directories) for which the Lane has
+    # successfully created links. We need to collect those and list them later,
+    # when we're not in the middle of showing a progress bar
+    push @links, $lane->make_symlinks( dest => $dest, rename => $self->rename );
     $pb++;
   }
+
+  # walk the list of array refs...
+  foreach my $lane_links ( @links ) {
+    # and walk the array containing the list of linked entities for each Lane
+    foreach my $link ( @$lane_links ) {
+      say $link;
+    }
+  }
+
 }
 
 #-------------------------------------------------------------------------------
