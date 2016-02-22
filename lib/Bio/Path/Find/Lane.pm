@@ -544,7 +544,6 @@ sub make_symlinks {
 sub _make_file_symlinks {
   my ( $self, $dest, $rename ) = @_;
 
-  my $num_successful_links = 0;
   my @links = ();
   FILE: foreach my $src_file ( $self->all_files ) {
 
@@ -588,7 +587,6 @@ sub _make_file_symlinks {
       # platform
       Bio::Path::Find::Exception->throw( msg => "ERROR: cannot create symlinks: $_" );
     };
-    $num_successful_links += $success;
 
     if ( $success ) {
       push @links, $src_file;
@@ -598,7 +596,7 @@ sub _make_file_symlinks {
     }
   }
 
-  $self->log->debug("created $num_successful_links links");
+  $self->log->debug('created ' . scalar @links . ' links');
 
   return \@links;
 }
