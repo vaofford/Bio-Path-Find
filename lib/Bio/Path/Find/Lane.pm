@@ -485,7 +485,8 @@ underscores (_).
 This method throws an exception if it cannot create symlinks, possibly because
 perl itself can't create links on the current platform.
 
-Returns the number of links created.
+Returns a reference to an array containing a list of linked entities (either
+file or directory paths, depending on what was found).
 
 =cut
 
@@ -516,19 +517,19 @@ sub make_symlinks {
     $self->find_files( $params->{filetype} );
   }
 
-  my $rv = 0;
+  my $links;
   if ( $self->_finding_run ) {
     if ( $self->has_no_files ) {
       carp 'WARNING: no files found for linking';
       return 0;
     }
-    $rv = $self->_make_file_symlinks( $params->{dest}, $params->{rename} );
+    $links = $self->_make_file_symlinks( $params->{dest}, $params->{rename} );
   }
   else {
-    $rv = $self->_make_dir_symlink( $params->{dest}, $params->{rename} );
+    $links = $self->_make_dir_symlink( $params->{dest}, $params->{rename} );
   }
 
-  return $rv;
+  return $links;
 }
 
 #-------------------------------------------------------------------------------
@@ -536,11 +537,14 @@ sub make_symlinks {
 #-------------------------------------------------------------------------------
 
 # make a link to the found files for this lane
+#
+# returns a reference to an array containing the list of files that we linked,
+# or an empty array if we couldn't create any links
 
 sub _make_file_symlinks {
   my ( $self, $dest, $rename ) = @_;
 
-  my $num_successful_links = 0;
+  my @links = ();
   FILE: foreach my $src_file ( $self->all_files ) {
 
     my $filename = file($src_file)->basename;
@@ -569,6 +573,11 @@ sub _make_file_symlinks {
       next FILE;
     }
 
+    # the "symlink" call will die if it simply can't make symlinks on this
+    # platform, but it returns false if it can't create a link for another
+    # reason, such as when the destination file already exists. We need to
+    # check for those two outcomes (exception versus return value) separately.
+
     my $success = 0;
     try {
       $success = symlink( $src_file, $dst_file );
@@ -578,25 +587,27 @@ sub _make_file_symlinks {
       # platform
       Bio::Path::Find::Exception->throw( msg => "ERROR: cannot create symlinks: $_" );
     };
-    $num_successful_links += $success;
 
     if ( $success ) {
-      say $src_file;
+      push @links, $src_file;
     }
     else {
       carp qq(WARNING: failed to create symlink for "$src_file");
     }
   }
 
-  $self->log->debug("created $num_successful_links links");
+  $self->log->debug('created ' . scalar @links . ' links');
 
-  return $num_successful_links;
+  return \@links;
 }
 
 #-------------------------------------------------------------------------------
 
 # make a link to the directory containing the files for this lane. Actually, we
 # make a link to the link to that directory, but... semantics
+#
+# returns a reference to an array containing the name of the directory that we
+# linked, or an empty array if we couldn't create the link
 
 sub _make_dir_symlink {
   my ( $self, $dest, $rename ) = @_;
@@ -637,7 +648,10 @@ sub _make_dir_symlink {
 
   carp qq(WARNING: failed to create symlink for "$dest") unless $success;
 
-  return $success;
+  # if we succeeded in creating a symlink to the destination directory, return
+  # a ref to an array with that single path. Otherwise, return an empty
+  # directory and let the caller handle it
+  return $success ? [ $dst_dir ] : [];
 }
 
 #-------------------------------------------------------------------------------
