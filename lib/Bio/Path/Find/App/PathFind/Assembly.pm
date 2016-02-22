@@ -18,9 +18,9 @@ use Bio::Path::Find::Exception;
 
 extends 'Bio::Path::Find::App::PathFind';
 
-with 'Bio::Path::Find::Role::Linker',
-     'Bio::Path::Find::Role::Archivist',
-     'Bio::Path::Find::Role::Statistician';
+with 'Bio::Path::Find::App::Role::Linker',
+     'Bio::Path::Find::App::Role::Archivist',
+     'Bio::Path::Find::App::Role::Statistician';
 
 #-------------------------------------------------------------------------------
 #- usage text ------------------------------------------------------------------

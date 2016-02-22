@@ -1,5 +1,5 @@
 
-package Bio::Path::Find::Role::Statistician;
+package Bio::Path::Find::App::Role::Statistician;
 
 # ABSTRACT: role providing methods for archiving data
 

@@ -1,5 +1,5 @@
 
-package Bio::Path::Find::Role::Linker;
+package Bio::Path::Find::App::Role::Linker;
 
 # ABSTRACT: role providing methods for creating symlinks for found files
 
