@@ -66,16 +66,16 @@ lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
 
 my $dest = dir( $temp_dir, 'pathfind_10018_1' );
 
-stderr_like { $pf->_make_symlinks($lanes) }
-  qr|Creating links in 'pathfind_10018_1'|, # STDOUT
-  'creating links in correct directory; no progress bar';
+combined_like { $pf->_make_symlinks($lanes) }
+  qr|Creating links in 'pathfind_10018_1'.*10018_1#51_1\.fastq\.gz|s,
+  'creating links in correct directory';
 
 # remove the links directory and do it again, this time checking for the
 # absence of a progress bar
 
 $dest->rmtree;
 
-stderr_unlike { $pf->_make_symlinks($lanes) }
+combined_unlike { $pf->_make_symlinks($lanes) }
   qr|linking|,
   'no progress bar';
 
@@ -92,10 +92,9 @@ $pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
 $dest = dir( $temp_dir, 'my_link_dir' );
 
-stderr_is { $pf->_make_symlinks($lanes) }
-  "Creating links in 'my_link_dir'
-", # IMPORTANT: we're looking for a newline here
-  'creating links in correct directory; no progress bar shown';
+combined_like { $pf->_make_symlinks($lanes) }
+  qr|Creating links in 'my_link_dir'.*\.fastq\.gz|s,
+  'creating links in correct directory';
 
 ok -d $dest, 'found link directory';
 
