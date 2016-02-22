@@ -163,7 +163,7 @@ sub _build_stats {
       $self->pipeline_status('mapped'),
       $self->pipeline_status('stored'),
       $self->pipeline_status('snp_called'),
-      $self->pipeline_status('snp_called'),
+      $self->pipeline_status('rna_seq_expression'),
       $self->pipeline_status('assembled'),
       $self->pipeline_status('annotated'),
     ]
