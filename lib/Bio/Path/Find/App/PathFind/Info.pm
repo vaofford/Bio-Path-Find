@@ -273,7 +273,7 @@ sub run {
   # leave it to _write_csv to check, we could end up searching for lanes for
   # hours and THEN fail, which would leave the user mildly updset. Better to
   # fail early, before we've done any work at all.
-  if ( $self->_outfile_flag and -f $self->_outfile ) {
+  if ( $self->_outfile_flag and -f $self->_outfile and not $self->force ) {
     Bio::Path::Find::Exception->throw(
       msg => q(ERROR: CSV file ") . $self->_outfile . q(" already exists; not overwriting existing file)
     );
