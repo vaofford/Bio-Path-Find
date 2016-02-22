@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 14;
+use Test::More tests => 17;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -73,10 +73,10 @@ lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
   'got a new pathfind data command object';
 
 # write to automatically generated filename
-my $stderr;
-lives_ok { $stderr = capture_stderr { $pf->_make_stats($lanes) } }
+my $output;
+lives_ok { $output = capture_merged { $pf->_make_stats($lanes) } }
   'no exception when calling _make_stats';
-like $stderr, qr/Permission denied/, 'warning about unreadable job status file when making stats';
+like $output, qr/Permission denied/, 'warning about unreadable job status file when making stats';
 
 my $stats_file = file( $temp_dir, '10018_1.pathfind_stats.csv' );
 ok -e $stats_file, 'stats named as expected';
@@ -98,7 +98,11 @@ $stats_file = file( $temp_dir, 'named_file.csv' );
 
 $pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
-lives_ok { $pf->_make_stats($lanes) } 'no exception when calling _make_stats';
+lives_ok { $output = capture_merged { $pf->_make_stats($lanes) } }
+  'no exception when calling _make_stats';
+
+like $output, qr/Wrote statistics to .*?named_file\.csv/,
+  'got message with filename';
 
 ok -e $stats_file, 'stats named as expected';
 
@@ -106,15 +110,21 @@ $stats = csv( in => $stats_file->stringify );
 is_deeply $stats, \@expected_stats, 'contents of named file look right';
 
 # should get an error when writing to the same file a second time
-throws_ok { $pf->_make_stats($lanes) }
+throws_ok { $output = capture_merged { $pf->_make_stats($lanes) } }
   qr/already exists/,
   'exception when calling _make_stats with existing file';
+
+like $output, qr/Wrote statistics to .*?named_file\.csv/,
+  'got message with filename';
 
 $params{force} = 1;
 $pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
-lives_ok { $pf->_make_stats($lanes) }
+lives_ok { $output = capture_merged { $pf->_make_stats($lanes) } }
   'no exception when calling _make_stats with existing file but "force" is set to true';
+
+like $output, qr/Wrote statistics to .*?named_file\.csv/,
+  'got message with filename';
 
 #-------------------------------------------------------------------------------
 
