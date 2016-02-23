@@ -31,7 +31,7 @@ command_short_description 'Find the status of samples';
 
 =head1 NAME
 
-pf info - Find information about samples
+pf status - Find the status of samples
 
 =head1 USAGE
 
@@ -39,66 +39,120 @@ pf info - Find information about samples
 
 =head1 DESCRIPTION
 
-This pathfind command will return information about samples associated with
-sequencing runs. Specify the type of data using C<--type> and give the
-accession, name or identifier for the data using C<--id>.
+The status command will return information about the status of samples in the
+various pathogen informatics pipelines. Search for lanes by specifying the type
+of data using C<--type> and give the accession, name or identifier for the data
+using C<--id>.
+
+Use "pf man" or "pf man status" to see more information.
 
 =head1 EXAMPLES
 
-  # get sample info for a set of lanes
-  pf info -t lane -i 10018_1
+  # get the status of a set of lanes as a simple table
+  pf status -t lane -i 12345_1
 
-  # write info to a CSV file
-  pf info -t lane -i 10018_1 -o info.csv
+  # show the status of a set of lanes, taking lane IDs from a file
+  pf status -t file --ft lane -i my_ids.txt
+
+  # show the status of a all lanes from a specific study
+  pf status -t study -i 'My study name'
+
+  # write status information to a CSV file
+  pf status -t lane -i 12345_1 -o status_info.csv
+
+=head1 PIPELINE STATUS VALUES
+
+The C<pf status> command prints the status for each found lane for 9 key
+pathogen informatics pipelines:
+
+=over
+
+=item Import
+
+=item QC
+
+=item Mapping
+
+=item Archive
+
+=item Improve
+
+=item SNP call
+
+=item RNASeq
+
+=item Assemble
+
+=item Annotate
+
+=back
+
+The status of a sample in each pipeline is given as:
+
+=over
+
+=item Done
+
+=item Running
+
+=item Failed
+
+=item Pending
+
+=back
+
+Unless the status is C<Done>, the output also shows the date at which the
+status was changed to the current value.
 
 =head1 OPTIONS
 
-These are the options that are specific to C<pf info>. Run C<pf man> to see
+These are the options that are specific to C<pf status>. Run C<pf man> to see
 information about the options that are common to all C<pf> commands.
 
 =over
 
 =item --outfile, -o [<output filename>]
 
-Write the information to a CSV-format file. If a filename is given, write info
-to that file, or to C<infofind.csv> otherwise.
+Write status information to a CSV-format file. If a filename is given, write
+info to that file, or to C<statusfind.csv> otherwise. If the output file
+already exists, the script will print a warning and stop. To force it to
+overwrite an existing file, add C<-F>.
 
 =back
 
 =head1 SCENARIOS
 
-=head2 Show info about samples
+=head2 Show status information for a collection of samples
 
-The C<pf info> command prints five columns of data for each lane, showing data
-about each sample from the tracking and sequencescape databases:
+In the simplest case, C<pf status> shows a table giving the name of a lane
+and its status across the 9 pipelines:
 
-=over
+  % pf status -t lane -i 12345_1
+  Name       Import QC                   Mapping Archive Improve SNP call RNASeq Assemble Annotate
+  12345_1#1  Done   Done                 Done    Done    -       -        -      -        -
+  12345_1#2  Done   Running (22-02-2016) -       -       -       -        -      -        -
 
-=item lane
-
-=item sample
-
-=item supplier name
-
-=item public name
-
-=item strain
-
-=back
+This output shows the status of two lanes, the first of which has run
+successfully through the import, QC, mapping and archival pipelines. The
+second lane has been imported and started running through the QC pipeline
+on 22nd Feb 2016.
 
 =head2 Write a CSV file
 
-By default C<pf info> simply prints the data that it finds. You can write out a
-comma-separated values file (CSV) instead, using the C<--outfile> (C<-o>)
-options:
+By default C<pf status> simply prints the status informat that it finds. You
+can write out a comma-separated values file (CSV) instead, using the
+C<--outfile> (C<-o>) option:
 
-  % pf info -t lane -i 10018_1 -o my_info.csv
-  Wrote info to "my_info.csv"
+  % pf status -t lane -i 12345_1 -o my_status_info.csv
+  Wrote status information to "my_status_info.csv"
 
-If you don't specify a filename, the default is C<infofind.csv>:
+If you don't specify a filename, the default is C<statusfind.csv>:
 
-  % pf info -t lane -i 10018_1 -o
-  Wrote info to "infofind.csv"
+  % pf status -t lane -i 12345_1 -o
+  Wrote status information to "statusfind.csv"
+
+If the output file exists, the command will exit with an error. Force
+overwriting of an existing file by adding the C<-F> option.
 
 =head2 Write a tab-separated file (TSV)
 
@@ -106,7 +160,7 @@ You can also change the separator used when writing out data. By default we
 use comma (,), but you can change it to a tab-character in order to make the
 resulting file more readable:
 
-  pf info -t lane -i 10018_1 -o -c "<tab>"
+  pf status -t lane -i 12345_1 -o -c "<tab>"
 
 (To enter a tab character you might need to press ctrl-V followed by tab.)
 

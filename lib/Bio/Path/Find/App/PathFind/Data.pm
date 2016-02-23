@@ -50,6 +50,8 @@ You can search for data using several types of ID: lane, library, sample,
 study, or species. B<Note> that searching using C<study> or C<species> can
 produce a large number of results and can be very slow.
 
+Use "pf man" or "pf man data" to see more information.
+
 =head1 EXAMPLES
 
   # find the data directory containing files for a specific plex

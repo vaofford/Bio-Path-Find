@@ -61,6 +61,8 @@ particular gene names. Adding C<--product> will make the search look for
 products as well as genes with the given name. Specifying C<--nucleotide> will
 return the found genes as nucleotide, rather than amino-acid sequences.
 
+Use "pf man" or "pf man annotation" to see more information.
+
 =head1 EXAMPLES
 
   # find GFF files for lanes

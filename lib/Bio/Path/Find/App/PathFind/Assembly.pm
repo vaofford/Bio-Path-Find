@@ -46,6 +46,8 @@ data for all assemblies are reported by default.
 Search for assemblies by specifying the type of data, using the C<--type>
 option (C<lane>, C<sample>, etc), and the ID, using the C<--id> option.
 
+Use "pf man" or "pf man assembly" to see more information.
+
 =head1 EXAMPLES
 
   # get paths for scaffolds for a set of lanes
