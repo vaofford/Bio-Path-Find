@@ -1,5 +1,5 @@
 
-package Bio::Path::Find::Role::Archivist;
+package Bio::Path::Find::App::Role::Archivist;
 
 # ABSTRACT: role providing methods for archiving data
 

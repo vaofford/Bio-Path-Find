@@ -18,9 +18,9 @@ use Bio::Path::Find::Exception;
 
 extends 'Bio::Path::Find::App::PathFind';
 
-with 'Bio::Path::Find::Role::Linker',
-     'Bio::Path::Find::Role::Archivist',
-     'Bio::Path::Find::Role::Statistician';
+with 'Bio::Path::Find::App::Role::Linker',
+     'Bio::Path::Find::App::Role::Archivist',
+     'Bio::Path::Find::App::Role::Statistician';
 
 #-------------------------------------------------------------------------------
 #- usage text ------------------------------------------------------------------
@@ -45,6 +45,8 @@ data for all assemblies are reported by default.
 
 Search for assemblies by specifying the type of data, using the C<--type>
 option (C<lane>, C<sample>, etc), and the ID, using the C<--id> option.
+
+Use "pf man" or "pf man assembly" to see more information.
 
 =head1 EXAMPLES
 

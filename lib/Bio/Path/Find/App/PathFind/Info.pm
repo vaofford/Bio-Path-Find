@@ -46,6 +46,8 @@ This pathfind command will return information about samples associated with
 sequencing runs. Specify the type of data using C<--type> and give the
 accession, name or identifier for the data using C<--id>.
 
+Use "pf man" or "pf man info" to see more information.
+
 =head1 EXAMPLES
 
   # get sample info for a set of lanes
@@ -273,7 +275,7 @@ sub run {
   # leave it to _write_csv to check, we could end up searching for lanes for
   # hours and THEN fail, which would leave the user mildly updset. Better to
   # fail early, before we've done any work at all.
-  if ( $self->_outfile_flag and -f $self->_outfile ) {
+  if ( $self->_outfile_flag and -f $self->_outfile and not $self->force ) {
     Bio::Path::Find::Exception->throw(
       msg => q(ERROR: CSV file ") . $self->_outfile . q(" already exists; not overwriting existing file)
     );

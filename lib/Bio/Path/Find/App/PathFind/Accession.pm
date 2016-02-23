@@ -45,6 +45,8 @@ The C<accession> command finds accessions for samples. Search for data by
 specifying the type of data using the C<--type> option (C<lane>, C<sample>,
 etc) and the ID using the C<--id> option.
 
+Use "pf man" or "pf man accession" to see more information.
+
 =head1 EXAMPLES
 
   # get accessions for a set of lanes

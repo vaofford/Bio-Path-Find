@@ -69,6 +69,13 @@ the accessions, but the command can also show the URLs for retrieving
 FASTQ files from the ENA FTP archive, or for retrieving the submitted
 file from ENA.
 
+=head2 annotation
+
+Finds annotation data for lanes with assembled genomes. By default the
+command returns the paths to the GFF files for each lane. You can also search
+for lanes with specific genes or products. Equivalent to the original
+C<annotationfind>.
+
 =head2 assembly
 
 Find genome assemblies. Lists assembly files, creates archives of or symbolic
@@ -86,6 +93,13 @@ the original C<pathfind> command.
 
 Shows information about the samples associated with sequencing runs.
 Equivalent to the original C<infofind> command.
+
+=head2 status
+
+Shows the status of lanes for various pathogen informatics pipelines.
+Equivalent to the original C<statusfind> command.
+
+=cut
 
 =head1 COMMON OPTIONS
 
@@ -144,17 +158,37 @@ Note that this will not affect the creation of symbolic links. Trying to create
 links where the destination file or directory already exist will cause an error
 or a warning.
 
+=item --rename, -r
+
+When creating archives of files or symbolic links to existing files, you can
+rename the files in the archive or the names of the links, replacing hash
+symbols (#) in the filename with underscores (_). This may be useful to make
+the filename more portable and to avoid problems with systems that don't
+handle hashes in filenames correctly.
+
+B<Note> that C<--rename> only takes effect when archiving or linking.
+
 =item --verbose, -v
 
 Show debugging information.
 
 =back
 
+=cut
+
 =head1 CONFIGURATION VIA ENVIRONMENT VARIABLES
 
-You can set defaults for several options using environment variables. These
-values will be overridden if the corresponding option is given on the command
-line.
+You can set defaults for several options using environment variables. For
+example, when using bash:
+
+  export PF_NO_PROGRESS_BARS=1
+
+or tcsh:
+
+  setenv PF_NO_PROGRESS_BARS 1
+
+Values set by environment variables will be overridden if the corresponding
+option is given on the command line.
 
 =over
 

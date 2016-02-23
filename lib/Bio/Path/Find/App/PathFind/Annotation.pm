@@ -29,9 +29,9 @@ use Bio::AutomatedAnnotation::ParseGenesFromGFFs;
 
 extends 'Bio::Path::Find::App::PathFind';
 
-with 'Bio::Path::Find::Role::Linker',
-     'Bio::Path::Find::Role::Archivist',
-     'Bio::Path::Find::Role::Statistician';
+with 'Bio::Path::Find::App::Role::Linker',
+     'Bio::Path::Find::App::Role::Archivist',
+     'Bio::Path::Find::App::Role::Statistician';
 
 #-------------------------------------------------------------------------------
 #- usage text ------------------------------------------------------------------
@@ -60,6 +60,8 @@ If you specify the C<--gene> option, you can search the GFF files for
 particular gene names. Adding C<--product> will make the search look for
 products as well as genes with the given name. Specifying C<--nucleotide> will
 return the found genes as nucleotide, rather than amino-acid sequences.
+
+Use "pf man" or "pf man annotation" to see more information.
 
 =head1 EXAMPLES
 

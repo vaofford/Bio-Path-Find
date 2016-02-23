@@ -19,9 +19,9 @@ use Bio::Path::Find::Lane::Class::Data;
 
 extends 'Bio::Path::Find::App::PathFind';
 
-with 'Bio::Path::Find::Role::Linker',
-     'Bio::Path::Find::Role::Archivist',
-     'Bio::Path::Find::Role::Statistician';
+with 'Bio::Path::Find::App::Role::Linker',
+     'Bio::Path::Find::App::Role::Archivist',
+     'Bio::Path::Find::App::Role::Statistician';
 
 #-------------------------------------------------------------------------------
 #- usage text ------------------------------------------------------------------
@@ -49,6 +49,8 @@ accession, name or identifier for the data using C<--id>.
 You can search for data using several types of ID: lane, library, sample,
 study, or species. B<Note> that searching using C<study> or C<species> can
 produce a large number of results and can be very slow.
+
+Use "pf man" or "pf man data" to see more information.
 
 =head1 EXAMPLES
 
