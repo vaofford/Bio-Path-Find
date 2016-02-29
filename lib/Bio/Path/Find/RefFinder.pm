@@ -209,14 +209,8 @@ sub find_refs {
     # no exact match, so try a pattern match against the index
     my @possible_matches = grep m/$search_string/i, keys %{ $self->index };
 
-    if ( scalar @possible_matches == 1 ) {
-      # we have a single match using the regex; return that straight away too
-      $self->log->debug('found a single regex match');
-      push @$matches, $possible_matches[0];
-    }
-    elsif ( scalar @possible_matches > 1 ) {
-      # we have multiple matches to the regex; return them all
-      $self->log->debug('found multiple regex matches');
+    if ( scalar @possible_matches >= 1 ) {
+      $self->log->debug('one or more matches found using regex');
       push @$matches, @possible_matches;
     }
     else {
@@ -224,7 +218,7 @@ sub find_refs {
       $self->log->debug('no regex matches; using fuzzy search');
 
       foreach my $ref ( sort keys %{ $self->index } ) {
-        push @$matches, $ref if amatch( $search_string, [ 'i 20%' ], $ref );
+        push @$matches, $ref if amatch( $search_string, [ 'i 15%' ], $ref );
       }
 
       $self->log->debug('found ' . scalar @$matches . ' fuzzy matches');
