@@ -116,7 +116,7 @@ around 'config' => sub {
   my $orig = shift;
   my $self = shift;
 
-  # This is more than a little ugly...
+  # This is more than a little ugly, but it makes testing easier.
   #
   # If the caller asks for $x->config( object => 1 ), hand back the raw
   # singleton object. Otherwise, if there are arguments, defer to the
