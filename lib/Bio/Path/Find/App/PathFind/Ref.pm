@@ -9,12 +9,7 @@ use MooseX::App::Command;
 use namespace::autoclean;
 use MooseX::StrictConstructor;
 
-use Carp qw ( carp );
-use Path::Class;
-use Try::Tiny;
-use Bio::Path::Find::RefFinder;
-
-use Data::Printer;
+use Term::ANSIColor;
 
 use Types::Standard qw(
   ArrayRef
@@ -24,10 +19,9 @@ use Types::Standard qw(
 
 use Bio::Path::Find::Types qw( :types );
 
-extends 'Bio::Path::Find::App::PathFind';
+use Bio::Path::Find::RefFinder;
 
-with 'Bio::Path::Find::App::Role::Archivist',
-     'Bio::Path::Find::App::Role::Linker';
+extends 'Bio::Path::Find::App::PathFind';
 
 #-------------------------------------------------------------------------------
 #- usage text ------------------------------------------------------------------
@@ -36,90 +30,96 @@ with 'Bio::Path::Find::App::Role::Archivist',
 # this is used when the "pf" app class builds the list of available commands
 command_short_description 'Find reference genomes';
 
-# the module POD is used when the users runs "pf man info"
+# the module POD is used when the users runs "pf man ref"
 
 =head1 NAME
 
-pf info - Find information about samples
+pf ref - Find reference genomes
 
 =head1 USAGE
 
-  pf info --id <id> --type <ID type> [options]
+  pf ref --id <genome name>
 
 =head1 DESCRIPTION
 
-This pathfind command will return information about samples associated with
-sequencing runs. Specify the type of data using C<--type> and give the
-accession, name or identifier for the data using C<--id>.
+This command finds reference genome sequences. Given the name of a reference
+genome, the command looks in the index of available references and returns
+the path to a single fasta file containing the reference genome sequence.
 
-Use "pf man" or "pf man info" to see more information.
+If an exact match to the genome name is not found, the command returns a
+list of any genomes that are an approximate match to the specified name;
+choose the exact match from the list and run the command again with the
+exact name to return the path for the sequence file.
+
+Use "pf man" or "pf man ref" to see more information.
 
 =head1 EXAMPLES
 
-  # get sample info for a set of lanes
-  pf info -t lane -i 10018_1
+  # get the path to a sequence file using an exact name
+  pf ref -i Yersinia_pestis_CO92_v1
 
-  # write info to a CSV file
-  pf info -t lane -i 10018_1 -o info.csv
+  # find a reference using an approximate name
+  pf ref -i yersinia_pestis
+
+  # you can use spaces in names instead of underscores; quote the name
+  pf ref -i 'yersinia pestis'
+
+  # find approximate matches for a name
+  pf ref -i yersinia
+
+  # also handles minor spelling mistakes
+  pf ref -i yersina    # missing an "i"
 
 =head1 OPTIONS
 
-These are the options that are specific to C<pf info>. Run C<pf man> to see
-information about the options that are common to all C<pf> commands.
-
-=over
-
-=item --outfile, -o [<output filename>]
-
-Write the information to a CSV-format file. If a filename is given, write info
-to that file, or to C<infofind.csv> otherwise.
-
-=back
+The C<pf ref> command requires only the name of the reference genome.
+There are no other options.
 
 =head1 SCENARIOS
 
-=head2 Show info about samples
+=head2 Find a reference genome using an exact name
 
-The C<pf info> command prints five columns of data for each lane, showing data
-about each sample from the tracking and sequencescape databases:
+If you know the exact name of a reference genome, you can get the path to
+the sequence file immediately:
 
-=over
+  % pf ref -i Yersinia_pestis_CO92_v1
+  /scratch/pathogen/refs/Yersinia/pestis_CO92/Yersinia_pestis_CO92_v1.fa
 
-=item lane
+You can also be less specific, omitting version numbers, for example:
 
-=item sample
+  % pf ref -i Yersinia_pestis
+  /scratch/pathogen/refs/Yersinia/pestis_CO92/Yersinia_pestis_CO92_v1.fa
 
-=item supplier name
+You can also use spaces instead of underscores in the name, but you will
+need to put the name in quotes, to avoid it being misinterpreted:
 
-=item public name
+  % pf ref -i 'Yersinia pestis'
+  /scratch/pathogen/refs/Yersinia/pestis_CO92/Yersinia_pestis_CO92_v1.fa
 
-=item strain
+Finally, searches are case insensitive:
 
-=back
+  % pf ref -i 'yersinia pestis'
+  /scratch/pathogen/refs/Yersinia/pestis_CO92/Yersinia_pestis_CO92_v1.fa
 
-=head2 Write a CSV file
+=head2 Find reference genomes matching an approximate name
 
-By default C<pf info> simply prints the data that it finds. You can write out a
-comma-separated values file (CSV) instead, using the C<--outfile> (C<-o>)
-options:
+If you don't know the exact name or version of a reference genome, you can
+search for references matching an approximate name:
 
-  % pf info -t lane -i 10018_1 -o my_info.csv
-  Wrote info to "my_info.csv"
+  % pf ref -i yersinia
+  No exact match for "yersinia". Did you mean:
+  Yersinia_pestis_CO92_v1
+  Yersinia_enterocolitica_subsp_enterocolitica_8081_v1
 
-If you don't specify a filename, the default is C<infofind.csv>:
+The "fuzzy" matching also handles minor spelling mistakes:
 
-  % pf info -t lane -i 10018_1 -o
-  Wrote info to "infofind.csv"
+  % pf ref -i yersina
+  No exact match for "yersina". Did you mean:
+  Yersinia_pestis_CO92_v1
+  Yersinia_enterocolitica_subsp_enterocolitica_8081_v1
 
-=head2 Write a tab-separated file (TSV)
-
-You can also change the separator used when writing out data. By default we
-use comma (,), but you can change it to a tab-character in order to make the
-resulting file more readable:
-
-  pf info -t lane -i 10018_1 -o -c "<tab>"
-
-(To enter a tab character you might need to press ctrl-V followed by tab.)
+If the genome that you want is in the list, run the command again with the
+exact name to get the path to the sequence file.
 
 =cut
 
@@ -128,11 +128,10 @@ resulting file more readable:
 #-------------------------------------------------------------------------------
 
 # we don't actually need the "--type" option for reffind, since all we're ever
-# going to be looking for is species names. Override the default value of
-# "required", to make this an optional parameter with this command
+# going to be looking for is species names. Specify a default value.
 
 option '+type' => (
-  required => 0,
+  default => 'species',
 );
 
 #-------------------------------------------------------------------------------
@@ -142,6 +141,7 @@ option '+type' => (
 has '_rf' => (
   is      => 'ro',
   isa     => BioPathFindRefFinder,
+  lazy    => 1,
   builder => '_build_rf',
 );
 
@@ -156,9 +156,20 @@ sub _build_rf {
 sub run {
   my $self = shift;
 
-  my $paths = $self->_rf->find_paths('yersina');
+  my $refs = $self->_rf->find_refs($self->_ids->[0]);
 
-  p $paths;
+  if ( scalar @$refs == 1 ) {
+    my $paths = $self->_rf->lookup_paths($refs);
+    say $_ for @$paths;
+  }
+  elsif ( scalar @$refs > 1 ) {
+    say q(No exact match for ") . $self->_ids->[0] . q(". )
+        . colored( ['bright_white bold'], 'Did you mean:' );
+    say $_ for @$refs;
+  }
+  else {
+    say 'No matching reference genomes found. Try a less specific species name.';
+  }
 }
 
 #-------------------------------------------------------------------------------
