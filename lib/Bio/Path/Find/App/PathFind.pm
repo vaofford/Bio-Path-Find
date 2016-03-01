@@ -499,12 +499,13 @@ sub _rename_file {
 
   my $new_basename = $old_filename->basename;
 
-  # honour the "-rename" option
+  # honour the "--rename" option
   $new_basename =~ s/\#/_/g if $self->rename;
 
   # add on the folder to get the relative path for the file in the
   # archive
-  ( my $folder_name = $self->id ) =~ s/\#/_/g;
+  my $folder_name = $self->id;
+  $folder_name =~ s/\#/_/g if $self->rename;
 
   my $new_filename = file( $folder_name, $new_basename );
 
