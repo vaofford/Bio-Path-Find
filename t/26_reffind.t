@@ -76,10 +76,10 @@ lives_ok { $index = $rf->index }
   'no exception getting index with valid config and real index file';
 
 my $expected_index = {
-  abc        => '/path/to/abc',
-  abcde      => '/path/to/abcde',
-  abcdefgh   => '/path/to/abcdefgh',
-  abc_def_gh => '/path/to/abc_def_gh',
+  abc        => 't/data/26_reffind/abc.fa',
+  abcde      => 't/data/26_reffind/abcde.fa',
+  abcdefgh   => 't/data/26_reffind/abcdefgh.fa',
+  abc_def_gh => 't/data/26_reffind/abc_def_gh.fa',
 };
 
 is_deeply $index, $expected_index, 'got expected index';
@@ -148,19 +148,34 @@ ok exists $matches{abc_def_gh}, 'got other expected match';
 
 # getting paths for genome sequences
 
-my $paths = $rf->lookup_paths('abc');
+# these all return directories
+my $paths = $rf->lookup_paths(['abc']);
 is scalar @$paths, 1, 'got one path, as expected, using "lookup_paths"';
-is $paths->[0], '/path/to/abc', 'got expected path';
+is $paths->[0], 't/data/26_reffind', 'got expected path';
 
 $paths = $rf->lookup_paths( ['abc', 'abcde' ] );
 is scalar @$paths, 2, 'got two paths';
-is $paths->[0], '/path/to/abc', 'got first expected path';
-is $paths->[1], '/path/to/abcde', 'got second expected path';
+is $paths->[0], 't/data/26_reffind', 'got first expected path';
+is $paths->[1], 't/data/26_reffind', 'got second expected path';
 
 $paths = $rf->lookup_paths( [ 'no-such-genome', 'abc' ] );
 is scalar @$paths, 2, 'got two paths';
-is $paths->[0], undef, 'first path undefined';
-is $paths->[1], '/path/to/abc', 'got second expected path';
+is $paths->[0], '.', 'first path undefined';
+is $paths->[1], 't/data/26_reffind', 'got second expected path';
+
+# these return file paths
+$paths = $rf->lookup_paths(['abc'], 'fa');
+is scalar @$paths, 1, 'got one path, as expected, using "lookup_paths" with filetype';
+is $paths->[0], 't/data/26_reffind/abc.fa', 'got expected path';
+
+$paths = $rf->lookup_paths(['abc'], 'gff');
+is scalar @$paths, 1, 'got one path for GFF';
+is $paths->[0], 't/data/26_reffind/abc.gff', 'got expected path';
+
+# no "embl" file
+$paths = $rf->lookup_paths(['abc'], 'embl');
+is scalar @$paths, 1, 'got one path for EMBL file';
+is $paths->[0], 't/data/26_reffind (no embl file for reference)', 'got path to directory';
 
 #-------------------------------------------------------------------------------
 
@@ -168,7 +183,11 @@ is $paths->[1], '/path/to/abc', 'got second expected path';
 
 $paths = $rf->find_paths('abc');
 is scalar @$paths, 1, 'got one path using "find_paths"';
-is $paths->[0], '/path/to/abc', 'got expected path';
+is $paths->[0], 't/data/26_reffind', 'got expected path';
+
+$paths = $rf->find_paths('abc', 'fa');
+is scalar @$paths, 1, 'got path to fasta file "find_paths"';
+is $paths->[0], 't/data/26_reffind/abc.fa', 'got expected file path';
 
 $paths = $rf->find_paths('def');
 is scalar @$matches, 2, 'two matches as expected with fuzzy search through "find_paths"';
