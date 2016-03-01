@@ -253,7 +253,7 @@ sub _build_stats_file {
 
 # set the default name for the symlink directory
 
-around '_build_symlink_dir' => sub {
+around '_build_symlink_dest' => sub {
   my $orig = shift;
   my $self = shift;
 
@@ -288,11 +288,11 @@ sub run {
   # let the command run to successfully
 
   if ( $self->_symlink_flag and          # flag is set; we're making symlinks.
-       $self->_symlink_dir and           # destination is specified.
-       -e $self->_symlink_dir and        # the destintation path exists.
-       not -d $self->_symlink_dir ) {    # but it's not a directory.
+       $self->_symlink_dest and           # destination is specified.
+       -e $self->_symlink_dest and        # the destintation path exists.
+       not -d $self->_symlink_dest ) {    # but it's not a directory.
     Bio::Path::Find::Exception->throw(
-      msg => 'ERROR: symlink destination "' . $self->_symlink_dir
+      msg => 'ERROR: symlink destination "' . $self->_symlink_dest
              . q(" exists but isn't a directory)
     );
   }

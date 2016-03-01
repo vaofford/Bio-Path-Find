@@ -24,7 +24,7 @@ use Types::Standard qw(
 );
 
 use Bio::Path::Find::Types qw(
-  PathClassDir
+  PathClassEntity
 );
 
 with 'Bio::Path::Find::Role::HasProgressBar';
@@ -60,7 +60,7 @@ sub _check_for_symlink_value {
   elsif ( not is_Bool($new) ) {
     # make links in the directory specified by the user
     $self->_symlink_flag(1);
-    $self->_symlink_dir( dir $new );
+    $self->_symlink_dest( dir $new );
   }
   else {
     # don't make links. Shouldn't ever get here
@@ -70,19 +70,19 @@ sub _check_for_symlink_value {
 
 # private attributes to store the (optional) value of the "symlink" attribute.
 # When using all of this we can check for "_symlink_flag" being true or false,
-# and, if it's true, check "_symlink_dir" for a value
+# and, if it's true, check "_symlink_dest" for a value
 has '_symlink_flag' => ( is => 'rw', isa => Bool );
 
-has '_symlink_dir' => (
+has '_symlink_dest' => (
   is      => 'rw',
-  isa     => PathClassDir,
+  isa     => PathClassEntity,
   lazy    => 1,
-  builder => '_build_symlink_dir',
+  builder => '_build_symlink_dest',
 );
 
-# specify the default directory for creating symlinks here, so that it can
-# be overridden by a method in a Lane that applies this Role
-sub _build_symlink_dir {
+# specify the default destination for creating symlinks here, so that it can be
+# overridden by a method in a Lane that applies this Role
+sub _build_symlink_dest {
   my $self = shift;
   return dir( 'pf_' . $self->_renamed_id );
 }
@@ -96,7 +96,7 @@ sub _build_symlink_dir {
 sub _make_symlinks {
   my ( $self, $lanes ) = @_;
 
-  my $dest = $self->_symlink_dir;
+  my $dest = $self->_symlink_dest;
 
   try {
     $dest->mkpath unless -d $dest;
@@ -114,7 +114,6 @@ sub _make_symlinks {
 
   my $pb = $self->_create_pb('linking', scalar @$lanes);
 
-  my $i = 0;
   my @links = ();
   foreach my $lane ( @$lanes ) {
     # the call to "make_symlinks" returns a reference to an array containing a
