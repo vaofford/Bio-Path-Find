@@ -19,11 +19,14 @@ use Types::Standard qw(
   HashRef
   ArrayRef
   Str
+  Optional
+  Maybe
 );
 
 use Bio::Path::Find::Types qw(
   PathClassFile
   FileFromStr
+  RefType
 );
 
 use Bio::Path::Find::Exception;
@@ -165,8 +168,9 @@ sub _build_index {
 =head2 find_refs($ref_name)
 
 Given the name of a reference genome, this method tries to find the specified
-reference genome in the index. Returns a reference to an array containing a
-list of genome names that match the input string.
+reference genome in the index. Returns a reference to an array, sorted
+alphanumerically, containing a list of genome names that match the input
+string.
 
 If the supplied name matches exactly, the output array will contain one entry,
 the supplied reference name.
@@ -186,7 +190,7 @@ Finally, if there were no matches using a regular expression search, we fall
 back on a fuzzy text search. This allows for minor spelling mistakes and
 mis-matches between the supplied name and the reference genome names in the
 index. For example, a search for "baumanii" (missing an "n") wil return two
-Acinetobacter baumannii genomes.
+I<Acinetobacter baumannii> genomes.
 
 =cut
 
@@ -207,7 +211,7 @@ sub find_refs {
   else {
 
     # no exact match, so try a pattern match against the index
-    my @possible_matches = grep m/$search_string/i, keys %{ $self->index };
+    my @possible_matches = grep m/$search_string/i, sort keys %{ $self->index };
 
     if ( scalar @possible_matches >= 1 ) {
       $self->log->debug('one or more matches found using regex');
@@ -230,50 +234,89 @@ sub find_refs {
 
 #-------------------------------------------------------------------------------
 
-=head2 lookup_paths(@names | $names_arrayref)
+=head2 lookup_paths($names_arrayref, $?file_type)
 
 For a given list of reference genome names, return a list of paths to the
-sequence files for the specified genomes. Returns a reference to an array
-containing a list of paths, in the same order as the input array. If a given
-genome name doesn't exist in the references index, the corresponding slot in
-the output array will be undefined.
+specified genomes. Returns a reference to an array containing a list of paths,
+in the same order as the input array.
+
+If a filetype is specified, the returned array with contain paths to the files
+with the specified type. In some cases a particular version of a reference
+genome may not have a file of the specified type, in which case the path to the
+reference genome's directory is returned, along with a message saying that
+the requested file type can't be found.
+
+If no filetype is specified, the returned paths point to the directories
+containing the reference genomes.
+
+Filetype must be one of C<fa>, C<gff>, or C<embl>.
 
 =cut
 
 sub lookup_paths {
-  state $check = compile( Object, ArrayRef[Str] );
-  my $self = shift;
+  state $check = compile( Object, ArrayRef[Str], Optional[Maybe[RefType]] );
+  my ( $self, $names, $filetype ) = $check->(@_);
 
   # for each of the inputs to the method, which should be names of reference
   # genomes in the index, look up the path to the genome sequence file
-  my @paths = map { $self->index->{$_} } ref $_[0] ? @{ $_[0] } : @_;
-  #                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  # (if the first input to the method is a reference, treat it as an array ref
-  # and hand the array to "map". If the first argument is NOT an array ref,
-  # hand all of the method's arguments to "map".)
+  my @paths = map { file $self->index->{$_} } @$names;
 
-  return \@paths;
+  my @returned_paths;
+  foreach my $path ( @paths ) {
+
+    # if a file type was specified, try to find that type of file
+    if ( defined $filetype ) {
+
+      if ( $filetype eq 'fa' ) {
+        # the index specifies the path to the fasta file, so we've already got
+        # that in hand
+
+        # quick check to make sure the fasta file actually exists...
+        if ( -f $path ) {
+          push @returned_paths, $path;
+        }
+        else {
+          push @returned_paths, $path->dir . " (no $filetype file reference)";
+        }
+      }
+      else {
+        # do a search-and-replace on the filename to get a different file type
+        my $new = $path;
+        $new =~ s/\.(fa)$/.$filetype/;
+
+        # and make sure it exists before returning the filename
+        push @returned_paths, ( -f $new ) ? $new : $path->dir . " (no $filetype file for reference)";
+      }
+    }
+    else {
+      # no filetype specified, so just return the directory containing the
+      # genome that we've found
+      push @returned_paths, $path->dir;
+    }
+  }
+
+  return \@returned_paths;
 }
 
 #-------------------------------------------------------------------------------
 
-=head2 find_paths($search_string)
+=head2 find_paths($search_string, $?file_type)
 
 Given a search string, find paths for matching reference genomes. Internally
 this method calls L<find_ref> and hands the list of returned names straight
-to L<lookup_paths>.
+to L<lookup_paths>, along with C<$file_type>, if specified.
 
 =cut
 
 sub find_paths {
-  state $check = compile( Object, Str );
-  my ( $self, $search_string ) = $check->(@_);
+  state $check = compile( Object, Str, Optional[Str] );
+  my ( $self, $search_string, $filetype ) = $check->(@_);
 
   # look up reference genomes names using the supplied search string
   my $matches = $self->find_refs($search_string);
 
   # and return paths for those genomes
-  return $self->lookup_paths($matches);
+  return $self->lookup_paths($matches, $filetype);
 }
 
 #-------------------------------------------------------------------------------
