@@ -60,6 +60,7 @@ use Type::Library -base, -declare => qw(
   AnnotationType
   AssemblyType
   DataType
+  RefType
   Assembler
 );
 
@@ -78,6 +79,7 @@ class_type 'Bio::Path::Find::Lane';
 class_type 'Bio::Path::Find::Sorter';
 class_type 'Bio::Path::Find::Lane::Status';
 class_type 'Bio::Path::Find::Lane::StatusFile';
+class_type 'Path::Class::Entity';
 class_type 'Path::Class::File';
 class_type 'Path::Class::Dir';
 class_type 'URI::URL';
@@ -103,9 +105,10 @@ enum Assembler,      [qw( velvet spades iva pacbio )];
 enum DataType,       [qw( fastq bam pacbio corrected )];
 enum AssemblyType,   [qw( scaffold contigs all )];
 enum AnnotationType, [qw( gff faa ffn gbk fasta fastn genbank )];
+enum RefType,        [qw( fa gff embl )];
 
 declare FileType,
-  as AnnotationType|AssemblyType|DataType;
+  as AnnotationType|AssemblyType|DataType|RefType;
 
 #---------------------------------------
 
