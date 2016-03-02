@@ -5,11 +5,11 @@ use warnings;
 use Test::More; # tests => 10;
 use Test::Exception;
 use Test::Output;
-use Test::Expect;
 use Path::Class;
 use File::Temp;
 use Capture::Tiny qw( capture_stderr );
 use Cwd;
+use Expect;
 
 # set up the "linked" directory for the test suite
 use lib 't';
@@ -127,24 +127,40 @@ SKIP: {
     'warning when trying to link with invalid target';
 }
 
-$DB::single = 1;
-
 #-------------------------------------------------------------------------------
 
 # interactivity...
 
-$ENV{PF_CONFIG_FILE} = 't/data/27_pf_ref/interactive.conf';
+# use "expect" to talk to the command as a user would if they ran the script
+# interactively and it found a match to several references. Check that we get
+# the expected path when we pick a reference from the match list. On a personal
+# note, you have no idea what a right royal pain in the arse it was to get this
+# working.
 
-expect_run(
-  command => [ 'perl', "$orig_cwd/bin/pf", 'ref', '-i', 'abcd' ],
-  prompt  => [ 'Which reference? ' ],
-  quit    => '',
-);
+{
+  my $config        = file(qw( t data 27_pf_ref interactive.conf ));
+  my $command       = file( $orig_cwd, qw( bin pf ) );
+  my $expected_path = file( 'path', 'to' );
 
-# methods
-expect_handle->send(1);
+  local $ENV{PF_CONFIG_FILE} = "$config";
+  local $ENV{PERL_RL}        = 'Stub o=0';
 
-like expect_handle->before, qr/No exact match for "abcd"/, 'got expected output from interactive script';
+  my $expect = Expect->new;
+  $expect->log_stdout(0);
+
+  $expect->spawn( 'perl', "$command", 'ref', '-i', 'abcd' )
+    or die "ERROR: couldn't spawn 'pf ref' command: $!";
+
+  $expect->expect(10, 'Which reference? ' )
+    or warn "WARNING: didn't find prompt";
+
+  $expect->send("1\n");
+  ok $expect->expect(undef, '-re', "$expected_path"), 'got expected path';
+
+  $expect->soft_close;
+}
+
+#-------------------------------------------------------------------------------
 
 done_testing;
 
