@@ -2,8 +2,9 @@
 use warnings;
 use strict;
 
-use Test::More; # tests => 10;
+use Test::More tests => 47;
 use Test::Output;
+use Test::Warn;
 use Test::Exception;
 use Path::Class;
 
@@ -173,9 +174,11 @@ is scalar @$paths, 1, 'got one path for GFF';
 is $paths->[0], 't/data/26_reffind/abc.gff', 'got expected path';
 
 # no "embl" file
-$paths = $rf->lookup_paths(['abc'], 'embl');
-is scalar @$paths, 1, 'got one path for EMBL file';
-is $paths->[0], 't/data/26_reffind (no embl file for reference)', 'got path to directory';
+warning_like { $paths = $rf->lookup_paths(['abc'], 'embl') }
+  { carped => qr/no 'embl' file for reference/ },
+  'got warning about missing EMBL file';
+
+is scalar @$paths, 0, 'got no paths for EMBL file';
 
 #-------------------------------------------------------------------------------
 
@@ -197,5 +200,5 @@ ok exists $matches{abc_def_gh}, 'got other expected match';
 
 #-------------------------------------------------------------------------------
 
-done_testing;
+# done_testing;
 
