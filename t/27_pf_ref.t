@@ -37,9 +37,10 @@ package main;
 use strict;
 use warnings;
 
-use Test::More; # tests => 10;
+use Test::More tests => 33;
 use Test::Exception;
 use Test::Output;
+use Test::Warn;
 use Path::Class;
 use File::Temp;
 use Capture::Tiny qw( capture_stderr );
@@ -99,10 +100,10 @@ lives_ok { $rf = Bio::Path::Find::App::PathFind::Ref->new(%params) }
 
 # builders and _get_dir_name
 
-is $rf->_symlink_dest, 'pf_abc', 'got expected symlink destination name';
+is $rf->_symlink_dest, '.', 'default link dir is CWD';
 $rf->_clear_symlink_dest;
 
-$rf->_path( file( qw( t data 27_pf_ref genus species file.fa ) ) );
+$rf->_paths( [ file( qw( t data 27_pf_ref genus species file.fa ) ) ] );
 is $rf->_get_dir_name, 'genus_species', '_get_dir_name gives expected path for file';
 is $rf->_tar, 'genus_species.tar.gz', 'got expected tar filename';
 is $rf->_zip, 'genus_species.zip', 'got expected zip filename';
@@ -111,7 +112,7 @@ $rf->_clear_tar_filename;
 $rf->_clear_zip_filename;
 $rf->_clear_symlink_dest;
 
-$rf->_path( dir( qw( t data 27_pf_ref genus species ) ) );
+$rf->_paths( [ dir( qw( t data 27_pf_ref genus species ) ) ] );
 is $rf->_get_dir_name, 'genus_species', '_get_dir_name gives expected path for dir';
 is $rf->_tar, 'genus_species.tar.gz', 'got expected tar filename';
 is $rf->_zip, 'genus_species.zip', 'got expected zip filename';
@@ -125,10 +126,10 @@ is $rf->_tar, 'genus_species.tar', 'got expected uncompressed tar filename';
 
 my $expected_files = [ file( qw( t data 27_pf_ref genus species file.fa ) ) ];
 
-my $files = $rf->_collect_filenames( file( qw( t data 27_pf_ref genus species file.fa ) ) );
+my $files = $rf->_collect_filenames( [ file( qw( t data 27_pf_ref genus species file.fa ) ) ] );
 is_deeply $files, $expected_files, 'got expected files from _collect_filenames';
 
-$files = $rf->_collect_filenames( file( qw( t data 27_pf_ref genus species ) ) );
+$files = $rf->_collect_filenames( [ file( qw( t data 27_pf_ref genus species ) ) ] );
 is_deeply $files, $expected_files, 'got expected files from _collect_filenames';
 
 # _rename_file
@@ -150,14 +151,14 @@ SKIP: {
   $rf->_symlink_dest($link_dst);
 
   my $stderr;
-  lives_ok { $stderr = capture_stderr { $rf->_make_symlinks($link_src) } } 'no exception making symlink';
-  like $stderr, qr|^Creating link as '$link_dst'\n|s, 'got expected message when linking';
+  lives_ok { $stderr = capture_stderr { $rf->_make_symlinks( [ $link_src ] ) } } 'no exception making symlink';
+  like $stderr, qr|^Creating link from '$link_src' to '$link_dst'\n|s, 'got expected message when linking';
   ok -l $link_dst, 'link found';
   is readlink $link_dst, $link_src, 'link target is correct';
 
   $link_src = dir( qw( t data 27_pf_ref genus species ) );
 
-  stderr_like { $rf->_make_symlinks($link_src) }
+  stderr_like { $rf->_make_symlinks( [ $link_src ] ) }
     qr/WARNING: failed to create/,
     'warning when trying to link with invalid target';
 }
@@ -165,6 +166,15 @@ SKIP: {
 #-------------------------------------------------------------------------------
 
 # test the "run" method
+
+$params{id} = 'abc';
+
+$rf->clear_config;
+$rf = Bio::Path::Find::App::PathFind::Ref->new(%params);
+
+stdout_like { $rf->run } qr|^t.*?\.fa$|, 'got path to fasta from "run"';
+
+#---------------------------------------
 
 $params{id} = 'abcd';
 
@@ -175,21 +185,34 @@ stdout_like { $rf->run } qr|No exact match|, 'got message about multiple matches
 
 #---------------------------------------
 
+$params{all} = 1;
+
+$rf->clear_config;
+$rf = Bio::Path::Find::App::PathFind::Ref->new(%params);
+
+stdout_like { $rf->run } qr|^t.*?abcde\.fa.*abcdefgh\.fa$|s, 'got multiple fasta paths from "run" using "all"';
+
+#---------------------------------------
+
 $params{id} = 'abc';
 
 $rf->clear_config;
 $rf = Bio::Path::Find::App::PathFind::Ref->new(%params);
 
-stdout_like { $rf->run } qr|^t/data/27_pf_ref\n$|, 'got single path from "run"';
+my $expected_file = file( qw( t data 27_pf_ref abc.fa ) )->stringify;
+
+stdout_like { $rf->run } qr|^$expected_file\n$|, 'got single path from "run"';
 
 #---------------------------------------
 
-$params{filetype} = 'fa';
+$params{filetype} = 'gff';
 
 $rf->clear_config;
 $rf = Bio::Path::Find::App::PathFind::Ref->new(%params);
 
-stdout_like { $rf->run } qr|^t/data/27_pf_ref/abc.fa\n$|, 'got file path from "run"';
+warning_like { $rf->run }
+  { carped => qr/no 'gff' file for reference/ },
+  'got warning about missing EMBL file';
 
 #---------------------------------------
 
@@ -213,7 +236,7 @@ stdout_like { $rf->run } qr|No matching reference|, 'got no match from "run"';
 {
   my $config        = file(qw( t data 27_pf_ref interactive.conf ));
   my $command       = file( $orig_cwd, qw( bin pf ) );
-  my $expected_path = file(qw( t data 27_pf_ref ));
+  my $expected_path = file(qw( t data 27_pf_ref abcde.fa ));
 
   local $ENV{PF_CONFIG_FILE} = "$config";
   local $ENV{PERL_RL}        = 'Stub o=0';
@@ -231,6 +254,30 @@ stdout_like { $rf->run } qr|No matching reference|, 'got no match from "run"';
   ok $expect->expect(undef, '-re', "$expected_path"), 'got expected path';
 
   $expect->soft_close;
+
+  #---------------------------------------
+
+  # make sure the "all" option behaves as expected
+  $expected_path = file( qw( t data 27_pf_ref abcde.fa ) ) . '.*?' .
+                   file( qw( t data 27_pf_ref abcdefgh.fa ) );
+
+  $expect = Expect->new;
+  $expect->log_stdout(0);
+
+  $expect->spawn( 'perl', "$command", 'ref', '-i', 'abcd' )
+    or die "ERROR: couldn't spawn 'pf ref' command: $!";
+
+  $expect->expect(10, 'Which reference? ' )
+    or warn "WARNING: didn't find prompt";
+
+  $expect->send("a\n");
+
+  ok $expect->expect(undef, 'abcde.fa'),    'got first expected path when choosing "all"';
+  ok $expect->expect(undef, 'abcdefgh.fa'), 'got second expected path when choosing "all"';
+
+  $expect->soft_close;
+
+  #---------------------------------------
 
   # check behaviour when we give an invalid response
   $expect = Expect->new;
@@ -302,7 +349,7 @@ stderr_like { $tf->run }
 
 #-------------------------------------------------------------------------------
 
-done_testing;
+# done_testing;
 
 chdir $orig_cwd;
 
