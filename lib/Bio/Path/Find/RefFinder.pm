@@ -285,7 +285,7 @@ sub lookup_paths {
         $new =~ s/\.(fa)$/.$filetype/;
 
         # and make sure it exists before returning the filename
-        push @returned_paths, ( -f $new ) ? $new : $path->dir . " (no $filetype file for reference)";
+        push @returned_paths, ( -f $new ) ? file( $new ) : $path->dir . " (no $filetype file for reference)";
       }
     }
     else {
