@@ -51,9 +51,10 @@ pf ref - Find reference genomes
 
 =head1 DESCRIPTION
 
-This command finds reference genomes. Given the name of a reference genome, the
-command looks in the index of available references and returns the path to a
-directory containing various files for the specified genome.
+This command finds reference genomes. Given either an exact or an approximate
+name of a reference genome, the command looks in the index of available
+references and returns the path to a directory containing various files for the
+specified genome.
 
 If an exact match to the genome name is not found, the command returns a
 list of any genomes that are an approximate match to the specified name. You
@@ -117,6 +118,14 @@ Don't compress tar archives.
 Create a zip archive containing all files for the specified genome. Save to
 specified filename, if given.
 
+=item --all, -A
+
+If your search returns multiple matches, you will be presented with a list of
+all matching reference genomes, from which you can choose to show paths for one
+or all matches. If you want to return all matching references by default,
+without being asked interactively, adding C<--all> will bypass the interactive
+selection and select all references automatically.
+
 =back
 
 =head1 SCENARIOS
@@ -154,6 +163,7 @@ search for references matching an approximate name:
   No exact match for "yersinia". Did you mean:
    [1] Yersinia_enterocolitica_subsp_enterocolitica_8081_v1
    [2] Yersinia_pestis_CO92_v1
+   [a] all references
 
   Which reference?
 
@@ -163,6 +173,7 @@ The "fuzzy" matching also handles minor spelling mistakes:
   No exact match for "yersina". Did you mean:
    [1] Yersinia_enterocolitica_subsp_enterocolitica_8081_v1
    [2] Yersinia_pestis_CO92_v1
+   [a] all references
 
   Which reference?
 
@@ -173,8 +184,28 @@ for the reference:
   No exact match for "yersinia". Did you mean:
    [1] Yersinia_enterocolitica_subsp_enterocolitica_8081_v1
    [2] Yersinia_pestis_CO92_v1
+   [a] all references
 
   Which reference? 2
+  /scratch/pathogen/refs/Yersinia/pestis_CO92
+
+To get the directory paths for all matching references, enter C<a>:
+
+  % pf ref -i yersinia
+  No exact match for "yersinia". Did you mean:
+   [1] Yersinia_enterocolitica_subsp_enterocolitica_8081_v1
+   [2] Yersinia_pestis_CO92_v1
+   [a] all references
+
+  Which reference? a
+  /scratch/pathogen/refs/Yersinia/enterocolitica_subsp_enterocolitica_8081
+  /scratch/pathogen/refs/Yersinia/pestis_CO92
+
+You can bypass the interactive selection and automatically return all
+matching references by adding the C<--all> option:
+
+  % pf ref -i yersinia -A
+  /scratch/pathogen/refs/Yersinia/enterocolitica_subsp_enterocolitica_8081
   /scratch/pathogen/refs/Yersinia/pestis_CO92
 
 =head2 Archiving data
@@ -227,11 +258,23 @@ option '+type' => (
   default => 'species',
 );
 
+#---------------------------------------
+
 option 'filetype' => (
   documentation => 'type of files to find',
   is            => 'ro',
   isa           => RefType,
   cmd_aliases   => 'f',
+  default       => 'fa',
+);
+
+#---------------------------------------
+
+option 'all' => (
+  documentation => q(don't ask me to choose a reference, return all matches),
+  is            => 'ro',
+  isa           => Bool,
+  cmd_aliases   => 'A',
 );
 
 #-------------------------------------------------------------------------------
@@ -253,13 +296,13 @@ sub _build_rf {
 
 #---------------------------------------
 
-# a slot to store the Path::Class object that represents the path that's
+# a slot to store the Path::Class objects that represent the paths that are
 # currently in use. Set by the "run" method and used in the builders that
 # set up the output filenames
 
-has '_path' => (
+has '_paths' => (
   is  => 'rw',
-  isa => Str|PathClassEntity,
+  isa => ArrayRef[PathClassEntity],
 );
 
 #-------------------------------------------------------------------------------
@@ -272,14 +315,21 @@ sub run {
   # given a list of search names, find the reference genome names
   my $refs = $self->_rf->find_refs($self->_ids->[0]);
 
-  my $paths;
-  if ( scalar @$refs == 1 ) {
-    # only one matching reference
-    $paths = $self->_rf->lookup_paths($refs, $self->filetype);
+  # if we don't find any matches, we're done here
+  if ( not @$refs ) {
+    say 'No matching reference genomes found. Try a less specific species name.';
+    return;
   }
-  elsif ( scalar @$refs > 1 ) {
-    # found multiple matches. If we're running interactively, ask the user
-    # which one they meant. Otherwise, just print them
+
+  my $paths;
+  # if there's only one matching reference, or the user specified "--all", just
+  # keep all paths
+  if ( scalar @$refs == 1 or $self->all ) {
+    $paths = $self->_rf->lookup_paths( $refs, $self->filetype );
+  }
+  else {
+    # if we're running interactively, ask the user which reference they want,
+    # otherwise, just print them
     if ( is_interactive ) {
       $paths = $self->_get_path_interactively($refs);
       unless ( defined $paths ) {
@@ -294,25 +344,43 @@ sub run {
       return;
     }
   }
-  else {
-    say 'No matching reference genomes found. Try a less specific species name.';
-    return;
+
+  # by this point, we have a list of directories for matching reference genomes
+  $self->_paths($paths);
+
+  #-------------------------------------------------------------------------------
+
+  # some quick checks that will allow us to fail fast if things aren't going to
+  # let the command run to successfully
+
+  # archiving can be slow if there are lots of files, so do a quick check to see
+  # that we're not later going to complain about a pre-existing archive file
+
+  if ( not $self->force ) {
+    if ( $self->_tar_flag and $self->_tar and -e $self->_tar ) {
+      Bio::Path::Find::Exception->throw(
+        msg => 'ERROR: output tar file "' . $self->_tar . q(" already exists)
+      );
+    }
+    elsif ( $self->_zip_flag and $self->_zip and -e $self->_zip ) {
+      Bio::Path::Find::Exception->throw(
+        msg => 'ERROR: output zip file "' . $self->_zip . q(" already exists)
+      );
+    }
   }
 
-  # by this point, we have only a single matching reference genome, and we
-  # know the path to its directory
-  $self->_path($paths->[0]);
+  #-------------------------------------------------------------------------------
 
   # do something with the found paths
   if ( $self->_symlink_flag or
        $self->_tar_flag or
        $self->_zip_flag ) {
-    $self->_make_tar($self->_path)      if $self->_tar_flag;
-    $self->_make_zip($self->_path)      if $self->_zip_flag;
-    $self->_make_symlinks($self->_path) if $self->_symlink_flag;
+    $self->_make_tar($self->_paths)      if $self->_tar_flag;
+    $self->_make_zip($self->_paths)      if $self->_zip_flag;
+    $self->_make_symlinks($self->_paths) if $self->_symlink_flag;
   }
   else {
-    say $self->_path;
+    say $_ for @{ $self->_paths };
   }
 }
 
@@ -323,33 +391,57 @@ sub run {
 # overwrite the builders that set the names of the tar and zip files for the
 # Archivist Role
 
+# generate the filename for a tar archive
+
 sub _build_tar_filename {
   my $self = shift;
 
-  my $tar_file_name = $self->_get_dir_name . '.tar';
-  $tar_file_name .= '.gz' unless $self->no_tar_compression;
+  # if we have a single reference genome, make the filename reflective of
+  # the name of that genome
+  if ( defined $self->_paths and scalar @{ $self->_paths } == 1 ) {
+    my $tar_file_name = $self->_get_dir_name . '.tar';
+    $tar_file_name .= '.gz' unless $self->no_tar_compression;
 
-  return file($tar_file_name);
+    return file($tar_file_name);
+  }
+  # if there are multiple genomes, use the fuzzy name that we were given
+  else {
+    return file( 'reffind_' . $self->_renamed_id . ( $self->no_tar_compression ? '.tar' : '.tar.gz' ) );
+  }
 }
 
 #---------------------------------------
+
+# generate the filename for a zip archive
 
 sub _build_zip_filename {
   my $self = shift;
 
-  return file($self->_get_dir_name . '.zip');
+  if ( defined $self->_paths and scalar @{ $self->_paths } == 1 ) {
+    return file($self->_get_dir_name . '.zip');
+  }
+  else {
+    return file( 'reffind_' . $self->_renamed_id . '.zip' );
+  }
 }
 
 #---------------------------------------
 
+# generate the destination for symlinks
+
 sub _build_symlink_dest {
   my $self = shift;
 
-  my $dest = dir( 'pf_' . $self->_renamed_id );
+  # make links in the cwd by default
+  my $dest = dir('.');
 
-  if ( defined $self->_path ) {
-    if ( $self->_path->isa('Path::Class::File') ) {
-      $dest = file $self->_path->basename;
+  # if there's only one reference genome, get the path for its directory and
+  # use that as the name of the symlink target, otherwise use the default
+  # location, which is the current working directory
+  if ( defined $self->_paths and scalar @{ $self->_paths } == 1 ) {
+    my $path = $self->_paths->[0];
+    if ( $path->isa('Path::Class::File') ) {
+      $dest = file $path->basename;
     }
     else {
       $dest = dir $self->_get_dir_name;
@@ -369,9 +461,16 @@ sub _build_symlink_dest {
 # to an output like
 #
 #     Yersinia_pestis_C092
+#
+# If there are multiple references in the paths list, bail immediately,
+# because it doesn't make sense to name the archive after a specific
+# reference when it may contain multiple references.
 
 sub _get_dir_name {
   my $self = shift;
+
+  # this only makes sense if there's only a single reference
+  return unless scalar @{ $self->_paths } == 1;
 
   # get the location of the directory containing the references
   my $refs_root = dir( $self->config->{refs_root} );
@@ -380,9 +479,9 @@ sub _get_dir_name {
   my $length_root_path = $refs_root->dir_list;
 
   # get the components of the output path, but starting from the root directory
-  my @dest_path = $self->_path->isa('Path::Class::File')
-                ? $self->_path->parent->dir_list($length_root_path)
-                : $self->_path->dir_list($length_root_path);
+  my @dest_path = $self->_paths->[0]->isa('Path::Class::File')
+                ? $self->_paths->[0]->parent->dir_list($length_root_path)
+                : $self->_paths->[0]->dir_list($length_root_path);
 
   # join the remaining directories
   return join '_', @dest_path;
@@ -394,11 +493,15 @@ sub _get_dir_name {
 # Archivist Role for gathering filenames and renaming them in the archives.
 
 sub _collect_filenames {
-  my ( $self, $path ) = @_;
+  my ( $self, $paths ) = @_;
+
+  my @files;
 
   # find the files under the specified path. If the path is a file path, we
   # should still end up with that single file in the array
-  my @files = File::Find::Rule->file->in($path);
+  foreach my $path ( @$paths ) {
+    push @files, File::Find::Rule->file->in($path);
+  }
 
   # convert the strings into Path::Class::File objects
   my @file_objects = map { file $_ } @files;
@@ -430,18 +533,93 @@ sub _rename_file {
 
 #-------------------------------------------------------------------------------
 
-# make symlinks for the specified path. That can be a directory or a file
+# make symlinks for the specified path
+#
+# This method should work with a directory or a file, though the filetype is
+# set by default to "fa" for this command, so the method is pretty much hard
+# wired to only link files.
 
 sub _make_symlinks {
-  my ( $self, $path ) = @_;
+  my ( $self, $paths ) = @_;
 
-  my $dest = $self->_symlink_dest;
+  return unless defined $paths;
 
-  say STDERR "Creating link as '$dest'";
+  if ( scalar @$paths == 1 ) {
+    # only one path to link
+
+    my $src = $paths->[0];
+
+    my $dst;
+    if ( defined $self->_symlink_dest ) {
+      $dst = $self->_symlink_dest;
+    }
+    else {
+      $dst = $src->isa('Path::Class::File')
+           ? file $paths->[0]->basename
+           : dir $self->_get_dir_name;
+    }
+
+    $self->_make_symlink($src, $dst);
+  }
+  else {
+    # multiple paths to link
+
+    # get the location of the directory containing the references
+    my $refs_root = dir( $self->config->{refs_root} );
+
+    # count the number of directories in the path to that dir
+    my $length_root_path = $refs_root->dir_list;
+
+    # make a directory to hold the multiple links
+    my $dest_dir = $self->_symlink_dest;
+
+    try {
+      $dest_dir->mkpath unless -d $dest_dir;
+    } catch {
+      Bio::Path::Find::Exception->throw(
+        msg => "ERROR: couldn't make link directory ($dest_dir): $_"
+      );
+    };
+
+    # should be redundant, but...
+    Bio::Path::Find::Exception->throw( msg => "ERROR: not a directory ($dest_dir)" )
+      unless -d $dest_dir;
+
+    foreach my $src ( @$paths ) {
+
+      # get the components of the output path, but starting from the root directory
+      my $dst;
+      if ( $src->isa('Path::Class::File') ) {
+        # for files we just want the filename
+        $dst = file( $dest_dir, $src->basename );
+      }
+      else {
+        # for directories we want the link to be "genus_species". Chop off the
+        # path to the root of the references directories and concatenate the
+        # remainder with underscores
+        my @dest_path = $src->dir_list($length_root_path);
+        $dst = dir( $dest_dir, join '_', @dest_path );
+      }
+
+      # create the link
+      $self->_make_symlink($src, $dst);
+    }
+  }
+
+}
+
+#-------------------------------------------------------------------------------
+
+# make a single symlink from $src to $dst
+
+sub _make_symlink {
+  my ( $self, $src, $dst ) = @_;
+
+  say STDERR "Creating link from '$src' to '$dst'";
 
   my $success = 0;
   try {
-    $success = symlink( $path, $dest );
+    $success = symlink( $src, $dst );
   }
   catch {
     # this should only happen if perl can't create symlinks on the current
@@ -449,7 +627,7 @@ sub _make_symlinks {
     Bio::Path::Find::Exception->throw( msg => "ERROR: cannot create symlinks: $_" );
   };
 
-  carp qq(WARNING: failed to create symlink for "$path" at "$dest")
+  carp qq(WARNING: failed to create symlink for "$src" at "$dst")
     unless $success;
 }
 
@@ -467,23 +645,32 @@ sub _get_path_interactively {
   for ( my $i = 1; $i <= scalar @$refs; $i++ ) {
     printf "%s[%d] %s\n", ( $i < 10 ? ' ' : '' ), $i, $refs->[$i - 1];
   }
+  say ' [a] all references';
 
   # ask the user which one they want
   my $term = Term::ReadLine->new('ref');
   my $chosen = $term->readline('Which reference? ');
 
-  # return immediately if there's no value
-  return unless $chosen;
+  # return immediately if there's no valid value
+  return unless $chosen =~ m/^((a)|(\d+))$/;
+                             # $2   $3
+  my $chosen_refs;
 
-  # make sure we got a valid index number
-  unless ( $chosen =~ m/^\d+$/
-           and $chosen >= 1 and $chosen <=( scalar @$refs + 1 )
-           and defined $refs->[$chosen - 1] ) {
-    return;
+  if ( $2 ) {
+    # input was "a"
+    $chosen_refs = $refs;
+  }
+  else {
+    # input was a number. Make sure it's valid
+    if ( $3 >= 1 and
+         $3 <= ( scalar @$refs + 1 ) and
+         defined $refs->[$3 - 1] ) {
+      $chosen_refs = [ $refs->[$3 - 1] ];
+    }
   }
 
   # convert the genome name to a path and print them
-  my $paths = $self->_rf->lookup_paths( [ $refs->[$chosen -1] ], $self->filetype );
+  my $paths = $self->_rf->lookup_paths( $chosen_refs, $self->filetype );
 
   return $paths;
 }
