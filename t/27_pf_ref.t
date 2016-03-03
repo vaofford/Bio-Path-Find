@@ -1,4 +1,39 @@
 
+#-------------------------------------------------------------------------------
+#- wrapping class --------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+# the idea of this class is to wrap up the original command class and replace
+# the various _make_* methods, which are tested in separate test scripts, with
+# dummy "around" modifiers. That will allow us to test the run method without
+# actually calling the concrete methods.
+
+package Bio::Path::Find::App::PathFind::TestFind;
+
+use Moose;
+use namespace::autoclean;
+use MooseX::StrictConstructor;
+
+extends 'Bio::Path::Find::App::PathFind::Ref';
+
+around '_make_symlinks' => sub {
+  print STDERR 'called _make_symlinks';
+};
+
+around '_make_tar' => sub {
+  print STDERR 'called _make_tar';
+};
+
+around '_make_zip' => sub {
+  print STDERR 'called _make_zip';
+};
+
+#-------------------------------------------------------------------------------
+#- main test script ------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+package main;
+
 use strict;
 use warnings;
 
@@ -129,6 +164,44 @@ SKIP: {
 
 #-------------------------------------------------------------------------------
 
+# test the "run" method
+
+$params{id} = 'abcd';
+
+$rf->clear_config;
+$rf = Bio::Path::Find::App::PathFind::Ref->new(%params);
+
+stdout_like { $rf->run } qr|No exact match|, 'got message about multiple matches from "run"';
+
+#---------------------------------------
+
+$params{id} = 'abc';
+
+$rf->clear_config;
+$rf = Bio::Path::Find::App::PathFind::Ref->new(%params);
+
+stdout_like { $rf->run } qr|^t/data/27_pf_ref\n$|, 'got single path from "run"';
+
+#---------------------------------------
+
+$params{filetype} = 'fa';
+
+$rf->clear_config;
+$rf = Bio::Path::Find::App::PathFind::Ref->new(%params);
+
+stdout_like { $rf->run } qr|^t/data/27_pf_ref/abc.fa\n$|, 'got file path from "run"';
+
+#---------------------------------------
+
+$params{id} = 'nomatch';
+
+$rf->clear_config;
+$rf = Bio::Path::Find::App::PathFind::Ref->new(%params);
+
+stdout_like { $rf->run } qr|No matching reference|, 'got no match from "run"';
+
+#-------------------------------------------------------------------------------
+
 # interactivity...
 
 # use "expect" to talk to the command as a user would if they ran the script
@@ -140,7 +213,7 @@ SKIP: {
 {
   my $config        = file(qw( t data 27_pf_ref interactive.conf ));
   my $command       = file( $orig_cwd, qw( bin pf ) );
-  my $expected_path = file( 'path', 'to' );
+  my $expected_path = file(qw( t data 27_pf_ref ));
 
   local $ENV{PF_CONFIG_FILE} = "$config";
   local $ENV{PERL_RL}        = 'Stub o=0';
@@ -158,7 +231,74 @@ SKIP: {
   ok $expect->expect(undef, '-re', "$expected_path"), 'got expected path';
 
   $expect->soft_close;
+
+  # check behaviour when we give an invalid response
+  $expect = Expect->new;
+  $expect->log_stdout(0);
+
+  $expect->spawn( 'perl', "$command", 'ref', '-i', 'abcd' )
+    or die "ERROR: couldn't spawn 'pf ref' command: $!";
+
+  $expect->expect(10, 'Which reference? ' )
+    or warn "WARNING: didn't find prompt";
+
+  $expect->send("X\n");
+  ok $expect->expect(undef, '-re', 'No reference chosen'),
+    'got expected "no reference chosen" message';
+
+  $expect->soft_close;
 }
+
+#-------------------------------------------------------------------------------
+
+# check the dispatching to the _make_* methods
+#
+# For these methods we can't just set "archive" to a boolean, which would mimic
+# the situation when a users runs "pf ref -i whatever -a". That sitation can
+# only be tested (as the code is currently written) by running the script using
+# something like Test::Script::Run.
+#
+# Instead, we just make sure we set a non-boolean value for the archive, zip,
+# and symlink flags, and that will still trigger the call to _make_tar, etc.,
+# which is what we're really trying to check here.
+
+$rf->clear_config;
+
+$params{id}       = 'abc';
+$params{filetype} = 'fa';
+$params{archive}  = 'my_tar.tar';
+
+my $tf = Bio::Path::Find::App::PathFind::TestFind->new(%params);
+
+stderr_like { $tf->run }
+  qr/called _make_tar/,
+  'correctly called "_make_tar"';
+
+#---------------------------------------
+
+$rf->clear_config;
+
+$params{archive} = 0;
+$params{zip}     = 'my_zip.zip';
+
+$tf = Bio::Path::Find::App::PathFind::TestFind->new(%params);
+
+stderr_like { $tf->run }
+  qr/called _make_zip/,
+  'correctly called "_make_zip"';
+
+#---------------------------------------
+
+$rf->clear_config;
+
+$params{zip}     = 0;
+$params{symlink} = 'my_symlink_target';
+
+$tf = Bio::Path::Find::App::PathFind::TestFind->new(%params);
+
+stderr_like { $tf->run }
+  qr/called _make_symlink/,
+  'correctly called "_make_symlink"';
 
 #-------------------------------------------------------------------------------
 
