@@ -13,7 +13,6 @@ path-help@sanger.ac.uk
 
 =cut
 
-use Cwd;
 use Path::Class;
 use Try::Tiny;
 
