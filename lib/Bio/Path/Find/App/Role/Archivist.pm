@@ -65,11 +65,12 @@ sub _check_for_archive_value {
 
 has '_tar_flag' => ( is => 'rw', isa => Bool );
 
-has '_tar'      => (
-  is => 'rw',
-  isa => PathClassFile,
-  lazy => 1,
+has '_tar' => (
+  is      => 'rw',
+  isa     => PathClassFile,
+  lazy    => 1,
   builder => '_build_tar_filename',
+  clearer => '_clear_tar_filename',    # for use during testing
 );
 
 # specify the default tar file name here, so that it can be overridden by
@@ -113,6 +114,7 @@ has '_zip' => (
   isa     => PathClassFile,
   lazy    => 1,
   builder => '_build_zip_filename',
+  clearer => '_clear_zip_filename',    # for use during testing
 );
 
 # specify the default zip file name here, so that it can be overridden by

@@ -78,6 +78,7 @@ has '_symlink_dest' => (
   isa     => PathClassEntity,
   lazy    => 1,
   builder => '_build_symlink_dest',
+  clearer => '_clear_symlink_dest',    # for use during testing
 );
 
 # specify the default destination for creating symlinks here, so that it can be
