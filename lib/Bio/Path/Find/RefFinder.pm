@@ -254,53 +254,37 @@ Filetype must be one of C<fa>, C<gff>, or C<embl>.
 =cut
 
 sub lookup_paths {
-  state $check = compile( Object, ArrayRef[Str], Optional[Maybe[RefType]] );
+  state $check = compile( Object, ArrayRef[Str], Optional[RefType] );
   my ( $self, $names, $filetype ) = $check->(@_);
 
   # for each of the inputs to the method, which should be names of reference
-  # genomes in the index, look up the path to the genome sequence file
-  my @paths = map { file $self->index->{$_} } @$names;
+  # genomes in the index, look up the path to the FA file for the genome
+  my @fa_paths = map { file( $self->index->{$_} ) } @$names;
 
-  my @returned_paths;
-  foreach my $path ( @paths ) {
-
-    # if a file type was specified, try to find that type of file
-    if ( defined $filetype ) {
-
-      if ( $filetype eq 'fa' ) {
-        # the index specifies the path to the fasta file, so we've already got
-        # that in hand
-
-        # quick check to make sure the fasta file actually exists...
-        if ( -f $path ) {
-          push @returned_paths, $path;
-        }
-        else {
-          push @returned_paths, $path->dir . " (no $filetype file reference)";
-        }
-      }
-      else {
-        # do a search-and-replace on the filename to get a different file type
-        my $new = $path;
-        $new =~ s/\.(fa)$/.$filetype/;
-
-        # and make sure it exists before returning the filename
-        if ( -f $new ) {
-          push @returned_paths, file( $new );
-        }
-        else {
-          carp "WARNING: no '$filetype' file for reference; can't find '$new'";
-        }
-      }
+  my @files;
+  foreach my $fa ( @fa_paths ) {
+    my $file;
+    if ( $filetype eq 'fa' ) {
+      $file = $fa;
     }
-    else {
-      # no filetype specified, so just return the directory containing the
-      # genome that we've found
-      push @returned_paths, $path->dir;
+    elsif ( $filetype eq 'gff' ) {
+      ( my $stub = $fa->basename ) =~ s/\.fa$//;
+      $file = file( $fa->parent, 'annotation', "$stub.gff" );
     }
+    elsif ( $filetype eq 'embl' ) {
+      ( my $embl = $fa ) =~ s/\.fa$/.embl/;
+      $file = file $embl;
+    }
+    # NOTE if we want to return directories from this method, this
+    # is the place to do it... Something like:
+    #   else {
+    #     $file = $fa->parent;
+    #   }
+
+    push @files, $file if -f $file;
   }
 
-  return \@returned_paths;
+  return \@files;
 }
 
 #-------------------------------------------------------------------------------

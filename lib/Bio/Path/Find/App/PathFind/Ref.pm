@@ -321,6 +321,8 @@ sub run {
     return;
   }
 
+  $DB::single = 1;
+
   my $paths;
   # if there's only one matching reference, or the user specified "--all", just
   # keep all paths
@@ -348,7 +350,7 @@ sub run {
   # by this point, we have a list of directories for matching reference genomes
   $self->_paths($paths);
 
-  #-------------------------------------------------------------------------------
+  #---------------------------------------
 
   # some quick checks that will allow us to fail fast if things aren't going to
   # let the command run to successfully
@@ -369,7 +371,7 @@ sub run {
     }
   }
 
-  #-------------------------------------------------------------------------------
+  #---------------------------------------
 
   # do something with the found paths
   if ( $self->_symlink_flag or
@@ -399,7 +401,8 @@ sub _build_tar_filename {
   # if we have a single reference genome, make the filename reflective of
   # the name of that genome
   if ( defined $self->_paths and scalar @{ $self->_paths } == 1 ) {
-    my $tar_file_name = $self->_get_dir_name . '.tar';
+    my $dir_name = $self->_get_dir_name | 'reffind';
+    my $tar_file_name =  "$dir_name.tar";
     $tar_file_name .= '.gz' unless $self->no_tar_compression;
 
     return file($tar_file_name);
@@ -418,7 +421,8 @@ sub _build_zip_filename {
   my $self = shift;
 
   if ( defined $self->_paths and scalar @{ $self->_paths } == 1 ) {
-    return file($self->_get_dir_name . '.zip');
+    my $dir_name = $self->_get_dir_name | 'reffind';
+    return file($dir_name . '.zip');
   }
   else {
     return file( 'reffind_' . $self->_renamed_id . '.zip' );
@@ -427,7 +431,7 @@ sub _build_zip_filename {
 
 #---------------------------------------
 
-# generate the destination for symlinks
+# generate the destination path for symlinks
 
 sub _build_symlink_dest {
   my $self = shift;
@@ -453,18 +457,17 @@ sub _build_symlink_dest {
 
 #-------------------------------------------------------------------------------
 
-# build a stub for a destination filename from the path to the reference
-# genome directory. Convert a filename like
+# based on the path to a single reference genome directory, build a stub for a
+# destination filename. Convert a path like
 #
 #     /lustre/scratch108/pathogen/pathpipe/refs/Yersinia/pestis_CO92
 #
-# to an output like
+# to an string like
 #
 #     Yersinia_pestis_C092
 #
 # If there are multiple references in the paths list, bail immediately,
-# because it doesn't make sense to name the archive after a specific
-# reference when it may contain multiple references.
+# because we can't sensibly use a single genome name for multiple genomes.
 
 sub _get_dir_name {
   my $self = shift;
@@ -492,24 +495,19 @@ sub _get_dir_name {
 # overwrite two methods that are used by "_make_tar" and "_make_zip" from the
 # Archivist Role for gathering filenames and renaming them in the archives.
 
+# we don't actually need to do anything in _collect_filenames. We've already
+# found the paths that we're interested in. Just replace the original.
+
 sub _collect_filenames {
   my ( $self, $paths ) = @_;
 
-  my @files;
-
-  # find the files under the specified path. If the path is a file path, we
-  # should still end up with that single file in the array
-  foreach my $path ( @$paths ) {
-    push @files, File::Find::Rule->file->in($path);
-  }
-
-  # convert the strings into Path::Class::File objects
-  my @file_objects = map { file $_ } @files;
-
-  return \@file_objects;
+  return $paths;
 }
 
 #---------------------------------------
+
+# used by "_make_tar" and "_make_zip" from the Archivist Role for renaming
+# files in the archives.
 
 sub _rename_file {
   my ( $self, $old_filename ) = @_;
