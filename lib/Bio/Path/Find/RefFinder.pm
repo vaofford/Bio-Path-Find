@@ -254,7 +254,7 @@ Filetype must be one of C<fa>, C<gff>, or C<embl>.
 =cut
 
 sub lookup_paths {
-  state $check = compile( Object, ArrayRef[Str], Optional[RefType] );
+  state $check = compile( Object, ArrayRef[Str], Optional[Maybe[RefType]] );
   my ( $self, $names, $filetype ) = $check->(@_);
 
   # for each of the inputs to the method, which should be names of reference
@@ -262,26 +262,35 @@ sub lookup_paths {
   my @fa_paths = map { file( $self->index->{$_} ) } @$names;
 
   my @files;
-  foreach my $fa ( @fa_paths ) {
-    my $file;
-    if ( $filetype eq 'fa' ) {
-      $file = $fa;
-    }
-    elsif ( $filetype eq 'gff' ) {
-      ( my $stub = $fa->basename ) =~ s/\.fa$//;
-      $file = file( $fa->parent, 'annotation', "$stub.gff" );
-    }
-    elsif ( $filetype eq 'embl' ) {
-      ( my $embl = $fa ) =~ s/\.fa$/.embl/;
-      $file = file $embl;
-    }
-    # NOTE if we want to return directories from this method, this
-    # is the place to do it... Something like:
-    #   else {
-    #     $file = $fa->parent;
-    #   }
+  if ( defined $filetype ) {
+    # we have a filetype; get the path to the "fa" file for the reference
+    # and return the path to the specified file type
+    foreach my $fa ( @fa_paths ) {
+      my $file;
+      if ( $filetype eq 'fa' ) {
+        $file = $fa;
+      }
+      elsif ( $filetype eq 'gff' ) {
+        ( my $stub = $fa->basename ) =~ s/\.fa$//;
+        $file = file( $fa->parent, 'annotation', "$stub.gff" );
+      }
+      elsif ( $filetype eq 'embl' ) {
+        ( my $embl = $fa ) =~ s/\.fa$/.embl/;
+        $file = file $embl;
+      }
+      # NOTE if we want to return directories from this method, this
+      # is the place to do it... Something like:
+      #   else {
+      #     $file = $fa->parent;
+      #   }
 
-    push @files, $file if -f $file;
+      push @files, $file if ( defined $file and -f $file );
+    }
+  }
+  else {
+    # if there's no filetype specified, get the path to the "fa" file and
+    # return the parent directory for that file
+    push @files, map { file( $self->index->{$_} )->parent } @$names;
   }
 
   return \@files;
@@ -298,7 +307,7 @@ to L<lookup_paths>, along with C<$file_type>, if specified.
 =cut
 
 sub find_paths {
-  state $check = compile( Object, Str, Optional[Str] );
+  state $check = compile( Object, Str, Optional[RefType] );
   my ( $self, $search_string, $filetype ) = $check->(@_);
 
   # look up reference genomes names using the supplied search string

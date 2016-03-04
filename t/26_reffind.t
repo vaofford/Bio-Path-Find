@@ -2,7 +2,7 @@
 use warnings;
 use strict;
 
-use Test::More tests => 47;
+use Test::More tests => 51;
 use Test::Output;
 use Test::Warn;
 use Test::Exception;
@@ -171,14 +171,28 @@ is $paths->[0], 't/data/26_reffind/abc.fa', 'got expected path';
 
 $paths = $rf->lookup_paths(['abc'], 'gff');
 is scalar @$paths, 1, 'got one path for GFF';
-is $paths->[0], 't/data/26_reffind/abc.gff', 'got expected path';
+is $paths->[0], 't/data/26_reffind/annotation/abc.gff', 'got expected path for GFF';
+
+$paths = $rf->lookup_paths(['abc'], 'embl');
+is scalar @$paths, 1, 'got one path for EMBL file';
+is $paths->[0], 't/data/26_reffind/abc.embl', 'got expected path for EMBL';
 
 # no "embl" file
-warning_like { $paths = $rf->lookup_paths(['abc'], 'embl') }
-  { carped => qr/no 'embl' file for reference/ },
-  'got warning about missing EMBL file';
-
+$paths = $rf->lookup_paths(['abcde'], 'embl');
 is scalar @$paths, 0, 'got no paths for EMBL file';
+
+# exceptions due to bad arguments
+throws_ok { $rf->lookup_paths }
+  qr/Wrong number of parameters/,
+  'exception with missing arguments';
+
+throws_ok { $rf->lookup_paths(['abc'],'badfiletype') }
+  qr/did not pass type constraint/,
+  'exception with bad filetype';
+
+throws_ok { $rf->lookup_paths('abc') }
+  qr/did not pass type constraint/,
+  'exception with non-array first arg';
 
 #-------------------------------------------------------------------------------
 
