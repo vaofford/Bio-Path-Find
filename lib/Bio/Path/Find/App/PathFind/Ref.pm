@@ -401,7 +401,7 @@ sub _build_tar_filename {
   # if we have a single reference genome, make the filename reflective of
   # the name of that genome
   if ( defined $self->_paths and scalar @{ $self->_paths } == 1 ) {
-    my $dir_name = $self->_get_dir_name | 'reffind';
+    my $dir_name = $self->_get_dir_name || 'reffind';
     my $tar_file_name =  "$dir_name.tar";
     $tar_file_name .= '.gz' unless $self->no_tar_compression;
 
@@ -421,7 +421,7 @@ sub _build_zip_filename {
   my $self = shift;
 
   if ( defined $self->_paths and scalar @{ $self->_paths } == 1 ) {
-    my $dir_name = $self->_get_dir_name | 'reffind';
+    my $dir_name = $self->_get_dir_name || 'reffind';
     return file($dir_name . '.zip');
   }
   else {

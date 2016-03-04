@@ -37,7 +37,7 @@ package main;
 use strict;
 use warnings;
 
-use Test::More tests => 33;
+use Test::More tests => 31;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -124,13 +124,8 @@ is $rf->_tar, 'genus_species.tar', 'got expected uncompressed tar filename';
 
 # _collect_filenames
 
-my $expected_files = [ file( qw( t data 27_pf_ref genus species file.fa ) ) ];
-
-my $files = $rf->_collect_filenames( [ file( qw( t data 27_pf_ref genus species file.fa ) ) ] );
-is_deeply $files, $expected_files, 'got expected files from _collect_filenames';
-
-$files = $rf->_collect_filenames( [ file( qw( t data 27_pf_ref genus species ) ) ] );
-is_deeply $files, $expected_files, 'got expected files from _collect_filenames';
+my $files = $rf->_collect_filenames( [ 'path' ] );
+is_deeply $files, [ 'path' ], 'got expected files from _collect_filenames';
 
 # _rename_file
 
@@ -202,17 +197,6 @@ $rf = Bio::Path::Find::App::PathFind::Ref->new(%params);
 my $expected_file = file( qw( t data 27_pf_ref abc.fa ) )->stringify;
 
 stdout_like { $rf->run } qr|^$expected_file\n$|, 'got single path from "run"';
-
-#---------------------------------------
-
-$params{filetype} = 'gff';
-
-$rf->clear_config;
-$rf = Bio::Path::Find::App::PathFind::Ref->new(%params);
-
-warning_like { $rf->run }
-  { carped => qr/no 'gff' file for reference/ },
-  'got warning about missing EMBL file';
 
 #---------------------------------------
 
