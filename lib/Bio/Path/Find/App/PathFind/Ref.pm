@@ -56,10 +56,10 @@ name of a reference genome, the command looks in the index of available
 references and returns the path to a directory containing various files for the
 specified genome.
 
-If an exact match to the genome name is not found, the command returns a
-list of any genomes that are an approximate match to the specified name. You
-can choose the best match from the list and the command will show the path to
-the directory for that genome.
+If an exact match to the genome name is not found, the command returns an
+interactive list of any genomes that are an approximate match to the specified
+name. You can choose the best match from the list and the command will show the
+path to the directory for that genome.
 
 Use "pf man" or "pf man ref" to see more information.
 
@@ -120,11 +120,11 @@ specified filename, if given.
 
 =item --all, -A
 
-If your search returns multiple matches, you will be presented with a list of
-all matching reference genomes, from which you can choose to show paths for one
-or all matches. If you want to return all matching references by default,
-without being asked interactively, adding C<--all> will bypass the interactive
-selection and select all references automatically.
+If your search returns multiple matches, by default you will be presented with
+a list of all matching reference genomes, from which you can choose to show
+paths for one or all matches. If you want to return all matching references by
+default, without being asked interactively, adding C<--all> will bypass the
+interactive selection and select all references automatically.
 
 =back
 
@@ -133,26 +133,26 @@ selection and select all references automatically.
 =head2 Find a reference genome using an exact name
 
 If you know the exact name of a reference genome, you can get the path to
-the directory immediately:
+the sequence file immediately:
 
   % pf ref -i Yersinia_pestis_CO92_v1
-  /scratch/pathogen/refs/Yersinia/pestis_CO92
+  /scratch/pathogen/refs/Yersinia/pestis_CO92/Yersinia_pestis_CO92_v1.fa
 
 You can also be less specific, omitting version numbers, for example:
 
   % pf ref -i Yersinia_pestis
-  /scratch/pathogen/refs/Yersinia/pestis_CO92
+  /scratch/pathogen/refs/Yersinia/pestis_CO92/Yersinia_pestis_CO92_v1.fa
 
-You can also use spaces instead of underscores in the name, but you will
-need to put the name in quotes, to avoid it being misinterpreted:
+You can also use spaces instead of underscores in the name, but you will need
+to put the name in quotes, to avoid it being misinterpreted by the shell:
 
   % pf ref -i 'Yersinia pestis'
-  /scratch/pathogen/refs/Yersinia/pestis_CO92
+  /scratch/pathogen/refs/Yersinia/pestis_CO92/Yersinia_pestis_CO92_v1.fa
 
-Finally, searches are case insensitive:
+Finally, note that searches are case INsensitive:
 
   % pf ref -i 'yersinia pestis'
-  /scratch/pathogen/refs/Yersinia/pestis_CO92
+  /scratch/pathogen/refs/Yersinia/pestis_CO92/Yersinia_pestis_CO92_v1.fa
 
 =head2 Find reference genomes matching an approximate name
 
@@ -161,16 +161,6 @@ search for references matching an approximate name:
 
   % pf ref -i yersinia
   No exact match for "yersinia". Did you mean:
-   [1] Yersinia_enterocolitica_subsp_enterocolitica_8081_v1
-   [2] Yersinia_pestis_CO92_v1
-   [a] all references
-
-  Which reference?
-
-The "fuzzy" matching also handles minor spelling mistakes:
-
-  % pf ref -i yersina
-  No exact match for "yersina". Did you mean:
    [1] Yersinia_enterocolitica_subsp_enterocolitica_8081_v1
    [2] Yersinia_pestis_CO92_v1
    [a] all references
@@ -187,7 +177,7 @@ for the reference:
    [a] all references
 
   Which reference? 2
-  /scratch/pathogen/refs/Yersinia/pestis_CO92
+  /scratch/pathogen/refs/Yersinia/pestis_CO92/Yersinia_pestis_CO92_v1.fa
 
 To get the directory paths for all matching references, enter C<a>:
 
@@ -198,15 +188,41 @@ To get the directory paths for all matching references, enter C<a>:
    [a] all references
 
   Which reference? a
-  /scratch/pathogen/refs/Yersinia/enterocolitica_subsp_enterocolitica_8081
-  /scratch/pathogen/refs/Yersinia/pestis_CO92
+  /scratch/pathogen/refs/Yersinia/enterocolitica_subsp_enterocolitica_8081/Y...
+  /scratch/pathogen/refs/Yersinia/pestis_CO92/Yersinia_pestis_CO92_v1.fa
 
 You can bypass the interactive selection and automatically return all
 matching references by adding the C<--all> option:
 
   % pf ref -i yersinia -A
-  /scratch/pathogen/refs/Yersinia/enterocolitica_subsp_enterocolitica_8081
-  /scratch/pathogen/refs/Yersinia/pestis_CO92
+  /scratch/pathogen/refs/Yersinia/enterocolitica_subsp_enterocolitica_8081/Y...
+  /scratch/pathogen/refs/Yersinia/pestis_CO92/Yersinia_pestis_CO92_v1.fa
+
+Note that the "fuzzy" matching also handles minor spelling mistakes. Searching
+for "yersina", with a missing "i", will return two possible matches:
+
+  % pf ref -i yersina
+  No exact match for "yersina". Did you mean:
+   [1] Yersinia_enterocolitica_subsp_enterocolitica_8081_v1
+   [2] Yersinia_pestis_CO92_v1
+   [a] all references
+
+  Which reference?
+
+=head2 Find different file types
+
+By default the C<pf ref> command returns the path to the sequence file for the
+reference genome(s). You can also get paths for the GFF or EMBL files for
+references, using the C<--filetype> (C<-f>) option:
+
+  % pf ref -i Yersinia_pestis -f embl
+  /scratch/pathogen/refs/Yersinia/pestis_CO92/Yersinia_pestis_CO92_v1.embl
+
+  % pf ref -i Yersinia_pestis -f gff
+  /scratch/pathogen/refs/Yersinia/pestis_CO92/annotation/Yersinia_pestis_CO92_v1.gff
+
+B<Note> that the GFF file that is returns when you use C<-f gff> is always the
+one generated by C<prokka>.
 
 =head2 Archiving data
 
@@ -216,34 +232,40 @@ files for a given reference genome:
   % pf ref -i yersinia_pestis -a
   Archiving data to 'Yersinia_pestis_CO92.tar.gz'
   Building tar file... done
-  /scratch/pathogen/refs/Yersinia/pestis_CO92/Yersinia_pestis_CO92_v1.fa.gen_aux.o
-  /scratch/pathogen/refs/Yersinia/pestis_CO92/Yersinia_pestis_CO92_AL590842_v1.embl
-  ...
+  /scratch/pathogen/refs/Yersinia/pestis_CO92/Yersinia_pestis_CO92_v1.fa
 
 You can create a tar file or a zip archive:
 
   % pf ref -i yersinia_pestis -z
   Archiving data to 'Yersinia_pestis_CO92.zip'
   Writing zip file... done
-  /scratch/pathogen/refs/Yersinia/pestis_CO93/Yersinia_pestis_CO92_v1.fa.gen_aux.o
-  /scratch/pathogen/refs/Yersinia/pestis_CO92/Yersinia_pestis_CO92_AL590842_v1.embl
-  ...
+  /scratch/pathogen/refs/Yersinia/pestis_CO92/Yersinia_pestis_CO92_v1.fa
+
+You can also archive different filetypes:
+
+  % pf ref -i yersinia_pestis -a -f gff
+  Archiving data to 'Yersinia_pestis_CO92.tar.gz'
+  Building tar file... done
+  /scratch/pathogen/refs/Yersinia/pestis_CO92/annotation/Yersinia_pestis_CO92_v1.gff
+
+=cut
 
 =head2 Creating symlinks
 
-The C<pf ref> command can create symlinks to the reference genome directory or
-files:
+The C<pf ref> command can create symlinks to files for the reference genome:
 
   % pf ref -i yersinia_pestis -l
-  Creating link as 'Yersinia_pestis_C092'
+  Creating link from '/scratch/pathogen/refs/Yersinia/pestis_CO92/Yersinia_p...
 
-  % pf ref -i yersinia_pestis -l -f fa
-  Creating link as 'Yersinia_pestis_C092_v1.fa'
+You can create links to other filetypes too using C<-f>:
+
+  % pf ref -i yersinia_pestis -l -f gff
+  Creating link from '/scratch/pathogen/refs/Yersinia/pestis_CO92/annotation...
 
 You can also create links with specific names:
 
-  % pf ref -i yersinia_pestis -l yersinia_ref
-  Creating link as 'yersinia_ref'
+  % pf ref -i yersinia_pestis -l yersinia_reference_sequence.fa
+  Creating link from '/scratch/pathogen/refs/Yersinia/pestis_CO92/Yersinia_p...
 
 =cut
 
