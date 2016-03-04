@@ -67,14 +67,14 @@ These are the available commands:
 Finds accessions associated with lanes. The default behaviour is to list
 the accessions, but the command can also show the URLs for retrieving
 FASTQ files from the ENA FTP archive, or for retrieving the submitted
-file from ENA.
+file from ENA. Equivalent to the original C<annotationfind> command.
 
 =head2 annotation
 
 Finds annotation data for lanes with assembled genomes. By default the
 command returns the paths to the GFF files for each lane. You can also search
 for lanes with specific genes or products. Equivalent to the original
-C<annotationfind>.
+C<annotationfind> command.
 
 =head2 assembly
 
@@ -93,6 +93,11 @@ the original C<pathfind> command.
 
 Shows information about the samples associated with sequencing runs.
 Equivalent to the original C<infofind> command.
+
+=head2 ref
+
+Finds reference genomes. Given the approximate name of a reference genome, C<pf
+ref> returns the path for the sequence file for the specified genome(s).
 
 =head2 status
 

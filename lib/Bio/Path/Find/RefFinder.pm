@@ -47,7 +47,7 @@ path-help@sanger.ac.uk
   my $rf = Bio::Path::Find::RefFinder->new( config => 'prod.conf' );
 
   # get matching reference genome names
-  my $names = $rf->find_refs('acinetobacter');
+  my $names = $rf->find_refs(['acinetobacter']);
 
   # look up paths for the returned genomes
   my $paths = $rf->lookup_paths($names);
@@ -59,17 +59,19 @@ path-help@sanger.ac.uk
 
 The C<Bio::Path::Find::RefFinder> class contains methods for finding
 reference genomes in the index of available genomes and for returning the
-file paths for the fasta files containing the genome sequences.
+paths for various types of files that are associated with the reference
+genoems
 
 A configuration hash or file location must be specified when instantiating,
-unless the configuration is already loaded and available (see
-L<Bio::Path::Find::Role::HasConfig>). The configuration must specify one
-parameter, B<refs_index>, giving the file location for the index of
-reference genomes.
+unless the configuration is already loaded and available as a
+L<Bio::Path::Find::ConfigSingleton> (see L<Bio::Path::Find::Role::HasConfig>).
+The configuration must specify two parameters: B<refs_index>, giving the file
+location for the index of reference genomes; and B<refs_root>, giving the
+path to the root of the directory tree containing the reference genomes.
 
 The index should be a simple text file, in which each line contains two
 values, separated by a tab character. The first column must give the name of
-a reference genome, while the second gives the location to a fasta file
+a reference genome, while the second gives the location of the fasta file
 containing the genome sequence.
 
 =cut
@@ -172,14 +174,14 @@ reference genome in the index. Returns a reference to an array, sorted
 alphanumerically, containing a list of genome names that match the input
 string.
 
-If the supplied name matches exactly, the output array will contain one entry,
-the supplied reference name.
+If the supplied name matches exactly, the output array will contain exactly one
+entry, the supplied reference name.
 
 If the supplied name does not exactly match a reference genome name, we try a
 regular expression match, performing a case-insensitive search of all of the
 reference genome names in the index. Again, if there is an exact match to one
-genome name, the output array will contain one entry, the name of that matching
-genome.
+genome name, the output array will contain exactly one entry, the name of that
+matching genome.
 
 If the search name matches several genome names using the regular expression
 match (e.g. "vibrio" will match "Vibrio cholerae" and "Aliivibrio
@@ -189,7 +191,7 @@ genome names.
 Finally, if there were no matches using a regular expression search, we fall
 back on a fuzzy text search. This allows for minor spelling mistakes and
 mis-matches between the supplied name and the reference genome names in the
-index. For example, a search for "baumanii" (missing an "n") wil return two
+index. For example, a search for "baumanii" (missing an "n") wil return
 I<Acinetobacter baumannii> genomes.
 
 =cut
@@ -238,18 +240,19 @@ sub find_refs {
 
 For a given list of reference genome names, return a list of paths to the
 specified genomes. Returns a reference to an array containing a list of paths,
-in the same order as the input array.
+in the same order as the input array. The paths are represented as
+L<Path::Class::File> objects.
 
-If a filetype is specified, the returned array with contain paths to the files
-with the specified type. In some cases a particular version of a reference
-genome may not have a file of the specified type, in which case the path to the
-reference genome's directory is returned, along with a message saying that
-the requested file type can't be found.
+If the optional filetype is specified, the returned array will contain paths to
+the files with the specified type. If a reference genome doesn't have a file of
+the specified type, the corresponding slot in the output list will be
+undefined.
 
 If no filetype is specified, the returned paths point to the directories
 containing the reference genomes.
 
-Filetype must be one of C<fa>, C<gff>, or C<embl>.
+Filetype must be one of C<fa>, C<gff>, or C<embl>. B<Note> that the GFF file is
+taken from the C<annotation> sub-directory of the reference genome directory.
 
 =cut
 
