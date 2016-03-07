@@ -65,11 +65,12 @@ sub _check_for_archive_value {
 
 has '_tar_flag' => ( is => 'rw', isa => Bool );
 
-has '_tar'      => (
-  is => 'rw',
-  isa => PathClassFile,
-  lazy => 1,
+has '_tar' => (
+  is      => 'rw',
+  isa     => PathClassFile,
+  lazy    => 1,
   builder => '_build_tar_filename',
+  clearer => '_clear_tar_filename',    # for use during testing
 );
 
 # specify the default tar file name here, so that it can be overridden by
@@ -113,6 +114,7 @@ has '_zip' => (
   isa     => PathClassFile,
   lazy    => 1,
   builder => '_build_zip_filename',
+  clearer => '_clear_zip_filename',    # for use during testing
 );
 
 # specify the default zip file name here, so that it can be overridden by
@@ -139,22 +141,26 @@ option 'no_tar_compression' => (
 # make a tar archive of the data files for the found lanes
 
 sub _make_tar {
-  my ( $self, $lanes ) = @_;
+  my ( $self, $data ) = @_;
 
   my $archive_filename = $self->_tar;
 
-  say STDERR "Archiving lane data to '$archive_filename'";
+  say STDERR "Archiving data to '$archive_filename'";
 
   # collect the list of files to archive
-  my ( $filenames, $stats ) = $self->_collect_filenames($lanes);
+  my ( $filenames, $stats ) = $self->_collect_filenames($data);
 
-  # write a CSV file with the stats and add it to the list of files that
-  # will go into the archive
-  my $temp_dir = File::Temp->newdir;
-  my $stats_file = file( $temp_dir, 'stats.csv' );
-  $self->_write_csv($stats, $stats_file);
+  # if the _collect_filenames method returned some statistics data, write a CSV
+  # file with the stats and add it to the list of files that will go into the
+  # archive
+  my $temp_dir = File::Temp->newdir; # create the temp directory outside of
+                                     # the "if" block, otherwise it will be
+  if ( defined $stats ) {            # prematurely removed...
+    my $stats_file = file( $temp_dir, 'stats.csv' );
+    $self->_write_csv($stats, $stats_file);
 
-  push @$filenames, $stats_file;
+    push @$filenames, $stats_file;
+  }
 
   # build the tar archive in memory
   my $tar = $self->_create_tar_archive($filenames);
@@ -192,22 +198,24 @@ sub _make_tar {
 # make a zip archive of the data files for the found lanes
 
 sub _make_zip {
-  my ( $self, $lanes ) = @_;
+  my ( $self, $data ) = @_;
 
   my $archive_filename = $self->_zip;
 
   say STDERR "Archiving lane data to '$archive_filename'";
 
   # collect the list of files to archive
-  my ( $filenames, $stats ) = $self->_collect_filenames($lanes);
+  my ( $filenames, $stats ) = $self->_collect_filenames($data);
 
   # write a CSV file with the stats and add it to the list of files that
   # will go into the archive
   my $temp_dir = File::Temp->newdir;
-  my $stats_file = file( $temp_dir, 'stats.csv' );
-  $self->_write_csv($stats, $stats_file);
+  if ( defined $stats ) {
+    my $stats_file = file( $temp_dir, 'stats.csv' );
+    $self->_write_csv($stats, $stats_file);
 
-  push @$filenames, $stats_file;
+    push @$filenames, $stats_file;
+  }
 
   #---------------------------------------
 
@@ -315,12 +323,15 @@ sub _create_zip_archive {
   my $pb = $self->_create_pb('adding files', scalar @$filenames);
 
   foreach my $orig_filename ( @$filenames ) {
-    my $zip_filename  = $self->_rename_file($orig_filename);
+    my $zip_filename = $self->_rename_file($orig_filename);
+
+    # trim off the leading slash
+    ( my $trimmed_zip_filename = $zip_filename ) =~ s|^/||;
 
     # this might not be strictly necessary, but there were some strange things
     # going on while testing this operation: stringify the filenames, to avoid
     # the Path::Class::File object going into the zip archive
-    $zip->addFile($orig_filename->stringify, $zip_filename->stringify);
+    $zip->addFile($orig_filename->stringify, $trimmed_zip_filename);
 
     $pb++;
   }

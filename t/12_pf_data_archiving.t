@@ -313,7 +313,7 @@ ok -f $archive, 'found tar archive';
 my $tar = Archive::Tar->new;
 
 lives_ok { $tar->read($archive) } 'no problem reading tar archive';
-is_deeply [ $tar->list_files ], [ '10018_1_1/10018_1#1_1.fastq.gz', '10018_1_1/stats.csv' ],
+is_deeply [ $tar->list_files ], [ '10018_1#1/10018_1#1_1.fastq.gz', '10018_1#1/stats.csv' ],
   'got expected files in tar archive';
 
 # check we can write uncompressed tar files
@@ -392,7 +392,7 @@ ok ! $exception_thrown, 'no error when writing to existing file but "force" is t
 $zip = Archive::Zip->new;
 
 is $zip->read("$archive"), AZ_OK, 'no problem reading zip archive';
-is_deeply [ $zip->memberNames ], [ '10018_1_1/10018_1#1_1.fastq.gz', '10018_1_1/stats.csv' ],
+is_deeply [ $zip->memberNames ], [ '10018_1#1/10018_1#1_1.fastq.gz', '10018_1#1/stats.csv' ],
   'got expected files in zip archive';
 
 # check for errors when writing

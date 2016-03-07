@@ -50,7 +50,7 @@ path-help@sanger.ac.uk
 
   # create a Finder object by handing it a config hash
   my $finder = Bio::Path::Find::Finder->new(
-    config => $config_hashref
+    config => \%config_hash
   );
 
   # get an arrayref of Bio::Path::Find::Lane objects matching search criteria

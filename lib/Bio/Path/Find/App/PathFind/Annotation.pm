@@ -363,7 +363,7 @@ sub _build_stats_file {
 
 # set the default name for the symlink directory
 
-around '_build_symlink_dir' => sub {
+around '_build_symlink_dest' => sub {
   my $orig = shift;
   my $self = shift;
 
