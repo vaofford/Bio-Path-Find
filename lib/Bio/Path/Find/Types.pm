@@ -63,6 +63,7 @@ use Type::Library -base, -declare => qw(
   RefType
   Assembler
   ProcessedFlag
+  QCType
 );
 
 use Type::Utils -all;
@@ -158,9 +159,15 @@ enum DataType,       [qw( fastq bam pacbio corrected )];
 enum AssemblyType,   [qw( scaffold contigs all )];
 enum AnnotationType, [qw( gff faa ffn gbk fasta fastn genbank )];
 enum RefType,        [qw( fa gff embl )];
+enum QCType,         [qw( kraken )];
 
 declare FileType,
-  as AnnotationType|AssemblyType|DataType|RefType;
+  as AnnotationType|AssemblyType|DataType|RefType|QCType;
+
+#---------------------------------------
+
+# these are labels for the taxonomic levels accepted by the QC command
+enum TaxLevel, [qw( D P C O F G S T )];
 
 #---------------------------------------
 
