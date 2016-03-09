@@ -425,6 +425,25 @@ has '_renamed_id' => (
   isa => Str,
 );
 
+#---------------------------------------
+
+has '_csv' => (
+  is      => 'ro',
+  isa     => 'Text::CSV_XS',
+  lazy    => 1,
+  builder => '_build_csv',
+);
+
+sub _build_csv {
+  my $self = shift;
+
+  my $csv = Text::CSV_XS->new;
+  $csv->eol("\n");
+  $csv->sep( $self->csv_separator );
+
+  return $csv;
+}
+
 #-------------------------------------------------------------------------------
 #- construction ----------------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -578,13 +597,19 @@ around [ '_write_csv', '_write_list' ] => sub {
 sub _write_csv {
   my ( $self, $data, $fh ) = @_;
 
-  my $csv = Text::CSV_XS->new;
-  $csv->eol("\n");
-  $csv->sep( $self->csv_separator );
-  $csv->print($fh, $_) for @$data;
+  # make sure we use the separator that's set on this object. Keep track of the
+  # original value, so we can set it back after we're done writing
+  my $current_sep = $self->_csv->sep;
+
+  $self->_csv->sep( $self->csv_separator );
+  $self->_csv->print($fh, $_) for @$data;
+  $self->_csv->sep( $current_sep );
 }
 
 #-------------------------------------------------------------------------------
+
+# simply prints the supplied array to the supplied filehandle. A newline ('\n')
+# is appended to every line as it's printed.
 
 sub _write_list {
   my ( $self, $data, $fh ) = @_;
