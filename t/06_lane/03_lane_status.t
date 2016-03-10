@@ -55,7 +55,7 @@ $lane_row->database($database);
 my $lane = Bio::Path::Find::Lane->new( row => $lane_row );
 
 # quick check that the lane has the state we're expecting...
-is $lane_row->processed, 15, 'lane row has expected "processed" value';
+is $lane_row->processed, 2063, 'lane row has expected "processed" value';
 
 #---------------------------------------
 

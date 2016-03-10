@@ -293,6 +293,13 @@ sub run {
     $finder_params{lane_attributes}->{assemblers} = $self->program;
   }
 
+  # should we look for lanes with the "assembled" bit set on the "processed"
+  # bit field ? Turning this off, i.e. setting the command line option
+  # "--ignore-processed-flag" will allow the command to return data for lanes
+  # that haven't completed the assembly pipeline.
+  $finder_params{processed} = Bio::Path::Find::Types::ASSEMBLED_PIPELINE
+    unless $self->ignore_processed_flag;
+
   # find lanes
   my $lanes = $self->_finder->find_lanes(%finder_params);
 

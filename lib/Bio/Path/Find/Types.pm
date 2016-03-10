@@ -62,6 +62,7 @@ use Type::Library -base, -declare => qw(
   DataType
   RefType
   Assembler
+  ProcessedFlag
 );
 
 use Type::Utils -all;
@@ -83,6 +84,57 @@ class_type 'Path::Class::Entity';
 class_type 'Path::Class::File';
 class_type 'Path::Class::Dir';
 class_type 'URI::URL';
+
+#---------------------------------------
+
+# set up constants that map pipeline names to bit flags
+use constant {
+  IMPORT_PIPELINE             => 1,
+  QC_PIPELINE                 => 2,
+  MAPPED_PIPELINE             => 4,
+  STORED_PIPELINE             => 8,
+  DELETED_PIPELINE            => 16,
+  SWAPPED_PIPELINE            => 32,
+  ALTERED_FASTQ_PIPELINE      => 64,
+  IMPROVED_PIPELINE           => 128,
+  SNP_CALLED_PIPELINE         => 256,
+  RNA_SEQ_EXPRESSION_PIPELINE => 512,
+  ASSEMBLED_PIPELINE          => 1024,
+  ANNOTATED_PIPELINE          => 2048,
+};
+
+# and map the "friendly" pipeline names used in configs, etc.
+# to those same bit flags
+our $pipeline_names = {
+# pipeline name         binary value
+  import             => IMPORT_PIPELINE,
+  qc                 => QC_PIPELINE,
+  mapped             => MAPPED_PIPELINE,
+  stored             => STORED_PIPELINE,
+  deleted            => DELETED_PIPELINE,
+  swapped            => SWAPPED_PIPELINE,
+  altered_fastq      => ALTERED_FASTQ_PIPELINE,
+  improved           => IMPROVED_PIPELINE,
+  snp_called         => SNP_CALLED_PIPELINE,
+  rna_seq_expression => RNA_SEQ_EXPRESSION_PIPELINE,
+  assembled          => ASSEMBLED_PIPELINE,
+  annotated          => ANNOTATED_PIPELINE,
+};
+
+# invert the hash so that we can quickly check that a given
+# int is a valid flag
+our $pipeline_flags = { reverse %$pipeline_names };
+
+# declare a type for a processed flag
+declare ProcessedFlag,
+  as Int,
+  where { exists $pipeline_flags->{$_} };
+
+# (not convinced we need this)
+declare_coercion 'PipelineFlagFromStr',
+  to_type ProcessedFlag,
+  from    Int,
+  q{ $pipeline_names->{$_} };
 
 #---------------------------------------
 

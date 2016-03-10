@@ -82,7 +82,7 @@ stderr_like { $sf->run } qr/Wrote status information to "sf.csv"/,
 # check CSV file contents
 my $expected_csv = <<'EOF_csv';
 Name,Import,QC,Mapping,Archive,Improve,"SNP call",RNASeq,Assemble,Annotate
-10018_1#1,Done,Done,Done,Done,-,-,-,-,-
+10018_1#1,Done,Done,Done,Done,-,-,-,-,Done
 EOF_csv
 
 my $got_csv = file('sf.csv')->slurp;
@@ -106,7 +106,7 @@ lives_ok { capture_stderr { $sf->run } } 'no exception when "force" is true';
 
 $expected_csv = <<'EOF_csv';
 Name,Import,QC,Mapping,Archive,Improve,"SNP call",RNASeq,Assemble,Annotate
-10018_1#2,Done,Done,Done,Done,-,-,-,-,-
+10018_1#2,Done,Done,Done,Done,-,-,-,Done,Done
 EOF_csv
 
 $got_csv = file('sf.csv')->slurp;
@@ -120,9 +120,9 @@ chdir $orig_cwd;
 
 __DATA__
 Name       Import QC   Mapping             Archive Improve SNP call RNASeq Assemble Annotate
-10018_1#1  Done   Done Done                Done    -       -        -      -        -       
-10018_1#2  Done   Done Done                Done    -       -        -      -        -       
-10018_1#3  Done   Done Done                Done    -       -        -      -        -       
+10018_1#1  Done   Done Done                Done    -       -        -      -        Done    
+10018_1#2  Done   Done Done                Done    -       -        -      Done     Done    
+10018_1#3  Done   Done Done                Done    -       -        -      Done     Done    
 10018_1#4  Done   Done Done                Done    -       -        -      -        -       
 10018_1#5  Done   Done Done                Done    -       -        -      -        -       
 10018_1#6  Done   Done Done                Done    -       -        -      -        -       
@@ -168,5 +168,5 @@ Name       Import QC   Mapping             Archive Improve SNP call RNASeq Assem
 10018_1#47 -      -    -                   -       -       Done     -      -        -       
 10018_1#48 -      -    -                   -       -       -        Done   -        -       
 10018_1#49 -      -    -                   -       -       -        -      Done     -       
-10018_1#50 -      -    -                   -       -       -        -      -        Done    
-10018_1#51 Done   Done Done                Done    -       -        -      -        -       
+10018_1#50 -      -    -                   -       -       -        -      Done     Done    
+10018_1#51 Done   Done Done                Done    -       -        -      Done     -       

@@ -79,30 +79,6 @@ sub _build_status_files {
   return $files;
 }
 
-#---------------------------------------
-
-has 'processed_flags' => (
-  is      => 'ro',
-  isa     => HashRef[Int],
-  default => sub {
-    {
-    # pipeline name         binary value
-      import             => 1,
-      qc                 => 2,
-      mapped             => 4,
-      stored             => 8,
-      deleted            => 16,
-      swapped            => 32,
-      altered_fastq      => 64,
-      improved           => 128,
-      snp_called         => 256,
-      rna_seq_expression => 512,
-      assembled          => 1024,
-      annotated          => 2048,
-    };
-  },
-);
-
 #-------------------------------------------------------------------------------
 #- methods ---------------------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -155,7 +131,11 @@ sub pipeline_status {
   return 'NA' if not defined $pipeline_name;
 
   my $bit_pattern = $self->lane->row->processed;
-  my $bit_value   = $self->processed_flags->{$pipeline_name};
+
+  # we need to convert the pipeline name into a bit value. We can do that by
+  # looking up the pipeline name in a mapping that's stored in the Types
+  # module.
+  my $bit_value = $Bio::Path::Find::Types::pipeline_names->{$pipeline_name};
 
   # the next set of tests try to work out what's going on with the specified
   # pipeline, looking at the database and the job status file
