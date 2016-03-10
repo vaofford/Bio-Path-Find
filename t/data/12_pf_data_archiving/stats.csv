@@ -1,7 +1,7 @@
 "Study ID",Sample,"Lane Name",Cycles,Reads,Bases,"Map Type",Reference,"Reference Size",Mapper,"Mapstats ID","Mapped %","Paired %","Mean Insert Size","Depth of Coverage","Depth of Coverage sd","Adapter %","Transposon %","Genome Covered","Duplication Rate","Error Rate","NPG QC","Manual QC","No. Het SNPs","% Het SNPs (Total Genome)","% Het SNPs (Genome Covered)","% Het SNPs (Total No. of SNPs)","QC Pipeline","Mapping Pipeline","Archiving Pipeline","SNP Calling Pipeline","RNASeq Pipeline","Assembly Pipeline","Annotation Pipeline"
-607,APP_N2_OP1,10018_1#1,47,397141,18665627,QC,Streptococcus_suis_P1_7_v1,2007491,bwa,525354,0.0,0.0,0,0.00,0.01,2.3,90.2,0.00,0.0000,0.044,pending,pending,1,2.0868283360403e-05,0.0112145340361108,3.57142857142857,Done,Done,Done,-,-,-,-
-607,APP_IN_2,10018_1#2,47,317093,14903371,QC,Streptococcus_suis_P1_7_v1,2007491,bwa,522450,0.0,0.0,0,NA,NA,2.4,90.2,NA,NA,NA,pending,pending,NA,NA,NA,NA,Done,Done,Done,-,-,-,-
-607,APP_T1_OP2,10018_1#3,47,283298,13315006,QC,Streptococcus_suis_P1_7_v1,2007491,bwa,525447,0.0,0.0,0,NA,NA,2.4,89.9,NA,NA,NA,pending,pending,NA,NA,NA,NA,Done,Done,Done,-,-,-,-
+607,APP_N2_OP1,10018_1#1,47,397141,18665627,QC,Streptococcus_suis_P1_7_v1,2007491,bwa,525354,0.0,0.0,0,0.00,0.01,2.3,90.2,0.00,0.0000,0.044,pending,pending,1,2.0868283360403e-05,0.0112145340361108,3.57142857142857,Done,Done,Done,-,-,-,Done
+607,APP_IN_2,10018_1#2,47,317093,14903371,QC,Streptococcus_suis_P1_7_v1,2007491,bwa,522450,0.0,0.0,0,NA,NA,2.4,90.2,NA,NA,NA,pending,pending,NA,NA,NA,NA,Done,Done,Done,-,-,Done,Done
+607,APP_T1_OP2,10018_1#3,47,283298,13315006,QC,Streptococcus_suis_P1_7_v1,2007491,bwa,525447,0.0,0.0,0,NA,NA,2.4,89.9,NA,NA,NA,pending,pending,NA,NA,NA,NA,Done,Done,Done,-,-,Done,Done
 607,APP_IN_4,10018_1#4,47,265782,12491754,QC,Streptococcus_suis_P1_7_v1,2007491,bwa,525312,0.0,0.0,0,NA,NA,9.5,88.1,NA,NA,NA,pending,pending,NA,NA,NA,NA,Done,Done,Done,-,-,-,-
 607,APP_N1_OP2,10018_1#5,47,304254,14299938,QC,Streptococcus_suis_P1_7_v1,2007491,bwa,525342,0.0,0.0,0,NA,NA,2.2,90.3,NA,NA,NA,pending,pending,NA,NA,NA,NA,Done,Done,Done,-,-,-,-
 607,APP_N1_OP1,10018_1#6,47,157537,7404239,QC,Streptococcus_suis_P1_7_v1,2007491,bwa,549888,0.0,0.0,0,0.00,0.00,2.0,90.3,NA,0.0000,0.064,pending,pending,NA,NA,NA,NA,Done,Done,Done,-,-,-,-
@@ -47,5 +47,5 @@
 607,APP_T3_OP2,10018_1#47,47,494670,23249490,QC,Streptococcus_suis_P1_7_v1,2007491,bwa,525480,0.0,0.0,0,NA,NA,2.3,90.1,NA,NA,NA,pending,pending,NA,NA,NA,NA,-,-,-,Done,-,-,-
 607,APP_T4_OP1,10018_1#48,47,88413,4155411,QC,Streptococcus_suis_P1_7_v1,2007491,bwa,525489,0.0,0.0,0,NA,NA,2.3,89.8,NA,NA,NA,pending,pending,NA,NA,NA,NA,-,-,-,-,Done,-,-
 607,APP_T4_OP2,10018_1#49,47,268649,12626503,QC,Streptococcus_suis_P1_7_v1,2007491,bwa,525498,0.0,0.0,0,NA,NA,7.2,88.5,NA,NA,NA,pending,pending,NA,NA,NA,NA,-,-,-,-,-,Done,-
-607,APP_T5_OP1,10018_1#50,47,113711,5344417,QC,Streptococcus_suis_P1_7_v1,2007491,bwa,525513,0.0,0.0,0,NA,NA,3.9,89.9,NA,NA,NA,pending,pending,NA,NA,NA,NA,-,-,-,-,-,-,Done
-607,APP_T5_OP2,10018_1#51,47,139430,6553210,QC,Streptococcus_suis_P1_7_v1,2007491,bwa,525522,0.0,0.0,0,NA,NA,4.9,89.4,NA,NA,NA,pending,pending,NA,NA,NA,NA,Done,Done,Done,-,-,-,-
+607,APP_T5_OP1,10018_1#50,47,113711,5344417,QC,Streptococcus_suis_P1_7_v1,2007491,bwa,525513,0.0,0.0,0,NA,NA,3.9,89.9,NA,NA,NA,pending,pending,NA,NA,NA,NA,-,-,-,-,-,Done,Done
+607,APP_T5_OP2,10018_1#51,47,139430,6553210,QC,Streptococcus_suis_P1_7_v1,2007491,bwa,525522,0.0,0.0,0,NA,NA,4.9,89.4,NA,NA,NA,pending,pending,NA,NA,NA,NA,Done,Done,Done,-,-,Done,-

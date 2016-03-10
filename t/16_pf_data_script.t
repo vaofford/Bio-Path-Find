@@ -132,7 +132,7 @@ while ( <$child_out> ) {
   $found++ if m/10018_1|5477_6/;
 }
 
-is $found, 61, 'got expected paths on STDOUT with IDs on STDIN';
+is $found, 53, 'got expected paths on STDOUT with IDs on STDIN';
 
 #---------------------------------------
 
