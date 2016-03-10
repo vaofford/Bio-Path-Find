@@ -445,6 +445,13 @@ sub run {
     $finder_params{lane_attributes}->{assemblers} = $self->program;
   }
 
+  # should we look for lanes with the "annotated" bit set on the "processed"
+  # bit field ? Turning this off, i.e. setting the command line option
+  # "--ignore-processed-flag" will allow the command to return data for lanes
+  # that haven't completed the annotation pipeline.
+  $finder_params{processed} = Bio::Path::Find::Types::ANNOTATED_PIPELINE
+    unless $self->ignore_processed_flag;
+
   # find lanes
   my $lanes = $self->_finder->find_lanes(%finder_params);
 

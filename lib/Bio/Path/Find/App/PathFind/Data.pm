@@ -320,6 +320,13 @@ sub run {
   # should we filter on QC status ?
   $finder_params{qc} = $self->qc if defined $self->qc;
 
+  # should we look for lanes with the "import" bit set on the "processed"
+  # bit field ? Turning this off, i.e. setting the command line option
+  # "--ignore-processed-flag" will allow the command to return data for
+  # lanes that haven't completed the import pipeline.
+  $finder_params{processed} = Bio::Path::Find::Types::IMPORT_PIPELINE
+    unless $self->ignore_processed_flag;
+
   # if the user specifies a filetype, tell the finder to search for that type
   # of file...
   if ( $self->filetype ) {
