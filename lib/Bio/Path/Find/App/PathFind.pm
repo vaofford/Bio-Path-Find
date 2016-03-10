@@ -112,7 +112,7 @@ The following options can be used with all of the pathfind commands.
 
 =head2 REQUIRED OPTIONS
 
-All commands have two required options:
+With the exception of C<pf ref>, all commands have two required options:
 
 =over
 
@@ -172,6 +172,10 @@ the filename more portable and to avoid problems with systems that don't
 handle hashes in filenames correctly.
 
 B<Note> that C<--rename> only takes effect when archiving or linking.
+
+=item --ignore-processed-flag, -I
+
+Don't filter output using the C<processed> flag.
 
 =item --verbose, -v
 
