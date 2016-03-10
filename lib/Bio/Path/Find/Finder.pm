@@ -203,6 +203,7 @@ sub find_lanes {
     slurpy Dict [
       ids             => ArrayRef[Str],
       type            => IDType,
+      processed       => Optional[ProcessedFlag],
       qc              => Optional[QCState],
       filetype        => Optional[FileType],
       lane_attributes => Optional[HashRef],
@@ -218,6 +219,7 @@ sub find_lanes {
   my $lanes = $self->_find_lanes(
     $params->{ids},
     $params->{type},
+    $params->{processed},
     $params->{lane_attributes}
   );
 
@@ -278,7 +280,7 @@ sub find_lanes {
 # actually queries the database(s) to get lane data for the specified ID(s)
 
 sub _find_lanes {
-  my ( $self, $ids, $type, $lane_attributes ) = @_;
+  my ( $self, $ids, $type, $processed, $lane_attributes ) = @_;
 
   my @db_names = $self->_db_manager->database_names;
 
@@ -298,11 +300,16 @@ sub _find_lanes {
       $self->log->debug( qq(looking for ID "$id") );
 
       my $rs = $database->schema->get_lanes_by_id($id, $type);
+
       next ID unless $rs; # no matching lanes
 
       $self->log->debug('found ' . $rs->count . ' lanes');
 
-      while ( my $lane_row = $rs->next ) {
+      ROW: while ( my $lane_row = $rs->next ) {
+
+        # if we have a value for "processed", use it as a bit mask and see if
+        # this lane has the specified bit set
+        next ROW if ( defined $processed and ( $lane_row->processed & $processed ) == 0 );
 
         # tell every result (a Bio::Track::Schema::Result object) which
         # database it comes from. We need this later to generate paths on disk
