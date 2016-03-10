@@ -308,6 +308,15 @@ option 'force' => (
   default       => 0,
 );
 
+option 'ignore_processed_flag' => (
+  documentation => 'ignore "processed" flag when finding lanes',
+  is            => 'ro',
+  isa           => Bool,
+  cmd_flag      => 'ignore-processed-flag',
+  cmd_aliases   => 'I',
+  default       => 0,
+);
+
 option 'verbose' => (
   documentation => 'show debugging messages',
   is            => 'rw',
