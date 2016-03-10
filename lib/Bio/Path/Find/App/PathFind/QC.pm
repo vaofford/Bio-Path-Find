@@ -17,7 +17,8 @@ use Types::Standard qw(
   +Bool
 );
 
-use Bio::Path::Find::Types qw( :types );
+# use Bio::Path::Find::Types qw( :types );
+use Bio::Path::Find::Types qw( :types LevelCodeFromName );
 
 use Bio::Path::Find::Lane::Class::QC;
 
@@ -41,82 +42,111 @@ pf qc - Find quality control information about samples
 
 =head1 USAGE
 
-  pf info --id <id> --type <ID type> [options]
+  pf qc --id <id> --type <ID type> [options]
 
 =head1 DESCRIPTION
 
-This pathfind command will return information about samples associated with
-sequencing runs. Specify the type of data using C<--type> and give the
-accession, name or identifier for the data using C<--id>.
+The C<qc> command will return quality control data. Specify the type of data
+using C<--type> and give the accession, name or identifier for the data using
+C<--id>.
 
-Use "pf man" or "pf man info" to see more information.
+Use "pf man" or "pf man qc" to see more information.
 
 =head1 EXAMPLES
 
-  # get sample info for a set of lanes
-  pf info -t lane -i 10018_1
+  # find QC reports for a set of lanes
+  pf qc -t lane -i 12345_1
 
-  # write info to a CSV file
-  pf info -t lane -i 10018_1 -o info.csv
+  # write a summary of the QC data
+  pf qc -t lane -i 12345_1 -s
+
+  # create an archive of kraken reports for lanes from a particular study
+  pf qc -t study -i 123 -a study_123_reports.tar.gz
 
 =head1 OPTIONS
 
-These are the options that are specific to C<pf info>. Run C<pf man> to see
+These are the options that are specific to C<pf qc>. Run C<pf man> to see
 information about the options that are common to all C<pf> commands.
 
 =over
 
-=item --outfile, -o [<output filename>]
+=item --summary, -s [<output filename>]
 
-Write the information to a CSV-format file. If a filename is given, write info
-to that file, or to C<infofind.csv> otherwise.
+Write a CSV file with a summary of the kraken reports for the found lanes. If a
+filename is given, the summary will be writen to that file, or to
+C<qc_summary.csv> otherwise.
+
+=item --counts, -C
+
+Use counts in the summary, rather than percentages.
+
+=item --directly, -d
+
+Report reads assigned directly to this taxon.
+
+=item --level, -L <taxonomic level>
+
+Output information for the specified taxonomic level. The level must be one of
+the following values, or its abbreviation: C<domain> (abbreviation C<D>),
+C<phylum> (C<P>), C<class> (C<C>), C<order> (C<O>), C<family> (C<F>), C<genus>
+(C<G>), C<species> (C<S>), C<strain> (C<T>). The default level is C<strain>.
 
 =back
 
 =head1 SCENARIOS
 
-=head2 Show info about samples
+=head2 Show QC info about samples
 
-The C<pf info> command prints five columns of data for each lane, showing data
-about each sample from the tracking and sequencescape databases:
+By default, the C<pf qc> command simply prints the paths for the kraken reports
+for all of the lanes that it finds:
 
-=over
+  pf qc -t lane -i 12345_1
 
-=item lane
+You can archive those kraken reports, as a tar file
 
-=item sample
+  pf qc -t lane -i 12345_1 -a
 
-=item supplier name
+or a zip file:
 
-=item public name
+  pf qc -t lane -i 12345_1 -z lanes_qc.zip
 
-=item strain
+or you can create links to them in the current directory:
 
-=back
+  pf qc -t lane -i 12345_1 -l
 
-=head2 Write a CSV file
+or in a different directory:
 
-By default C<pf info> simply prints the data that it finds. You can write out a
-comma-separated values file (CSV) instead, using the C<--outfile> (C<-o>)
-options:
+  pf qc -t study -i 123 -l study_123_qc_reports
 
-  % pf info -t lane -i 10018_1 -o my_info.csv
-  Wrote info to "my_info.csv"
+=head2 Write a summary CSV file
 
-If you don't specify a filename, the default is C<infofind.csv>:
+You can generate a single summary file, based on data from the kraken reports
+for all of the found lanes, using C<--summary> (abbreviated to C<-s>):
 
-  % pf info -t lane -i 10018_1 -o
-  Wrote info to "infofind.csv"
+  pf qc -t lane -i 12345_1 -s
 
-=head2 Write a tab-separated file (TSV)
+There are several options that affect the exact format of the summary report.
 
-You can also change the separator used when writing out data. By default we
-use comma (,), but you can change it to a tab-character in order to make the
-resulting file more readable:
+By default, the summary uses percentages, but you can also see the counts for
+the individual taxonomic levels, using C<--counts>:
 
-  pf info -t lane -i 10018_1 -o -c "<tab>"
+  pf qc -t lane -i 12345_1 -s -C
 
-(To enter a tab character you might need to press ctrl-V followed by tab.)
+You can also report the number of reads that are assigned directly to each
+taxon (C<--directly>):
+
+  pf qc -t lane -i 12345_1 -s -d
+
+You can show a particular taxonomic level, using C<--level>:
+
+  pf qc -t lane -i 12345_1 -s -l C
+
+The default is to output everything at the strain level (C<T>).
+
+Finally, you can transpose the summary report, putting information for a given
+lane along the rows of the report, rather than down a column.
+
+  pf qc -t lane -i 12345_1 -s -T
 
 =cut
 
@@ -178,7 +208,8 @@ option 'directly' => (
 option 'level' => (
   documentation => 'output specified taxonomic level',
   is            => 'ro',
-  isa           => TaxLevel,
+  isa           => TaxLevel->plus_coercions(LevelCodeFromName),
+  coerce        => 1,
   default       => 'T',
   cmd_aliases   => 'L',
 );
@@ -250,12 +281,6 @@ sub run {
   # hours and THEN fail, which would leave the user mildly updset. Better to
   # fail early, before we've done any work at all.
 
-  if ( $self->_summary_flag and -f $self->_summary and not $self->force ) {
-    Bio::Path::Find::Exception->throw(
-      msg => q(ERROR: CSV file ") . $self->_summary . q(" already exists; not overwriting existing file)
-    );
-  }
-
   if ( $self->_tar_flag  and -f $self->_tar and not $self->force ) {
     Bio::Path::Find::Exception->throw(
       msg => q(ERROR: CSV file ") . $self->_summary . q(" already exists; not overwriting existing file)
@@ -268,23 +293,46 @@ sub run {
     );
   }
 
+  if ( $self->_summary_flag and -f $self->_summary and not $self->force ) {
+    Bio::Path::Find::Exception->throw(
+      msg => q(ERROR: CSV file ") . $self->_summary . q(" already exists; not overwriting existing file)
+    );
+  }
+
   #---------------------------------------
 
-  # find lanes
-  my $lanes = $self->_finder->find_lanes(
+  my %finder_params = (
     ids      => $self->_ids,
     type     => $self->type,
     filetype => 'kraken',
   );
 
+  # should we look for lanes with the "qc" bit set on the "processed" bit field
+  # ? Turning this off, i.e. setting the command line option
+  # "--ignore-processed-flag" will allow the command to return data for lanes
+  # that haven't completed the qc pipeline.
+  $finder_params{processed} = Bio::Path::Find::Types::QC_PIPELINE
+    unless $self->ignore_processed_flag;
+
+  # actually go and find lanes
+  my $lanes = $self->_finder->find_lanes(%finder_params);
+
+  $self->log->debug( 'found a total of ' . scalar @$lanes . ' lanes' );
+
+  unless ( @$lanes ) {
+    say STDERR 'No data found.';
+    exit;
+  }
+
+  # what are we doing with the lanes that we found ?
   if ( $self->_tar_flag or
        $self->_zip_flag or
        $self->_symlink_flag or
-       $self->_outfile_flag ) {
+       $self->_summary_flag ) {
     $self->_make_tar($lanes) if $self->_tar_flag;
     $self->_make_zip($lanes) if $self->_zip_flag;
     $self->_make_links($lanes) if $self->_symlink_flag;
-    $self->_make_summary($lanes) if $self->_outfile_flag;
+    $self->_make_summary($lanes) if $self->_summary_flag;
   }
   else {
     $_->print_paths for ( @$lanes );
@@ -294,6 +342,10 @@ sub run {
 #-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
+
+# override the default method from Bio::Path::Find::App::Role::Archivist. This
+# one doesn't bother creating a stats file, which the origin method does, by
+# calling the "stats" and "stats_headers" methods on the lanes
 
 sub _collect_filenames {
   my ( $self, $lanes ) = @_;
@@ -313,7 +365,7 @@ sub _make_summary {
 
   print STDERR 'generating summary... ';
 
-  my $summary = $self->_outfile->stringify;
+  my $summary = $self->_summary->stringify;
 
   # collect a list of the filenames for the kraken reports
   my @kraken_report_files = map { $_->all_files } @$lanes;
@@ -382,7 +434,7 @@ sub _make_summary {
 
   # write the edited CSV
   open $fh, '>:encoding(utf8)', $summary
-    or Bio::Path::Find::Exception( msg => q(ERROR: couldn't open summary TSV file for write) );
+    or Bio::Path::Find::Exception( msg => q(ERROR: couldn't open summary CSV file for write) );
 
   $self->_csv->print($fh, $_) for @$data;
 

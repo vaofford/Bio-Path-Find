@@ -94,10 +94,17 @@ the original C<pathfind> command.
 Shows information about the samples associated with sequencing runs.
 Equivalent to the original C<infofind> command.
 
+=head2 qc
+
+Show QC information for sequencing data, in the form of kraken reports.
+C<pf qc> can also generate summary reports in CSV format. Equivalent to
+C<qcfind>.
+
 =head2 ref
 
 Finds reference genomes. Given the approximate name of a reference genome, C<pf
 ref> returns the path for the sequence file for the specified genome(s).
+Equivalent to the C<reffind> command.
 
 =head2 status
 
