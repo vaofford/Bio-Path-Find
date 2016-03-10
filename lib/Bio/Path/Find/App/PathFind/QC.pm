@@ -283,13 +283,13 @@ sub run {
 
   if ( $self->_tar_flag  and -f $self->_tar and not $self->force ) {
     Bio::Path::Find::Exception->throw(
-      msg => q(ERROR: CSV file ") . $self->_summary . q(" already exists; not overwriting existing file)
+      msg => q(ERROR: tar archive ") . $self->_tar . q(" already exists; not overwriting existing file)
     );
   }
 
   if( $self->_zip_flag and -f $self->_zip and not $self->force ) {
     Bio::Path::Find::Exception->throw(
-      msg => q(ERROR: CSV file ") . $self->_summary . q(" already exists; not overwriting existing file)
+      msg => q(ERROR: zip file ") . $self->_zip . q(" already exists; not overwriting existing file)
     );
   }
 
@@ -440,7 +440,7 @@ sub _make_summary {
 
   close $fh;
 
-  say STDERR qq(done\rwrote summary as "$summary");
+  say STDERR qq(done\rwrote summary as '$summary');
 }
 
 #-------------------------------------------------------------------------------
