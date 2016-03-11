@@ -394,7 +394,7 @@ sub find_files {
   if ( $self->has_no_files ) {
     my $extension = $self->filetype_extensions->{$filetype};
     $self->_get_files_by_extension($extension)
-      if ( defined $extension and $extension =~ m/\*/ );
+      if defined $extension;
     $self->log->debug( 'found ' . $self->file_count . ' files using extension mapping' )
       if $self->has_files;
   }

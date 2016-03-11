@@ -63,6 +63,8 @@ use Type::Library -base, -declare => qw(
   RefType
   Assembler
   ProcessedFlag
+  QCType
+  TaxLevel
 );
 
 use Type::Utils -all;
@@ -121,8 +123,7 @@ our $pipeline_names = {
   annotated          => ANNOTATED_PIPELINE,
 };
 
-# invert the hash so that we can quickly check that a given
-# int is a valid flag
+# invert the hash so that we can quickly check that a given int is a valid flag
 our $pipeline_flags = { reverse %$pipeline_names };
 
 # declare a type for a processed flag
@@ -133,8 +134,7 @@ declare ProcessedFlag,
 # (not convinced we need this)
 declare_coercion 'PipelineFlagFromStr',
   to_type ProcessedFlag,
-  from    Int,
-  q{ $pipeline_names->{$_} };
+  from    Int, q{ $Bio::Path::Find::Types::pipeline_names->{$_} };
 
 #---------------------------------------
 
@@ -158,9 +158,31 @@ enum DataType,       [qw( fastq bam pacbio corrected )];
 enum AssemblyType,   [qw( scaffold contigs all )];
 enum AnnotationType, [qw( gff faa ffn gbk fasta fastn genbank )];
 enum RefType,        [qw( fa gff embl )];
+enum QCType,         [qw( kraken )];
 
 declare FileType,
-  as AnnotationType|AssemblyType|DataType|RefType;
+  as AnnotationType|AssemblyType|DataType|RefType|QCType;
+
+#---------------------------------------
+
+our $tax_mapping = {
+  domain  => 'D',
+  phylum  => 'P',
+  class   => 'C',
+  order   => 'O',
+  family  => 'F',
+  genus   => 'G',
+  species => 'S',
+  strain  => 'D',
+};
+
+# these are labels for the taxonomic levels accepted by the QC command
+enum TaxLevel, [ qw( D P C O F G S T ) ];
+
+# handle specification of levels by name, as well as single-letter code
+declare_coercion 'LevelCodeFromName',
+  to_type TaxLevel,
+  from    Str, q{ $Bio::Path::Find::Types::tax_mapping->{lc $_} };
 
 #---------------------------------------
 

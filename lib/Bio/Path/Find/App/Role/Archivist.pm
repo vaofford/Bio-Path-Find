@@ -202,7 +202,7 @@ sub _make_zip {
 
   my $archive_filename = $self->_zip;
 
-  say STDERR "Archiving lane data to '$archive_filename'";
+  say STDERR "Archiving data to '$archive_filename'";
 
   # collect the list of files to archive
   my ( $filenames, $stats ) = $self->_collect_filenames($data);
