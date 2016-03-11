@@ -223,11 +223,19 @@ sub find_lanes {
     $params->{lane_attributes}
   );
 
-  $self->log->debug('found ' . scalar @$lanes . ' lanes');
+  my $max = scalar @$lanes;
+  $self->log->debug("found $max lanes");
+
+  # show a progress bar if we've got more than 50 lanes
+  my $pb = $max > 50
+         ? $self->_create_pb('finding files', $max)
+         : 0;
 
   # find files for the lanes and filter based on the files and the QC status
   my $filtered_lanes = [];
   LANE: foreach my $lane ( @$lanes ) {
+
+    $pb++;
 
     # ignore this lane if:
     # 1. we've been told to look for a specific QC status, and
