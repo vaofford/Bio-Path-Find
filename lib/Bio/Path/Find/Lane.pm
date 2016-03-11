@@ -560,7 +560,7 @@ sub _make_file_symlinks {
     # Role applied to the Lane, call the method to edit the "from" and "to"
     # filenames for the link
     ( $src_file, $dst_file ) = $self->_edit_filenames( $src_file, $dst_file )
-      if $self->can('_edit_link_filenames');
+      if $self->can('_edit_filenames');
 
     # sanity check: don't overwrite the destination file
     if ( -f $dst_file ) {
