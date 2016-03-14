@@ -194,7 +194,7 @@ has 'storage_path' => (
 
 sub _build_storage_path {
   my $self = shift;
-  return dir( $self->root_dir, $self->row->storage_path );
+  return dir( $self->row->storage_path );
 }
 
 #---------------------------------------

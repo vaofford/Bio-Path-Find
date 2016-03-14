@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 23;
+use Test::More tests => 24;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -66,6 +66,12 @@ lives_ok { $lane = Bio::Path::Find::Lane->new( row => $lane_row ) }
 
 ok   $lane->has_no_files, '"has_no_files" true';
 ok ! $lane->has_files,    '"has_files" false';
+
+{
+  no warnings 'qw';
+  is $lane->storage_path, file( qw( t data master hashed_lanes pathogen_prok_track a 0 9 9 10018_1#1 ) ),
+    'storage path is correct';
+}
 
 # the DatabaseManager should catch this when building the Database objects, but
 # we also check in the Lane object to make sure that the root directory is
