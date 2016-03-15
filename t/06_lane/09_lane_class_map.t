@@ -2,14 +2,14 @@
 use strict;
 use warnings;
 
-use Test::More; # tests => 14;
+use Test::More tests => 20;
 use Test::Exception;
 use Test::Warn;
 use Path::Class;
 use File::Copy;
 use Cwd;
 
-use Bio::Path::Find::DatabaseManager;
+use Bio::Path::Find::Finder;
 
 # set up logging
 use Log::Log4perl qw( :easy );
@@ -54,8 +54,7 @@ use_ok('Bio::Path::Find::Lane::Class::Map');
 
 #---------------------------------------
 
-# set up a DBM
-
+# use the Finder to get some lanes to play with
 my $config = {
   db_root           => dir(qw( t data linked )),
   connection_params => {
@@ -70,56 +69,54 @@ my $config = {
   db_subdirs => {
     mapping_tests => 'prokaryotes',
   },
+  no_progress_bars => 1,
 };
 
-my $dbm = Bio::Path::Find::DatabaseManager->new(
-  config      => $config,
-  schema_name => 'tracking',
+my $finder = Bio::Path::Find::Finder->new(
+  config     => $config,
+  lane_class => 'Bio::Path::Find::Lane::Class::Map'
 );
 
-my $database  = $dbm->get_database('mapping_tests');
-my @lane_rows = $database->schema->get_lanes_by_id('10018_1', 'lane')->all;
+my $lanes;
+lives_ok { $lanes = $finder->find_lanes( ids => [ '10018_1' ], type => 'lane' ) }
+  'no exception when finding lanes';
 
-$lane_rows[0]->database($database);
-
-my $lane;
-lives_ok { $lane = Bio::Path::Find::Lane::Class::Map->new( row => $lane_rows[0] ) }
-  'no exception when creating a Map Lane';
+my $lane = $lanes->[0];
 
 isa_ok $lane, 'Bio::Path::Find::Lane';
+isa_ok $lane, 'Bio::Path::Find::Lane::Class::Map';
 
 #-------------------------------------------------------------------------------
 
+# test the "_get_bam" method
+
 # shouldn't find any files when "is_qc" is true
 
-# explicitly set "is_qc" for all mapstats rows for a lane
-my $mapstats_row = $database->schema->resultset('Mapstat')->find( { row_id => 547908 } );
+# for this lane, one of the mapstats rows is already flagged as being a QC
+# mapping ("is_qc == 1"). Explicitly set "is_qc" for the other mapstats row too
+my $mapstats_row = $lane->row->database->schema->resultset('Mapstat')->find( { mapstats_id => 544477 } );
 $mapstats_row->update( { is_qc => 1 } );
 
 warnings_are { $lane->_get_bam } [], 'no warnings from "_get_bam"';
-
 ok $lane->has_no_files, 'no files found when "is_qc" true';
 
 #---------------------------------------
 
 # reset "is_qc". Lane now has one mapstats row with "is_qc == 1", one with
 # "is_qc == 0"
-$mapstats_row->update(
-  {
-    is_qc  => 0,
-    prefix => '_12345678_1234_',
-  }
-);
+
+$mapstats_row->update( { is_qc  => 0, prefix => '_12345678_1234_' } );
 
 # touch a job status file. If the method finds that file for a given lane, it
 # shouldn't return a path to a bam file
 $job_status_file->touch;
 
 warnings_are { $lane->_get_bam } [], 'no warnings from "_get_bam"';
-
 ok $lane->has_no_files, 'no files found when job status file exists';
 
 #---------------------------------------
+
+# when there is no job status file, we should find one file for this lane
 
 $job_status_file->remove;
 
@@ -130,171 +127,54 @@ is $lane->files->[0],
   't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/544477.se.markdup.bam',
   'found expected file';
 
+#---------------------------------------
 
+# check the paired end/single end filename distinction
 
+$lane = $lanes->[1];
 
+warnings_are { $lane->_get_bam } [], 'no warnings from "_get_bam"';
 
-
-$DB::single = 1;
-
-done_testing;
-
-chdir $orig_cwd;
-
-__END__
+is $lane->file_count, 1, 'found one file, flagged as paired end';
+is $lane->files->[0],
+  't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_IN_2/SLX/APP_IN_2_7492527/10018_1#2/544570.pe.markdup.bam',
+  'found expected paired end bam file';
 
 #---------------------------------------
 
-# "_get_stats_row"
+# check that we get a warning if we fall back to the raw file but it doesn't
+# exist on disk
 
-my $stats;
-lives_ok { $stats = $lane->_get_stats_row('spades', 'contigs.fa.stats', $lane->files->[0]) }
-  'no exception when getting stats row';
+$lane = $lanes->[3];
 
-my $expected_stats = [
-  607,
-  'Scaffold: Correction, Normalisation, Primer Removal + SPAdes + Improvement',
-  '10018_1#2',
-  317093,
-  'Streptococcus_suis_P1_7_v1',
-  2007491,
-  '0.0',
-  'NA',
-  2.4,
-  5983,
-  64,
-  95,
-  225633,
-  30.9,
-  3,
-  1,
-];
+warnings_like { $lane->_get_bam }
+  [ { carped => qr/expected to find raw bam/ } ],
+  'got warning from "_get_bam" about missing raw file';
 
-is_deeply $stats, $expected_stats, 'got expected stats row';
+is $lane->file_count, 1, 'found one file';
+is $lane->files->[0],
+  't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_IN_4/SLX/APP_IN_4_7492537/10018_1#4/543937.se.raw.sorted.bam',
+  'got expected (missing) raw.sorted.bam file';
 
 #---------------------------------------
 
-# "_build_stats"
+# make sure _get_bam works with multiple mapstats rows
 
-lives_ok { $stats = $lane->stats } 'no exception when getting all stats';
+$lane = $lanes->[4];
 
-$expected_stats = [
+warnings_are { $lane->_get_bam } [], 'no warnings from "_get_bam"';
+
+is $lane->file_count, 2, 'found two files';
+is_deeply $lane->files,
   [
-    607,
-    'Scaffold: Correction, Normalisation, Primer Removal + SPAdes + Improvement',
-    '10018_1#2',
-    317093,
-    'Streptococcus_suis_P1_7_v1',
-    2007491,
-    '0.0',
-    'NA',
-    2.4,
-    5983,
-    64,
-    95,
-    225633,
-    30.9,
-    3,
-    1,
+    't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N1_OP2/SLX/APP_N1_OP2_7492529/10018_1#5/525342.se.markdup.bam',
+    't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N1_OP2/SLX/APP_N1_OP2_7492529/10018_1#5/544510.se.markdup.bam',
   ],
-];
-
-is_deeply $stats, $expected_stats, 'got expected stats';
-
-#-------------------------------------------------------------------------------
-
-# set up a new lane, this time one that has two GFF files, 10018_1#1
-
-$lane_row = $lane_rows[0];
-$lane_row->database($database);
-
-# get a Lane
-
-lives_ok { $lane = Bio::Path::Find::Lane::Class::Annotation->new( row => $lane_row ) }
-  'no exception when creating an Annotation Lane';
-
-ok $lane->does('Bio::Path::Find::Lane::Role::Stats'), 'lane has Stats Role applied';
-
-# set it up to find the GFF file(s) for the lane
-$lane->search_depth(3);
-$lane->find_files('gff');
-
-#---------------------------------------
-
-# "_get_stats_row"
-
-lives_ok { $stats = $lane->_get_stats_row('spades', 'contigs.fa.stats', $lane->files->[0]) }
-  'no exception when getting stats row';
-
-$expected_stats = [
-  607,
-  'Scaffold: Correction, Normalisation, Primer Removal + SPAdes + Improvement',
-  '10018_1#1',
-  397141,
-  'Streptococcus_suis_P1_7_v1',
-  2007491,
-  '0.0',
-  '0.00',
-  2.3,
-  2895,
-  36,
-  73,
-  308610,
-  30.9,
-  3,
-  1,
-];
-
-is_deeply $stats, $expected_stats, 'got expected stats row';
-
-#---------------------------------------
-
-# "_build_stats"
-
-lives_ok { $stats = $lane->stats } 'no exception when getting all stats';
-
-$expected_stats = [
-  [
-    607,
-    'Scaffold: IVA',
-    '10018_1#1',
-    397141,
-    'Streptococcus_suis_P1_7_v1',
-    2007491,
-    '0.0',
-    '0.00',
-    2.3,
-    1167,
-    3,
-    341,
-    385279,
-    30.9,
-    13,
-    6,
-  ],
-  [
-    607,
-    'Scaffold: Correction, Normalisation, Primer Removal + SPAdes + Improvement',
-    '10018_1#1',
-    397141,
-    'Streptococcus_suis_P1_7_v1',
-    2007491,
-    '0.0',
-    '0.00',
-    2.3,
-    2895,
-    36,
-    73,
-    308610,
-    30.9,
-    3,
-    1,
-  ],
-];
-
-is_deeply $stats, $expected_stats, 'got expected stats';
+  'got expected file paths';
 
 #-------------------------------------------------------------------------------
 
 # done_testing;
+
+chdir $orig_cwd;
 
