@@ -12,7 +12,6 @@ use MooseX::StrictConstructor;
 use Term::ReadLine;
 use IO::Interactive qw( is_interactive );
 use Path::Class;
-use File::Find::Rule;
 use Archive::Tar;
 use Try::Tiny;
 use Carp qw( carp );
@@ -97,6 +96,11 @@ using species name.
 
 Return the path to the sequence (fasta or EMBL) or annotation (GFF) files.
 Must be one of C<fa>, C<embl>, or C<gff>.
+
+=item --reference-names, -R
+
+Show the names of matching reference genomes, rather than paths to their files
+on disk.
 
 =item --symlink, -l [<symlink path>]
 
@@ -209,6 +213,26 @@ for "yersina", with a missing "i", will return two possible matches:
 
   Which reference?
 
+=head2 Find the name for a reference genome
+
+The default behaviour of the C<pf ref> command is to return paths to reference
+genomes matching the supplied name. By adding the C<--reference-names> (C<-R>)
+option, you can make the command return the full name of the reference instead.
+
+  % pf ref -i yersinia_pestis -R
+  Yersinia_pestis_CO92_v1
+
+If you use a name that finds multiple matching references, you will get the
+full names of all of the matches:
+
+  % pf ref -i yersinia -R
+  Yersinia_enterocolitica_subsp_enterocolitica_8081_v1
+  Yersinia_pestis_CO92_v1
+
+This might be useful if you need to find lanes that have been mapped to a
+specific reference, in which case you need to supply the exact name of the
+reference genome to C<pf map>.
+
 =head2 Find different file types
 
 By default the C<pf ref> command returns the path to the sequence file for the
@@ -313,6 +337,16 @@ option 'filetype' => (
 
 #---------------------------------------
 
+option 'reference_names' => (
+  documentation => 'show names of references, not paths',
+  is            => 'ro',
+  isa           => Bool,
+  cmd_aliases   => 'R',
+  cmd_flag      => 'reference-names',
+);
+
+#---------------------------------------
+
 option 'all' => (
   documentation => q(don't ask me to choose a reference, return all matches),
   is            => 'ro',
@@ -364,7 +398,11 @@ sub run {
     return;
   }
 
-  $DB::single = 1;
+  # should we simply show the reference genome names ?
+  if ( $self->reference_names ) {
+    say $_ for @$refs;
+    return;
+  }
 
   my $paths;
   # if there's only one matching reference, or the user specified "--all", just
