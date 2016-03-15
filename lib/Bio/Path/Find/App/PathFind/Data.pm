@@ -231,8 +231,8 @@ option 'qc' => (
 #-------------------------------------------------------------------------------
 
 # this is a builder for the "_lane_class" attribute, which is defined on the
-# parent class, B::P::F::A::PathFind. The return value specifies the name of
-# the class that should be returned by the B::P::F::Finder::find_lanes method.
+# parent class, B::P::F::A::PathFind. The return value specifies the class of
+# object that should be returned by the B::P::F::Finder::find_lanes method.
 
 sub _build_lane_class {
   return 'Bio::Path::Find::Lane::Class::Data';
