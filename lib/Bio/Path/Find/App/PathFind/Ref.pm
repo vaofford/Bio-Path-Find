@@ -12,7 +12,6 @@ use MooseX::StrictConstructor;
 use Term::ReadLine;
 use IO::Interactive qw( is_interactive );
 use Path::Class;
-use File::Find::Rule;
 use Archive::Tar;
 use Try::Tiny;
 use Carp qw( carp );
