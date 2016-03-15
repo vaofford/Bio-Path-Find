@@ -37,7 +37,7 @@ package main;
 use strict;
 use warnings;
 
-use Test::More tests => 31;
+use Test::More tests => 33;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -169,9 +169,23 @@ $rf = Bio::Path::Find::App::PathFind::Ref->new(%params);
 
 stdout_like { $rf->run } qr|^t.*?\.fa$|, 'got path to fasta from "run"';
 
+$params{reference_names} = 1;
+
+$rf->clear_config;
+$rf = Bio::Path::Find::App::PathFind::Ref->new(%params);
+
+stdout_like { $rf->run } qr/^abc$/, 'got reference name from "run"';
+
 #---------------------------------------
 
 $params{id} = 'abcd';
+
+$rf->clear_config;
+$rf = Bio::Path::Find::App::PathFind::Ref->new(%params);
+
+stdout_like { $rf->run } qr/^abcde\nabcdefgh$/s, 'got multiple reference names from "run"';
+
+$params{reference_names} = 0;
 
 $rf->clear_config;
 $rf = Bio::Path::Find::App::PathFind::Ref->new(%params);
