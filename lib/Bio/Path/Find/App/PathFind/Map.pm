@@ -19,15 +19,14 @@ use Types::Standard qw(
   +Bool
 );
 
-use Bio::Path::Find::Types qw( :types );
+use Bio::Path::Find::Types qw( :types MappersFromMapper );
 
 use Bio::Path::Find::Lane::Class::Map;
 use Bio::Path::Find::Lane::StatusFile;
 
 extends 'Bio::Path::Find::App::PathFind';
 
-with 'Bio::Path::Find::Lane::Role::HasMapping',
-     'Bio::Path::Find::App::Role::Archivist',
+with 'Bio::Path::Find::App::Role::Archivist',
      'Bio::Path::Find::App::Role::Linker',
      'Bio::Path::Find::App::Role::Statistician';
 
@@ -154,6 +153,16 @@ option 'reference' => (
   cmd_aliases   => 'R',
 );
 
+#---------------------------------------
+
+option 'mapper' => (
+  documentation => 'show assemblies mapped with specific mapper(s)',
+  is            => 'rw',
+  isa           => Mappers,
+  cmd_aliases   => 'M',
+  cmd_split     => qr/,/,
+);
+
 #-------------------------------------------------------------------------------
 #- private attributes ----------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -180,9 +189,13 @@ sub run {
     ids      => $self->_ids,
     type     => $self->type,
     filetype => 'bam',  # triggers a call to B::P::F::Lane::Class::Map::_get_bam
-  );
+  );                    # for file finding
 
-  # should we filter on QC status ?
+  #---------------------------------------
+
+  # these are filters that are applied by the finder
+
+  # when finding lanes, should the finder filter on QC status ?
   $finder_params{qc} = $self->qc if $self->qc;
 
   # should we look for lanes with the "mapped" bit set on the "processed" bit
@@ -192,18 +205,40 @@ sub run {
   $finder_params{processed} = Bio::Path::Find::Types::MAPPED_PIPELINE
     unless $self->ignore_processed_flag;
 
+  #---------------------------------------
+
+  # these are filters that are applied by the lanes themselves, when they're
+  # finding files to return (see "B::P::F::Lane::Class::Map::_get_bam")
+
+  # when finding files, should the lane restrict the results to files created
+  # with a specified mapper ?
+  $finder_params{lane_attributes}->{mappers} = $self->mapper
+    if $self->mapper;
+
+  # when finding files, should the lane restrict the results to mappings
+  # against a specific reference ?
+  $finder_params{lane_attributes}->{reference} = $self->reference
+    if $self->reference;
+
+  #---------------------------------------
+
   # find lanes
   my $lanes = $self->_finder->find_lanes(%finder_params);
 
   if ( scalar @$lanes < 1 ) {
     say STDERR 'No data found.';
-    exit;
+    return;
   }
 
   # TODO build a stats CSV file
-  # TODO handle reference option
 
-  $_->print_paths for @$lanes;
+  # should we show extra info like reference and mapper ?
+  if ( $self->details ) {
+    $_->print_details for @$lanes;
+  }
+  else {
+    $_->print_paths   for @$lanes;
+  }
 }
 
 #-------------------------------------------------------------------------------
