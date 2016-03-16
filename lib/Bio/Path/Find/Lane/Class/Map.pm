@@ -16,7 +16,7 @@ use Types::Standard qw(
   ArrayRef
 );
 
-use Bio::Path::Find::Types qw( :all MappersFromMapper );
+use Bio::Path::Find::Types qw( :all );
 
 extends 'Bio::Path::Find::Lane';
 
