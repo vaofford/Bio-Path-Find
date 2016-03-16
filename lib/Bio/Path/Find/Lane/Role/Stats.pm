@@ -58,8 +58,12 @@ has 'stats' => (
 
 #---------------------------------------
 
-# specify that the stats should be taken from QC, rather than mapping. Default
-# true
+=attr use_qc_stats
+
+Specify that the stats should be taken from QC, rather than mapping. Default
+true
+
+=cut
 
 has 'use_qc_stats' => (
   is      => 'ro',
@@ -107,7 +111,7 @@ sub _build_tables {
   # NOTE incorrect. Anything that relies on the mapstats row defined here will
   # NOTE also be wrong in some cases !
   my ( $assembly, $mapper );
-  if ( defined $mapstats_rs ) {
+  if ( defined $mapstats_rs and $mapstats_rs->count ) {
     $t->{mapstats} = $mapstats_rs->single;
     $t->{assembly} = $t->{mapstats}->assembly;
     $t->{mapper}   = $t->{mapstats}->mapper;
