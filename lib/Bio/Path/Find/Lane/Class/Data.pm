@@ -148,7 +148,7 @@ sub _build_stats {
       $self->_mapping_is_complete
         ? $self->_percentage( $t->{mapstats}->reads_paired, $t->{mapstats}->raw_reads )
         : '0.0',
-      $t->{mapstats}->mean_insert,
+      defined $t->{mapstats} ? $t->{mapstats}->mean_insert : undef,
       $self->_depth_of_coverage,
       $self->_depth_of_coverage_sd,
       $self->_adapter_percentage,
