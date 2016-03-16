@@ -74,14 +74,20 @@ close $log_fh;
 # execute the command
 try {
   # we need to pass in the location of the configuration
-
-  # ether get the config file name from the PATHFIND_CONFIG env variable:
-  # Bio::Path::Find::App::PathFind->new_with_options->run;
-
-  # or specify the config file name here:
   Bio::Path::Find::App::PathFind->new_with_command(config => $cfg)->run;
 } catch {
-  say STDERR $_;
+  # FIXME there's an ugly problem with a couple of the commands, which use
+  # FIXME parameterized constraints on attributes (B::P::F::App::PathFind::Map,
+  # FIXME for example). If the affected options are given invalid values, we
+  # FIXME get an exception from deep down in the bowels of MooseX::App. This
+  # FIXME is a hack to catch that exception and try to give a more meaningful
+  # FIXME error message to the user.
+  if ( m/parameterized_from/ ) {
+    say STDERR 'ERROR: there was a problem running the command; check that you are giving valid values for all options';
+  }
+  else {
+    say STDERR $_;
+  }
 };
 
 exit 0;
