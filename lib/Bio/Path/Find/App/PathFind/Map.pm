@@ -163,6 +163,17 @@ option 'mapper' => (
   cmd_split     => qr/,/,
 );
 
+#---------------------------------------
+
+# this is an attribute, not an option, because we don't want it to be settable
+# by the user. This command only finds bam files.
+
+has 'filetype' => (
+  is      => 'ro',
+  isa     => MapType,
+  default => 'bam',
+);
+
 #-------------------------------------------------------------------------------
 #- private attributes ----------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -173,6 +184,17 @@ option 'mapper' => (
 
 sub _build_lane_class {
   return 'Bio::Path::Find::Lane::Class::Map';
+}
+
+#---------------------------------------
+
+# this is a builder that sets the name of the stats output file
+#
+# overrides a method in the Statistician Role
+
+sub _build_stats_file {
+  my $self = shift;
+  return file( $self->_renamed_id . '.mapping_stats.csv' );
 }
 
 #-------------------------------------------------------------------------------
@@ -230,13 +252,16 @@ sub run {
     return;
   }
 
-  # TODO build a stats CSV file
+  # should we write out a stats file ?
+  $self->_make_stats($lanes) if $self->_stats_flag;
 
-  # should we show extra info like reference and mapper ?
+  # print the list of files. Should we show extra info ?
   if ( $self->details ) {
+    # yes; print file path, reference, mapper and timestamp
     $_->print_details for @$lanes;
   }
   else {
+    # no; just print the paths
     $_->print_paths   for @$lanes;
   }
 }

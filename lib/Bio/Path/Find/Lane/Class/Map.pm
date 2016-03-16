@@ -96,38 +96,27 @@ sub _build_filetype_extensions {
 
 sub _build_stats_headers {
   return [
-    'Lane',
-    'Assembly Type',
-    'Total Length',
-    'No Contigs',
-    'Avg Contig Length',
-    'Largest Contig',
-    'N50',
-    'Contigs in N50',
-    'N60',
-    'Contigs in N60',
-    'N70',
-    'Contigs in N70',
-    'N80',
-    'Contigs in N80',
-    'N90',
-    'Contigs in N90',
-    'N100',
-    'Contigs in N100',
-    'No scaffolded bases (N)',
-    'Total Raw Reads',
-    'Reads Mapped',
-    'Reads Unmapped',
-    'Reads Paired',
-    'Reads Unpaired',
-    'Total Raw Bases',
-    'Total Bases Mapped',
-    'Total Bases Mapped (Cigar)',
-    'Average Read Length',
-    'Maximum Read Length',
-    'Average Quality',
-    'Insert Size Average',
-    'Insert Size Std Dev',
+    'Study ID',
+    'Sample',
+    'Lane Name',
+    'Cycles',
+    'Reads',
+    'Bases',
+    'Map Type',
+    'Reference',
+    'Reference Size',
+    'Mapper',
+    'Mapstats ID',
+    'Mapped %',
+    'Paired %',
+    'Mean Insert Size',
+    'Depth of Coverage',
+    'Depth of Coverage sd',
+    'Genome Covered (% >= 1X)',
+    'Genome Covered (% >= 5X)',
+    'Genome Covered (% >= 10X)',
+    'Genome Covered (% >= 50X)',
+    'Genome Covered (% >= 100X)',
   ];
 }
 
@@ -140,17 +129,12 @@ sub _build_stats_headers {
 sub _build_stats {
   my $self = shift;
 
+  my $lane_row = $self->row;
+
+  my $mapstats_rows = $lane_row->search_related_rs( 'latest_mapstats', { is_qc => 0 } );
+
   my @rows;
-  foreach my $assembler ( @{ $self->assemblers } ) {
-
-    my $assembly_dir = dir( $self->symlink_path, "${assembler}_assembly" );
-    next unless -d $assembly_dir;
-
-    foreach my $assembly_file ( @{ $self->_assembly_files } ) {
-      push @rows, $self->_get_stats_row( $assembler, $assembly_file );
-    }
-
-  }
+  push @rows, $self->_get_stats_row($_) for $mapstats_rows->all;
 
   return \@rows;
 }
@@ -189,8 +173,6 @@ sub print_details {
   }
 }
 
-#-------------------------------------------------------------------------------
-#- methods for file finding ----------------------------------------------------
 #-------------------------------------------------------------------------------
 
 # find bam files for the lane
@@ -288,58 +270,37 @@ sub _get_bam {
 }
 
 #-------------------------------------------------------------------------------
-#- methods for statistics gathering --------------------------------------------
-#-------------------------------------------------------------------------------
 
-# get the statistics for the specified assembler from the specified file
+# build a row of statistics for the current lane and specified mapstats row
 
 sub _get_stats_row {
-  my ( $self, $assembler, $assembly_file ) = @_;
+  my ( $self, $mapstats_row ) = @_;
 
   # shortcut to a hash containing Bio::Track::Schema::Result objects
   my $t = $self->_tables;
 
-  my $assembly_dir   = dir( $self->symlink_path, "${assembler}_assembly" );
-
-  my $stats_file     = file( $assembly_dir, $assembly_file );
-  my $file_stats     = $self->_parse_stats_file($stats_file);
-
-  my $bamcheck_file  = file( $assembly_dir, 'contigs.mapped.sorted.bam.bc' );
-  my $bamcheck_stats = $self->_parse_bc_file($bamcheck_file);
-
   return [
+    $t->{project}->ssid,
+    $t->{sample}->name,
     $t->{lane}->name,
-    $self->_get_assembly_type($assembly_dir, $assembly_file) || 'NA', # not sure if it's ever undef...
-    $file_stats->{total_length},
-    $file_stats->{num_contigs},
-    $file_stats->{average_contig_length},
-    $file_stats->{largest_contig},
-    $file_stats->{N50},
-    $file_stats->{N50_n},
-    $file_stats->{N60},
-    $file_stats->{N60_n},
-    $file_stats->{N70},
-    $file_stats->{N70_n},
-    $file_stats->{N80},
-    $file_stats->{N80_n},
-    $file_stats->{N90},
-    $file_stats->{N90_n},
-    $file_stats->{N100},
-    $file_stats->{N100_n},
-    $file_stats->{n_count},
-    $bamcheck_stats->{sequences},
-    $bamcheck_stats->{'reads mapped'},
-    $bamcheck_stats->{'reads unmapped'},
-    $bamcheck_stats->{'reads paired'},
-    $bamcheck_stats->{'reads unpaired'},
-    $bamcheck_stats->{'total length'},
-    $bamcheck_stats->{'bases mapped'},
-    $bamcheck_stats->{'bases mapped (cigar)'},
-    $bamcheck_stats->{'average length'},
-    $bamcheck_stats->{'maximum length'},
-    $bamcheck_stats->{'average quality'},
-    $bamcheck_stats->{'insert size average'},
-    $bamcheck_stats->{'insert size standard deviation'},
+    $t->{lane}->readlen,
+    $t->{lane}->raw_reads,
+    $t->{lane}->raw_bases,
+    $self->_map_type($mapstats_row),
+    $mapstats_row->assembly->name,
+    $mapstats_row->assembly->reference_size,
+    $mapstats_row->mapper->name,
+    $mapstats_row->mapstats_id,
+    $self->_mapped_percentage($mapstats_row),
+    $self->_paired_percentage($mapstats_row),
+    $mapstats_row->mean_insert,
+    $self->_depth_of_coverage($mapstats_row),
+    $self->_depth_of_coverage_sd($mapstats_row),
+    sprintf( '%.1f', $mapstats_row->target_bases_1x ),
+    sprintf( '%.1f', $mapstats_row->target_bases_5x ),
+    sprintf( '%.1f', $mapstats_row->target_bases_10x ),
+    sprintf( '%.1f', $mapstats_row->target_bases_50x ),
+    sprintf( '%.1f', $mapstats_row->target_bases_100x ),
   ];
 }
 
