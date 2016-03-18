@@ -129,14 +129,11 @@ sub _build_stats_headers {
 sub _build_stats {
   my $self = shift;
 
-  my $lane_row = $self->row;
+  # for each mapstats row for this lane, get a row of statistics, as an
+  # arrayref, and push it into the return array.
+  my @stats = map { $self->_get_stats_row($_) } $self->_all_mapstats_rows;
 
-  my $mapstats_rows = $lane_row->search_related_rs( 'latest_mapstats', { is_qc => 0 } );
-
-  my @rows;
-  push @rows, $self->_get_stats_row($_) for $mapstats_rows->all;
-
-  return \@rows;
+  return \@stats;
 }
 
 #-------------------------------------------------------------------------------
@@ -173,6 +170,8 @@ sub print_details {
   }
 }
 
+#-------------------------------------------------------------------------------
+#- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
 # find bam files for the lane
@@ -274,7 +273,7 @@ sub _get_bam {
 # build a row of statistics for the current lane and specified mapstats row
 
 sub _get_stats_row {
-  my ( $self, $mapstats_row ) = @_;
+  my ( $self, $ms ) = @_;
 
   # shortcut to a hash containing Bio::Track::Schema::Result objects
   my $t = $self->_tables;
@@ -286,21 +285,21 @@ sub _get_stats_row {
     $self->row->readlen,
     $self->row->raw_reads,
     $self->row->raw_bases,
-    $self->_map_type($mapstats_row),
-    $mapstats_row->assembly->name,
-    $mapstats_row->assembly->reference_size,
-    $mapstats_row->mapper->name,
-    $mapstats_row->mapstats_id,
-    $self->_mapped_percentage($mapstats_row),
-    $self->_paired_percentage($mapstats_row),
-    $mapstats_row->mean_insert || 'NA',
-    $self->_depth_of_coverage($mapstats_row),
-    $self->_depth_of_coverage_sd($mapstats_row),
-    $mapstats_row->target_bases_1x   ? sprintf( '%.1f', $mapstats_row->target_bases_1x   ) : 'NA',
-    $mapstats_row->target_bases_5x   ? sprintf( '%.1f', $mapstats_row->target_bases_5x   ) : 'NA',
-    $mapstats_row->target_bases_10x  ? sprintf( '%.1f', $mapstats_row->target_bases_10x  ) : 'NA',
-    $mapstats_row->target_bases_50x  ? sprintf( '%.1f', $mapstats_row->target_bases_50x  ) : 'NA',
-    $mapstats_row->target_bases_100x ? sprintf( '%.1f', $mapstats_row->target_bases_100x ) : 'NA',
+    $self->_map_type($ms),
+    defined $ms ? $ms->assembly->name           : undef,
+    defined $ms ? $ms->assembly->reference_size : undef,
+    defined $ms ? $ms->mapper->name             : undef,
+    defined $ms ? $ms->mapstats_id              : undef,
+    $self->_mapped_percentage($ms),
+    $self->_paired_percentage($ms),
+    defined $ms ? $ms->mean_insert              : undef,
+    $self->_depth_of_coverage($ms),
+    $self->_depth_of_coverage_sd($ms),
+    defined $ms && $ms->target_bases_1x   ? sprintf( '%.1f', $ms->target_bases_1x   ) : undef,
+    defined $ms && $ms->target_bases_5x   ? sprintf( '%.1f', $ms->target_bases_5x   ) : undef,
+    defined $ms && $ms->target_bases_10x  ? sprintf( '%.1f', $ms->target_bases_10x  ) : undef,
+    defined $ms && $ms->target_bases_50x  ? sprintf( '%.1f', $ms->target_bases_50x  ) : undef,
+    defined $ms && $ms->target_bases_100x ? sprintf( '%.1f', $ms->target_bases_100x ) : undef,
   ];
 }
 
