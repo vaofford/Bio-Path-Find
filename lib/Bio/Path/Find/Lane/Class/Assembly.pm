@@ -222,7 +222,7 @@ sub _get_stats_row {
   my $bamcheck_stats = $self->_parse_bc_file($bamcheck_file);
 
   return [
-    $t->{lane}->name,
+    $self->row->name,
     $self->_get_assembly_type($assembly_dir, $assembly_file) || 'NA', # not sure if it's ever undef...
     $file_stats->{total_length},
     $file_stats->{num_contigs},
