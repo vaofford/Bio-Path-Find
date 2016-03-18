@@ -337,6 +337,7 @@ sub _het_snp_stats {
 
 sub _trim {
   my ( $self, $string ) = @_;
+  return unless defined $string;
   $string =~ s/^\s+|\s+$//g;
   return $string;
 }
