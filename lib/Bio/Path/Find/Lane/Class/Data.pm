@@ -137,17 +137,9 @@ sub _build_stats_headers {
 sub _build_stats {
   my $self = shift;
 
-  # NOTE has to return an array ref of array refs (necessary to match up with
-  # NOTE the return value from B::P::F::Lane::Role::Assembly)
-
-  my @stats;
-
-  if ( $self->_has_mapstats_rows ) {
-    push @stats, $self->_get_stats_row($_) for $self->_all_mapstats_rows;
-  }
-  else {
-    push @stats, $self->_get_stats_row;
-  }
+  # for each mapstats row for this lane, get a row of statistics, as an
+  # arrayref, and push it into the return array.
+  my @stats = map { $self->_get_stats_row($_) } $self->_all_mapstats_rows;
 
   return \@stats;
 }
