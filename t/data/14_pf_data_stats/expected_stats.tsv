@@ -3,7 +3,6 @@ Study ID	Sample	Lane Name	Cycles	Reads	Bases	Map Type	Reference	Reference Size	M
 607	APP_IN_2	10018_1#2	47	317093	14903371	QC	Streptococcus_suis_P1_7_v1	2007491	bwa	522450	0.0	0.0	0	0.00	0.00	2.4	90.2	NA	NA	NA	pending	pending	NA	NA	NA	NA	Done	Done	Done	-	-	Done	Done
 607	APP_T1_OP2	10018_1#3	47	283298	13315006	QC	Streptococcus_suis_P1_7_v1	2007491	bwa	525447	0.0	0.0	0	0.00	0.00	2.4	89.9	NA	NA	NA	pending	pending	NA	NA	NA	NA	Done	Done	Done	-	-	Done	Done
 607	APP_IN_4	10018_1#4	47	265782	12491754	QC	Streptococcus_suis_P1_7_v1	2007491	bwa	525312	0.0	0.0	0	0.00	0.00	9.5	88.1	NA	NA	NA	pending	pending	NA	NA	NA	NA	Done	Done	Done	-	-	-	-
-607	APP_N1_OP2	10018_1#5	47	304254	14299938	QC	Streptococcus_suis_P1_7_v1	2007491	bwa	525342	0.0	0.0	0	0.00	0.00	2.2	90.3	NA	NA	NA	pending	pending	NA	NA	NA	NA	Done	Done	Done	-	-	-	-
 607	APP_N1_OP1	10018_1#6	47	157537	7404239	QC	Streptococcus_suis_P1_7_v1	2007491	bwa	549888	0.0	0.0	0	0.00	0.00	2.0	90.3	NA	0.0000	0.064	pending	pending	NA	NA	NA	NA	Done	Done	Done	-	-	-	-
 607	APP_T1_OP1	10018_1#7	47	653552	30716944	QC	Streptococcus_suis_P1_7_v1	2007491	bwa	525441	0.0	0.0	0	0.00	0.00	2.6	90.0	NA	NA	NA	pending	pending	NA	NA	NA	NA	Done	Done	Done	-	-	-	-
 607	APP_IN_3	10018_1#8	47	492992	23170624	QC	Streptococcus_suis_P1_7_v1	2007491	bwa	525306	0.0	0.0	0	0.00	0.00	7.5	88.8	NA	NA	NA	pending	pending	NA	NA	NA	NA	Done	Done	Done	-	-	-	-

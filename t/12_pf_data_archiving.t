@@ -99,12 +99,6 @@ warning_like { ( $got_filenames, $got_stats ) = $pf->_collect_filenames($lanes) 
   qr/Permission denied/,
   'got "permission denied" warning with unreadable job status file';
 
-# NOTE row five is broken. The corresponding lane in the database has two
-# NOTE mapstats rows, which are needed for testing the map find functionality
-# NOTE in t/06_lane/09_lane_class_map.t. The easiest way to work around this is
-# NOTE simply to ignore that row
-$got_stats->[5] = $expected_stats[5];
-
 is_deeply $got_filenames, \@expected_filenames,
   'got expected list of filenames from _collect_filenames';
 

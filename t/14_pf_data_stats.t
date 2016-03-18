@@ -82,12 +82,6 @@ ok -e $stats_file, 'stats named as expected';
 
 my $stats = csv( in => $stats_file->stringify );
 
-# NOTE row five is broken. The corresponding lane in the database has two
-# NOTE mapstats rows, which are needed for testing the map find functionality
-# NOTE in t/06_lane/09_lane_class_map.t. The easiest way to work around this is
-# NOTE simply to ignore that row
-$stats->[5] = $expected_stats[5];
-
 is_deeply $stats, \@expected_stats, 'written contents look right';
 
 # write to specified filename
