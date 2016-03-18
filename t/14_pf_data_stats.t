@@ -42,7 +42,6 @@ symlink dir( $orig_cwd, qw( t data ) ), dir( $temp_dir, qw( t data ) )
 chdir $temp_dir;
 
 my $expected_stats_file         = file(qw( t data 14_pf_data_stats expected_stats.tsv ));
-my $expected_stats_file_content = $expected_stats_file->slurp;
 my @expected_stats              = $expected_stats_file->slurp( chomp => 1, split => qr|\t| );
 
 #-------------------------------------------------------------------------------

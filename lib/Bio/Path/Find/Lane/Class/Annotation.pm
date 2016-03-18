@@ -106,7 +106,13 @@ sub _build_stats {
       next unless $assembly_dir->subsumes($gff_file);
 
       foreach my $assembly_file ( @{ $self->_assembly_files } ) {
-        push @rows, $self->_get_stats_row( $assembler, $assembly_file, $gff_file );
+        if ( $self->_has_mapstats_rows ) {
+          push @rows, $self->_get_stats_row( $assembler, $assembly_file, $gff_file, $_ )
+            for $self->_all_mapstats_rows;
+        }
+        else {
+          push @rows, $self->_get_stats_row( $assembler, $assembly_file, $gff_file );
+        }
       }
     }
 
@@ -122,7 +128,7 @@ sub _build_stats {
 # get the statistics for the specified assembler from the specified file
 
 sub _get_stats_row {
-  my ( $self, $assembler, $assembly_file, $gff_file ) = @_;
+  my ( $self, $assembler, $assembly_file, $gff_file, $ms ) = @_;
 
   # shortcut to a hash containing Bio::Track::Schema::Result objects
   my $t = $self->_tables;
@@ -140,13 +146,13 @@ sub _get_stats_row {
   return [
     $t->{project}->ssid,
     $self->_get_assembly_type($assembly_dir, $assembly_file) || 'NA', # not sure if it's ever undef...
-    $t->{lane}->name,
-    $t->{lane}->raw_reads,
-    $t->{assembly}->name,
-    $t->{assembly}->reference_size,
-    $self->_mapped_percentage,
-    $self->_depth_of_coverage,
-    $self->_adapter_percentage,
+    $self->row->name,
+    $self->row->raw_reads,
+    defined $ms ? $ms->assembly->name           : undef,
+    defined $ms ? $ms->assembly->reference_size : undef,
+    $self->_mapped_percentage($ms),
+    $self->_depth_of_coverage($ms),
+    $self->_adapter_percentage($ms),
     $file_stats->{total_length},
     $file_stats->{num_contigs},
     $file_stats->{N50},

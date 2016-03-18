@@ -66,6 +66,19 @@ has '+filetype' => (
   isa => Maybe[DataType],
 );
 
+#---------------------------------------
+
+# when we generate statistics, we want to use the QC mapping, as opposed to any
+# other mappings that might have been run on the lane.
+#
+# This value is defined on the Lane::Role::Stats role and used in there to
+# determine whether to return statistics for mappings that are associated with
+# QC or other mappings.
+
+has '+use_qc_stats' => (
+  default => 1,
+);
+
 #-------------------------------------------------------------------------------
 #- builders --------------------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -124,49 +137,69 @@ sub _build_stats_headers {
 sub _build_stats {
   my $self = shift;
 
+  # NOTE has to return an array ref of array refs (necessary to match up with
+  # NOTE the return value from B::P::F::Lane::Role::Assembly)
+
+  my @stats;
+
+  if ( $self->_has_mapstats_rows ) {
+    push @stats, $self->_get_stats_row($_) for $self->_all_mapstats_rows;
+  }
+  else {
+    push @stats, $self->_get_stats_row;
+  }
+
+  return \@stats;
+}
+
+#-------------------------------------------------------------------------------
+
+# get a row of statistics for this lane. If a row from the mapstats table is
+# supplied, we use that for determining values that rely on the mapstats
+# values, otherwise leave the field as undef
+
+sub _get_stats_row {
+  my ( $self, $ms ) = @_;
+
   # shortcut to a hash containing Bio::Track::Schema::Result objects
   my $t = $self->_tables;
 
-  # NOTE has to return an array ref of array refs (necessary to match up with
-  # NOTE the return value from B::P::F::Lane::Role::Assembly)
   return [
-    [
-      $t->{project}->ssid,
-      $t->{sample}->name,
-      $t->{lane}->name,
-      $t->{lane}->readlen,
-      $t->{lane}->raw_reads,
-      $t->{lane}->raw_bases,
-      $self->_map_type,
-      defined $t->{assembly} ? $t->{assembly}->name           : undef,
-      defined $t->{assembly} ? $t->{assembly}->reference_size : undef,
-      defined $t->{mapper}   ? $t->{mapper}->name             : undef,
-      defined $t->{mapstats} ? $t->{mapstats}->mapstats_id    : undef,
-      $self->_mapping_is_complete
-        ? $self->_percentage( $t->{mapstats}->reads_mapped, $t->{mapstats}->raw_reads )
-        : '0.0',
-      $self->_mapping_is_complete
-        ? $self->_percentage( $t->{mapstats}->reads_paired, $t->{mapstats}->raw_reads )
-        : '0.0',
-      defined $t->{mapstats} ? $t->{mapstats}->mean_insert : undef,
-      $self->_depth_of_coverage,
-      $self->_depth_of_coverage_sd,
-      $self->_adapter_percentage,
-      $self->_transposon_percentage,
-      $self->_genome_covered,
-      $self->_duplication_rate,
-      $self->_error_rate,
-      $t->{lane}->npg_qc_status,
-      $t->{lane}->qc_status,
-      $self->_het_snp_stats, # returns 4 values
-      $self->pipeline_status('qc'),
-      $self->pipeline_status('mapped'),
-      $self->pipeline_status('stored'),
-      $self->pipeline_status('snp_called'),
-      $self->pipeline_status('rna_seq_expression'),
-      $self->pipeline_status('assembled'),
-      $self->pipeline_status('annotated'),
-    ]
+    $t->{project}->ssid,
+    $t->{sample}->name,
+    $self->row->name,
+    $self->row->readlen,
+    $self->row->raw_reads,
+    $self->row->raw_bases,
+    $self->_map_type($ms),
+    defined $ms ? $ms->assembly->name           : undef,
+    defined $ms ? $ms->assembly->reference_size : undef,
+    defined $ms ? $ms->mapper->name             : undef,
+    defined $ms ? $ms->mapstats_id              : undef,
+    $self->_mapping_is_complete($ms)
+      ? $self->_percentage( $ms->reads_mapped, $ms->raw_reads )
+      : '0.0',
+    $self->_mapping_is_complete($ms)
+      ? $self->_percentage( $ms->reads_paired, $ms->raw_reads )
+      : '0.0',
+    defined $ms ? $ms->mean_insert : undef,
+    $self->_depth_of_coverage($ms),
+    $self->_depth_of_coverage_sd($ms),
+    $self->_adapter_percentage($ms),
+    $self->_transposon_percentage($ms),
+    $self->_genome_covered($ms),
+    $self->_duplication_rate($ms),
+    $self->_error_rate($ms),
+    $self->row->npg_qc_status,
+    $self->row->qc_status,
+    $self->_het_snp_stats, # returns 4 values
+    $self->pipeline_status('qc'),
+    $self->pipeline_status('mapped'),
+    $self->pipeline_status('stored'),
+    $self->pipeline_status('snp_called'),
+    $self->pipeline_status('rna_seq_expression'),
+    $self->pipeline_status('assembled'),
+    $self->pipeline_status('annotated'),
   ];
 }
 
@@ -217,7 +250,7 @@ sub _get_fastq {
     my $filepath = file( $self->symlink_path, $filename );
 
     if ( $filepath =~ m/fastq/ and
-         $filepath !~ m/pool_1.fastq.gz/ ) {
+         $filepath !~ m/pool_1\.fastq\.gz/ ) {
 
       # the filename here is obtained from the database, so the file really
       # should exist on disk. If it doesn't exist, if the symlink in the root
