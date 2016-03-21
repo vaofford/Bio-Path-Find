@@ -41,7 +41,7 @@ command_short_description 'Find mapped bam files for lanes';
 
 =head1 NAME
 
-pf info - Find mapped bam files for lanes
+pf map - Find mapped bam files for lanes
 
 =head1 USAGE
 
@@ -158,12 +158,15 @@ option 'reference' => (
 option 'mapper' => (
   documentation => 'show assemblies mapped with specific mapper(s)',
   is            => 'rw',
-  isa           => Mappers,
+  isa           => Mappers->plus_coercions(MappersFromMapper),
+  coerce        => 1,
   cmd_aliases   => 'M',
   cmd_split     => qr/,/,
 );
 
-#---------------------------------------
+#-------------------------------------------------------------------------------
+#- public attributes -----------------------------------------------------------
+#-------------------------------------------------------------------------------
 
 # this is an attribute, not an option, because we don't want it to be settable
 # by the user. This command only finds bam files.
