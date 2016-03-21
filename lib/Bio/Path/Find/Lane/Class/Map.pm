@@ -49,6 +49,14 @@ sub _build_mappers {
 
 #---------------------------------------
 
+=head1 ATTRIBUTES
+
+=attr reference
+
+The name of the reference genome on which to filter returned lanes.
+
+=cut
+
 has 'reference' => (
   is  => 'ro',
   isa => Str,

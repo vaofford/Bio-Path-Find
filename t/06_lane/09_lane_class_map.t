@@ -2,9 +2,10 @@
 use strict;
 use warnings;
 
-use Test::More tests => 20;
+use Test::More tests => 24;
 use Test::Exception;
 use Test::Warn;
+use Test::Output;
 use Path::Class;
 use File::Copy;
 use Cwd;
@@ -174,7 +175,105 @@ is_deeply $lane->files,
 
 #-------------------------------------------------------------------------------
 
-# done_testing;
+# "print_details"
+
+stdout_is { $lanes->[0]->print_details }
+  't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/544477.se.markdup.bam	Streptococcus_suis_P1_7_v1	smalt	2013-07-13T14:41:22
+',
+  'got expected details for lane with one mapping';
+
+stdout_is { $lanes->[4]->print_details }
+  't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N1_OP2/SLX/APP_N1_OP2_7492529/10018_1#5/525342.se.markdup.bam	Streptococcus_suis_P1_7_v1	bwa	2013-06-25T10:51:43
+t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N1_OP2/SLX/APP_N1_OP2_7492529/10018_1#5/544510.se.markdup.bam	Streptococcus_suis_P1_7_v1	smalt	2013-07-13T14:41:31
+',
+  'got expected details for lane with two mappings';
+
+#-------------------------------------------------------------------------------
+
+# check the "stats" attribute; calls "_build_stats", which calls "_get_stats_row"
+
+my $expected_stats = [
+  [
+    607,
+    'APP_N2_OP1',
+    '10018_1#1',
+    47,
+    397141,
+    18665627,
+    'Mapping',
+    'Streptococcus_suis_P1_7_v1',
+    2007491,
+    'smalt',
+    544477,
+    '1.3',
+    '0.0',
+    undef,
+    '0.10',
+    '2.97',
+    '0.7',
+    '0.4',
+    '0.3',
+    '0.0',
+    undef
+  ]
+];
+
+is_deeply $lanes->[0]->stats, $expected_stats, 'got expected stats for lane with one mapping';
+
+$expected_stats= [
+  [
+    607,
+    'APP_N1_OP2',
+    '10018_1#5',
+    47,
+    304254,
+    14299938,
+    'Mapping',
+    'Streptococcus_suis_P1_7_v1',
+    2007491,
+    'bwa',
+    525342,
+    '0.0',
+    '0.0',
+    0,
+    '0.00',
+    '0.00',
+    undef,
+    undef,
+    undef,
+    undef,
+    undef
+  ],
+  [
+    607,
+    'APP_N1_OP2',
+    '10018_1#5',
+    47,
+    304254,
+    14299938,
+    'Mapping',
+    'Streptococcus_suis_P1_7_v1',
+    2007491,
+    'smalt',
+    544510,
+    '1.2',
+    '0.0',
+    undef,
+    '0.09',
+    '2.47',
+    '0.5',
+    '0.3',
+    '0.2',
+    '0.1',
+    '0.0'
+  ]
+];
+
+is_deeply $lanes->[4]->stats, $expected_stats, 'got expected stats for lane with two mappings';
+
+#-------------------------------------------------------------------------------
+
+done_testing;
 
 chdir $orig_cwd;
 
