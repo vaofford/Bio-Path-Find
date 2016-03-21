@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More; # tests => 22;
+use Test::More tests => 9;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -111,9 +111,7 @@ is $stdout, $expected_stdout, 'got expected details';
 
 #-------------------------------------------------------------------------------
 
-$DB::single = 1;
-
-done_testing;
+# done_testing;
 
 chdir $orig_cwd;
 
