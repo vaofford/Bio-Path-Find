@@ -94,6 +94,11 @@ the original C<pathfind> command.
 Shows information about the samples associated with sequencing runs.
 Equivalent to the original C<infofind> command.
 
+=head2 map
+
+Shows mapped C<bam> files for a set of lanes. Equivalent to the original
+C<mapfind> command.
+
 =head2 qc
 
 Show QC information for sequencing data, in the form of kraken reports.
