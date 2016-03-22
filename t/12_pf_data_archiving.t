@@ -312,7 +312,7 @@ ok -f $archive, 'found tar archive';
 # check the archive
 my $tar = Archive::Tar->new;
 
-lives_ok { $tar->read($archive) } 'no problem reading tar archive';
+lives_ok { $tar->read($archive->stringify) } 'no problem reading tar archive';
 is_deeply [ $tar->list_files ], [ '10018_1#1/10018_1#1_1.fastq.gz', '10018_1#1/stats.csv' ],
   'got expected files in tar archive';
 
