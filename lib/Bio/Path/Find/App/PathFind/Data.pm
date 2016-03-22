@@ -231,8 +231,8 @@ option 'qc' => (
 #-------------------------------------------------------------------------------
 
 # this is a builder for the "_lane_class" attribute, which is defined on the
-# parent class, B::P::F::A::PathFind. The return value specifies the name of
-# the class that should be returned by the B::P::F::Finder::find_lanes method.
+# parent class, B::P::F::A::PathFind. The return value specifies the class of
+# object that should be returned by the B::P::F::Finder::find_lanes method.
 
 sub _build_lane_class {
   return 'Bio::Path::Find::Lane::Class::Data';
@@ -332,12 +332,11 @@ sub run {
   if ( $self->filetype ) {
     $finder_params{filetype} = $self->filetype;
   }
-  # if we're archiving but there was no specified filetype, collect fastq files
-  # by default
   else {
-    if ( $self->_tar_flag or $self->_zip_flag ) {
-      $finder_params{filetype} = 'fastq';
-    }
+    # if there was no specified filetype, but we're archiving, collect fastq
+    # files by default
+    $finder_params{filetype} = 'fastq'
+      if ( $self->_tar_flag or $self->_zip_flag );
   }
 
   # actually go and find lanes

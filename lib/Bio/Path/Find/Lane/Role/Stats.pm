@@ -58,17 +58,49 @@ has 'stats' => (
 
 #---------------------------------------
 
-# specify that the stats should be taken from QC, rather than mapping. Default
-# true
+=attr use_qc_stats
+
+Specify that the mapping stats should be taken from QC, rather than mapping.
+Default false, i.e. mapping statistics will be taken from the row in the
+C<mapstats> table where C<is_qc == 0>.
+
+=cut
 
 has 'use_qc_stats' => (
-  is      => 'ro',
+  is      => 'rw',
   isa     => Bool,
-  default => 1,
+  default => 0,
 );
 
 #-------------------------------------------------------------------------------
 #- private attributes ----------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+has '_mapstats_rows' => (
+  is      => 'ro',
+  isa     => ArrayRef[BioTrackSchemaResultBase],
+  lazy    => 1,
+  builder => '_build_mapstats',
+  traits  => ['Array'],
+  handles => {
+    _all_mapstats_rows    => 'elements',
+    _has_mapstats_rows    => 'count',
+    _has_no_mapstats_rows => 'is_empty',
+  },
+  clearer => '_clear_mapstats_rows',
+);
+
+sub _build_mapstats {
+  my $self = shift;
+
+  my $mapstats_rs = $self->row->search_related(
+    'latest_mapstats',
+    { is_qc => $self->use_qc_stats },
+  );
+
+  return [ $mapstats_rs->all ];
+}
+
 #-------------------------------------------------------------------------------
 
 # a hash ref with table name as key and the Bio::Track::Schema::Result for that
@@ -80,7 +112,6 @@ has '_tables' => (
   isa     => HashRef[BioTrackSchemaResultBase],
   lazy    => 1,
   builder => '_build_tables',
-  writer  => '_set_tables',
 );
 
 sub _build_tables {
@@ -88,25 +119,9 @@ sub _build_tables {
 
   my $t = {};
 
-  $t->{lane}     = $self->row;
   $t->{library}  = $self->row->latest_library;
   $t->{sample}   = $self->row->latest_library->latest_sample;
   $t->{project}  = $self->row->latest_library->latest_sample->latest_project;
-
-  # there may be multiple rows in the mapstats table for each lane,
-  # representing a QC versus full mappings. Get just one row, corresponding to
-  # the "use_qc_stats" attribute
-  my $mapstats_rs = $self->row->search_related(
-    'latest_mapstats',
-    { is_qc => $self->use_qc_stats },
-  );
-
-  my ( $assembly, $mapper );
-  if ( defined $mapstats_rs ) {
-    $t->{mapstats} = $mapstats_rs->single;
-    $t->{assembly} = $t->{mapstats}->assembly;
-    $t->{mapper}   = $t->{mapstats}->mapper;
-  }
 
   return $t;
 }
@@ -120,57 +135,70 @@ sub _build_tables {
 #-------------------------------------------------------------------------------
 
 sub _mapped_percentage {
-  my $self = shift;
+  my ( $self, $mapstats_row ) = @_;
 
-  return '0.0' unless $self->_mapping_is_complete;
-  return $self->_percentage( $self->_tables->{mapstats}->reads_mapped,
-                             $self->_tables->{mapstats}->raw_reads );
+  $mapstats_row ||= $self->_tables->{mapstats};
+
+  return '0.0' unless $self->_mapping_is_complete($mapstats_row);
+  return $self->_percentage( $mapstats_row->reads_mapped,
+                             $mapstats_row->raw_reads );
 }
+
+#-------------------------------------------------------------------------------
+
+sub _paired_percentage {
+  my ( $self, $mapstats_row ) = @_;
+
+  $mapstats_row ||= $self->_tables->{mapstats};
+
+  return '0.0' unless $self->_mapping_is_complete($mapstats_row);
+  return $self->_percentage( $mapstats_row->reads_paired,
+                             $mapstats_row->raw_reads );
+}
+
 
 #-------------------------------------------------------------------------------
 
 sub _map_type {
-  my $self = shift;
-  return 'NA' if not defined $self->_tables->{mapstats};
-  return $self->_tables->{mapstats}->is_qc ? 'QC' : 'Mapping';
+  my ( $self, $mapstats_row ) = @_;
+
+  return 'NA' if not defined $mapstats_row;
+  return $mapstats_row->is_qc ? 'QC' : 'Mapping';
 }
 
 #-------------------------------------------------------------------------------
 
+# this algorithm is (hopefully) an exact reproduction of the original one
 # (see old Path::Find::Stats::Row, line 582)
 
 sub _depth_of_coverage {
-  my $self = shift;
+  my ( $self, $mapstats_row ) = @_;
 
-  return 'NA' unless $self->_is_mapped;
+  return 'NA' if not defined $mapstats_row;
 
-  # the line above is intended to be equivalent to:
-  # return 'NA' unless ( defined $self->_tables->{mapstats} and
-  #                      $self->_tables->{mapstats}->is_qc  and
-  #                      $self->_mapping_is_complete );
+  # start with the value from the mapstats row, if there is one
+  my $depth = $mapstats_row->mean_target_coverage;
 
-  # see if we can get the value directly from the mapstats table
-  my $depth              = $self->_tables->{mapstats}->mean_target_coverage;
+  # if this is a QC mapping, try to calculate the depth of coverage for it
+  if ( $mapstats_row->is_qc and $self->_mapping_is_complete($mapstats_row) ) {
 
-  # we need either to lookup the depth or calculate it; see if the DB can give
-  # us the genome size
-  my $genome_size        = $self->_tables->{assembly}->reference_size;
+    my $rmdup_bases_mapped = $mapstats_row->rmdup_bases_mapped;
+    my $genome_size        = $mapstats_row->assembly->reference_size;
 
-  # we don't have a depth value from the DB and can't calculate it without
-  # knowing the size of the genome, so bail
-  return 'NA' unless ( defined $depth or $genome_size );
+    # if we know the genome size, and if we don't already have a value for
+    # it, calculate the coverage depth
+    if ( $genome_size and not defined $depth ) {
+      $depth = $rmdup_bases_mapped / $genome_size;
+    }
 
-  my $rmdup_bases_mapped = $self->_tables->{mapstats}->rmdup_bases_mapped;
-  my $qc_bases           = $self->_tables->{mapstats}->raw_bases;
-  my $bases              = $self->_tables->{lane}->raw_bases;
+    # scale by lane bases / sample bases
+    my $qc_bases = $mapstats_row->raw_bases;
+    my $bases    = $self->row->raw_bases;
 
-  # if we don't already have depth then calculate it from mapped bases / genome
-  # size
-  $depth ||= $rmdup_bases_mapped / $genome_size;
+    $depth = ( $depth * $bases ) / $qc_bases;
+  }
 
-  # scale by lane bases / sample bases
-  $depth = ( $depth * $bases ) / $qc_bases;
-
+  # tidy up the value and return it
   return $self->_trimf( $depth );
 }
 
@@ -179,21 +207,21 @@ sub _depth_of_coverage {
 # (see old Path::Find::Stats::Row, line 611)
 
 sub _depth_of_coverage_sd {
-  my $self = shift;
+  my ( $self, $mapstats_row ) = @_;
 
-  return 'NA' unless $self->_is_mapped;
+  return 'NA' if not defined $mapstats_row;
 
-  # see if we can get the value directly from the mapstats table
-  my $depth_sd = $self->_tables->{mapstats}->target_coverage_sd;
+  # get the value directly from the mapstats table
+  my $depth_sd = $mapstats_row->target_coverage_sd;
 
-  # we don't have a depth SD value from the DB so bail
-  return 'NA' if not defined $depth_sd;
+  # if this is a QC mapping, scale it
+  if ( $mapstats_row->is_qc and $self->_mapping_is_complete($mapstats_row) ) {
 
-  my $qc_bases = $self->_tables->{mapstats}->raw_bases;
-  my $bases    = $self->_tables->{lane}->raw_bases;
+    my $qc_bases = $mapstats_row->raw_bases;
+    my $bases    = $self->row->raw_bases;
 
-  # scale by lane bases / sample bases
-  $depth_sd = ( $depth_sd * $bases ) / $qc_bases;
+    $depth_sd = ( $depth_sd * $bases ) / $qc_bases;
+  }
 
   return $self->_trimf( $depth_sd );
 }
@@ -201,9 +229,7 @@ sub _depth_of_coverage_sd {
 #-------------------------------------------------------------------------------
 
 sub _adapter_percentage {
-  my $self = shift;
-
-  my $ms = $self->_tables->{mapstats};
+  my ( $self, $ms ) = @_;
 
   # can't calculate this value unless:
   # 1. there are stats for this lane
@@ -221,9 +247,7 @@ sub _adapter_percentage {
 #-------------------------------------------------------------------------------
 
 sub _transposon_percentage {
-  my $self = shift;
-
-  my $ms = $self->_tables->{mapstats};
+  my ( $self, $ms ) = @_;
 
   return 'NA' unless ( defined $ms and
                        $ms->is_qc  and
@@ -235,12 +259,14 @@ sub _transposon_percentage {
 #-------------------------------------------------------------------------------
 
 sub _genome_covered {
-  my $self = shift;
+  my ( $self, $ms ) = @_;
 
-  return 'NA' unless $self->_is_mapped;
+  return 'NA' unless ( defined $ms and
+                       $ms->is_qc  and
+                       $self->_mapping_is_complete($ms) );
 
-  my $target_bases_mapped = $self->_tables->{mapstats}->target_bases_mapped;
-  my $genome_size         = $self->_tables->{assembly}->reference_size;
+  my $target_bases_mapped = $ms->target_bases_mapped;
+  my $genome_size         = $ms->assembly->reference_size;
 
   return 'NA' unless ( $target_bases_mapped and
                        $genome_size );
@@ -251,12 +277,14 @@ sub _genome_covered {
 #-------------------------------------------------------------------------------
 
 sub _duplication_rate {
-  my $self = shift;
+  my ( $self, $ms ) = @_;
 
-  return 'NA' unless $self->_is_mapped;
+  return 'NA' unless ( defined $ms and
+                       $ms->is_qc  and
+                       $self->_mapping_is_complete($ms) );
 
-  my $rmdup_reads_mapped = $self->_tables->{mapstats}->rmdup_reads_mapped;
-  my $reads_mapped       = $self->_tables->{mapstats}->reads_mapped;
+  my $rmdup_reads_mapped = $ms->rmdup_reads_mapped;
+  my $reads_mapped       = $ms->reads_mapped;
 
   return 'NA' unless ( $rmdup_reads_mapped and
                        $reads_mapped );
@@ -267,10 +295,13 @@ sub _duplication_rate {
 #-------------------------------------------------------------------------------
 
 sub _error_rate {
-  my $self = shift;
+  my ( $self, $ms ) = @_;
 
-  return 'NA' unless $self->_is_mapped;
-  return $self->_trimf( $self->_tables->{mapstats}->error_rate, '%.3f' );
+  return 'NA' unless ( defined $ms and
+                       $ms->is_qc  and
+                       $self->_mapping_is_complete($ms) );
+
+  return $self->_trimf( $ms->error_rate, '%.3f' );
 }
 
 #-------------------------------------------------------------------------------
@@ -302,25 +333,11 @@ sub _het_snp_stats {
 
 #-------------------------------------------------------------------------------
 
-# returns true if:
-# 1. we have a mapstats row for this lane
-# 2. the stats are for a QC mapping, and
-# 3. the mapping is complete
-
-sub _is_mapped {
-  my $self = shift;
-
-  return 1 if ( defined $self->_tables->{mapstats} and
-                $self->_tables->{mapstats}->is_qc  and
-                $self->_mapping_is_complete );
-}
-
-#-------------------------------------------------------------------------------
-
 # returns the input string trimmed of whitespace at start and end
 
 sub _trim {
   my ( $self, $string ) = @_;
+  return unless defined $string;
   $string =~ s/^\s+|\s+$//g;
   return $string;
 }
@@ -344,9 +361,9 @@ sub _trimf {
 # returns true if the lane has mapstats and the "bases_mapped" flag is true
 
 sub _mapping_is_complete {
-  my $self = shift;
-  return undef if not defined $self->_tables->{mapstats};
-  return $self->_tables->{mapstats}->bases_mapped ? 1 : 0;
+  my ( $self, $mapstats_row ) = @_;
+  return undef if not defined $mapstats_row;
+  return $mapstats_row->bases_mapped ? 1 : 0;
 }
 
 #-------------------------------------------------------------------------------

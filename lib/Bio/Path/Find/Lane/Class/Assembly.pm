@@ -189,9 +189,12 @@ sub _build_stats {
   my @rows;
   foreach my $assembler ( @{ $self->assemblers } ) {
 
+    # see if this lane has an assembly created by this assembler
     my $assembly_dir = dir( $self->symlink_path, "${assembler}_assembly" );
     next unless -d $assembly_dir;
 
+    # stash the row of statistics for each of the assemblies created by the
+    # current assembler
     foreach my $assembly_file ( @{ $self->_assembly_files } ) {
       push @rows, $self->_get_stats_row( $assembler, $assembly_file );
     }
@@ -222,7 +225,7 @@ sub _get_stats_row {
   my $bamcheck_stats = $self->_parse_bc_file($bamcheck_file);
 
   return [
-    $t->{lane}->name,
+    $self->row->name,
     $self->_get_assembly_type($assembly_dir, $assembly_file) || 'NA', # not sure if it's ever undef...
     $file_stats->{total_length},
     $file_stats->{num_contigs},

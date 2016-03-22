@@ -54,6 +54,8 @@ L<Type::Library>
 use Path::Class;
 use Bio::Path::Find::ConfigSingleton;
 
+# the types that are declared here are needed somewhere in this package. They
+# don't need to be explicitly declared here otherwise
 use Type::Library -base, -declare => qw(
   PathClassFile
   PathClassDir
@@ -64,6 +66,8 @@ use Type::Library -base, -declare => qw(
   Assembler
   ProcessedFlag
   QCType
+  MapType
+  Mapper
   TaxLevel
 );
 
@@ -154,14 +158,16 @@ enum IDType,         [qw( lane sample database study file library species )];
 enum FileIDType,     [qw( lane sample study )];
 enum QCState,        [qw( passed failed pending )];
 enum Assembler,      [qw( velvet spades iva pacbio )];
+enum Mapper,         [qw( bowtie2 bwa bwa_aln smalt ssaha2 stampy tophat )];
 enum DataType,       [qw( fastq bam pacbio corrected )];
 enum AssemblyType,   [qw( scaffold contigs all )];
 enum AnnotationType, [qw( gff faa ffn gbk fasta fastn genbank )];
 enum RefType,        [qw( fa gff embl )];
 enum QCType,         [qw( kraken )];
+enum MapType,        [qw( bam )];
 
 declare FileType,
-  as AnnotationType|AssemblyType|DataType|RefType|QCType;
+  as AnnotationType|AssemblyType|DataType|RefType|QCType|MapType;
 
 #---------------------------------------
 
@@ -235,7 +241,16 @@ declare Assemblers,
 
 declare_coercion 'AssemblersFromAssembler',
   to_type Assemblers,
-  from    Assembler,  via { [ $_ ] };
+  from    Assembler, via { [ $_ ] };
+
+#---------------------------------------
+
+declare Mappers,
+  as ArrayRef[Mapper];
+
+declare_coercion 'MappersFromMapper',
+  to_type Mappers,
+  from    Mapper, via { [ $_ ] };
 
 #-------------------------------------------------------------------------------
 

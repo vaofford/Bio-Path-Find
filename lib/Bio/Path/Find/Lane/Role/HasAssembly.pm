@@ -211,8 +211,11 @@ sub _get_assembly_type {
 
   my $pipeline_description;
   foreach ( $assembly_dir->children ) {
-    next unless m|pipeline_version_(\d+)$|;
-    $pipeline_description = $self->_pipeline_versions->{$1};
+    next unless m|pipeline_version_((\d+)((\.\d+)+)?)$|;
+    $pipeline_description   = $self->_pipeline_versions->{$1};
+    $pipeline_description ||= $self->_pipeline_versions->{$2};
+    # (fall back on just the first digit of the version number, which should
+    # return a more generic pipeline description.)
     last if defined $pipeline_description;
   }
 

@@ -340,9 +340,9 @@ has '_product_flag' => ( is => 'rw', isa => Bool );
 #- private attributes ----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# this is a builder for the "_lane_class" attribute that's defined on the
+# this is a builder for the "_lane_class" attribute, which is defined on the
 # parent class, B::P::F::A::PathFind. The return value specifies the class of
-# the B::P::F::Lane objects that should be returned by the Finder.
+# object that should be returned by the B::P::F::Finder::find_lanes method.
 
 sub _build_lane_class {
   return 'Bio::Path::Find::Lane::Class::Annotation';
@@ -430,7 +430,7 @@ sub run {
   # returns. The files that we want to find using Lane::find_files are in the
   # sub-directory containing assembly information, so the default search depth
   # of 1 will miss them.
-  $finder_params{lane_attributes}->{search_depth}    = 3;
+  $finder_params{lane_attributes}->{search_depth} = 3;
 
   # make Lanes store found files as simple strings, rather than
   # Path::Class::File objects. The list of files is handed off to
@@ -438,7 +438,8 @@ sub run {
   # handed objects.
   $finder_params{lane_attributes}->{store_filenames} = 1;
 
-  # should we restrict the search to a specific assembler ?
+  # should we tell the lanes to restrict ther search for files to a those
+  # created by a specific assembler ?
   if ( $self->program ) {
     # yes; tell the Finder to set the "assemblers" attribute on every Lane that
     # it returns
