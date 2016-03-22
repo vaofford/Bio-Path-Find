@@ -28,4 +28,6 @@ dzil listdeps --missing | cpanm --notest
 dzil install
 
 cd $start_dir
+dzil authordeps --missing | cpanm --notest
+dzil listdeps --missing | cpanm --notest
 
