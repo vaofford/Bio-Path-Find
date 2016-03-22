@@ -67,7 +67,8 @@ warning_like { $stdout = capture_stdout { $mf->run } }
 like $stdout, qr/$bam/, 'got sensible list of bam files';
 # (this run uses Lane::Class::Map::print_paths, so we've tested that implicitly)
 
-is scalar split( m/\n/, $stdout), 40, 'got expected number of bam files';
+my @files = split m/\n/, $stdout;
+is scalar @files, 40, 'got expected number of bam files';
 
 #---------------------------------------
 
@@ -77,7 +78,8 @@ $mf->clear_config;
 $mf = Bio::Path::Find::App::PathFind::Map->new(%params);
 
 $stdout = capture_stdout { $mf->run };
-is scalar split( m/\n/, $stdout), 1, 'got single bam file mapped with "bwa"';
+@files = split m/\n/, $stdout;
+is scalar @files, 1, 'got single bam file mapped with "bwa"';
 
 #---------------------------------------
 
@@ -88,7 +90,8 @@ $mf->clear_config;
 $mf = Bio::Path::Find::App::PathFind::Map->new(%params);
 
 $stdout = capture_stdout { $mf->run };
-is scalar split( m/\n/, $stdout), 1, 'got single bam file mapped to specific reference';
+@files = split m/\n/, $stdout;
+is scalar @files, 1, 'got single bam file mapped to specific reference';
 
 #---------------------------------------
 
@@ -103,7 +106,8 @@ $mf = Bio::Path::Find::App::PathFind::Map->new(%params);
 # "capture" returns stdout, stderr, and return values. We only care about
 # stdout here
 ( $stdout ) = capture { $mf->run };
-is scalar split( m/\n/, $stdout), 40, 'got expected bam files';
+@files = split m/\n/, $stdout;
+is scalar @files, 40, 'got expected bam files';
 
 my $expected_stdout = join '', <DATA>;
 
