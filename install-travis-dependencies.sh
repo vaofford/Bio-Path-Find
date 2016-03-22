@@ -1,5 +1,7 @@
 #!/bin/bash
 
+start_dir=$(pwd)
+
 cpanm Dist::Zilla --notest
 
 git clone https://github.com/sanger-pathogens/Bio-Metagenomics.git
@@ -24,4 +26,6 @@ cd ../Bio-Sequencescape-Schema
 dzil authordeps --missing | cpanm --notest
 dzil listdeps --missing | cpanm --notest
 dzil install
+
+cd $start_dir
 
