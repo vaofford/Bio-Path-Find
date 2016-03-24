@@ -305,7 +305,7 @@ sub run {
   # build the parameters for the finder
   my %finder_params = (
     ids      => $self->_ids,
-    type     => $self->type,
+    type     => $self->_type,
     filetype => 'bam',  # triggers a call to B::P::F::Lane::Class::Map::_get_bam
   );                    # for file finding
 

@@ -303,7 +303,7 @@ sub run {
 
   my %finder_params = (
     ids      => $self->_ids,
-    type     => $self->type,
+    type     => $self->_type,
     filetype => 'kraken',
   );
 
