@@ -354,7 +354,7 @@ sub run {
   # find lanes
   my $lanes = $self->_finder->find_lanes(
     ids  => $self->_ids,
-    type => $self->type,
+    type => $self->_type,
   );
 
   $self->log->debug('found ' . scalar @$lanes . ' lanes');
