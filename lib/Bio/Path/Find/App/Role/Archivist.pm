@@ -301,7 +301,7 @@ sub _collect_filenames {
 sub _rename_file {
   my ( $self, $old_filename ) = @_;
 
-  my $new_basename = $old_filename->basename;
+  my $new_basename = file($old_filename)->basename;
 
   # honour the "--rename" option
   $new_basename =~ s/\#/_/g if $self->rename;
