@@ -301,8 +301,6 @@ sub _collect_filenames {
 sub _rename_file {
   my ( $self, $old_filename ) = @_;
 
-  return unless ( $old_filename and -f $old_filename );
-
   my $new_basename = $old_filename->basename;
 
   # honour the "--rename" option

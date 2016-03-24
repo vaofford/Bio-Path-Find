@@ -170,7 +170,7 @@ unshift @expected_file_hashes, { 'bad_filename' => file('bad_filename') };
 warnings_like { $pf->_create_tar_archive(\@expected_file_hashes, $stats_file) }
   [
     { carped => qr/No such file:/ },
-    # { carped => qr/No such file in archive/ },
+    { carped => qr/No such file in archive/ },
     { carped => qr/couldn't rename/ },
   ],
   'warnings when adding bogus file to archive';
