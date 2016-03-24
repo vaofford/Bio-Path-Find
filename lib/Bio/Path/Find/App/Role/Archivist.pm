@@ -147,23 +147,25 @@ sub _make_tar {
 
   say STDERR "Archiving data to '$archive_filename'";
 
-  # collect the list of files to archive
+  # collect the list of files to archive. $filenames is an array of hash refs,
+  # each hash containing the path to a file as the key and an edited version of
+  # the name as the key. The edited name is the one that should be used in the
+  # archive that we're building here
   my ( $filenames, $stats ) = $self->_collect_filenames($data);
 
   # if the _collect_filenames method returned some statistics data, write a CSV
   # file with the stats and add it to the list of files that will go into the
   # archive
+  my $stats_file;
   my $temp_dir = File::Temp->newdir; # create the temp directory outside of
                                      # the "if" block, otherwise it will be
   if ( defined $stats ) {            # prematurely removed...
-    my $stats_file = file( $temp_dir, 'stats.csv' );
+    $stats_file = file( $temp_dir, 'stats.csv' );
     $self->_write_csv($stats, $stats_file);
-
-    push @$filenames, $stats_file;
   }
 
   # build the tar archive in memory
-  my $tar = $self->_create_tar_archive($filenames);
+  my $tar = $self->_create_tar_archive($filenames, $stats_file);
 
   # we could write the archive in a single call, like this:
   #   $tar->write( $tar_filename, COMPRESS_GZIP );
@@ -189,8 +191,9 @@ sub _make_tar {
 
   # list the contents of the archive. Strip the path from stats.csv, since it's
   # a file that we generate in a temp directory. That temp dir is deleted as
-  # soon as the file is archived, so it's meaningless to the user
-  say m|/stats.csv$| ? 'stats.csv' : $_ for @$filenames;
+  # soon as the leave this method, so it's meaningless to the end user of the
+  # tar file
+  say m|/stats.csv$| ? 'stats.csv' : keys %$_ for @$filenames;
 }
 
 #-------------------------------------------------------------------------------
@@ -204,23 +207,24 @@ sub _make_zip {
 
   say STDERR "Archiving data to '$archive_filename'";
 
-  # collect the list of files to archive
+  # collect the list of files to archive. $filenames is an array of hash refs,
+  # each hash containing the path to a file as the key and an edited version of
+  # the name as the key. The edited name is the one that should be used in the
+  # archive that we're building here
   my ( $filenames, $stats ) = $self->_collect_filenames($data);
 
-  # write a CSV file with the stats and add it to the list of files that
-  # will go into the archive
+  # write a CSV file with the stats, if there are any
   my $temp_dir = File::Temp->newdir;
+  my $stats_file;
   if ( defined $stats ) {
-    my $stats_file = file( $temp_dir, 'stats.csv' );
+    $stats_file = file( $temp_dir, 'stats.csv' );
     $self->_write_csv($stats, $stats_file);
-
-    push @$filenames, $stats_file;
   }
 
   #---------------------------------------
 
   # build the zip archive in memory
-  my $zip = $self->_create_zip_archive($filenames);
+  my $zip = $self->_create_zip_archive($filenames, $stats_file);
 
   print STDERR 'Writing zip file... ';
 
@@ -247,12 +251,22 @@ sub _make_zip {
   # list the contents of the archive. Strip the path from stats.csv, since it's
   # a file that we generate in a temp directory. That temp dir is deleted as
   # soon as the file is archived, so it's meaningless to the user
-  say m|/stats.csv$| ? 'stats.csv' : $_ for @$filenames;
+  say m|/stats.csv$| ? 'stats.csv' : keys %$_ for @$filenames;
 }
 
 #-------------------------------------------------------------------------------
 
-# retrieves the list of filenames associated with the supplied lanes
+# retrieves the list of filenames associated with the supplied lanes. Returns
+# two array refs.
+#
+# The first array contains a list of hashrefs, one for each file found by the
+# lane. Each hash has the name of a file on disk as its key and an edited
+# filename as the value. The edited filename is created by the
+# "_edit_filenames" method on the file's lane, and is used as the name for the
+# file in the archive.
+#
+# The second returned array contains the statistics for the lanes, with each
+# row being an arrayref of stats for a lane.
 
 sub _collect_filenames {
   my ( $self, $lanes ) = @_;
@@ -265,8 +279,13 @@ sub _collect_filenames {
 
   my @filenames;
   foreach my $lane ( @$lanes ) {
-    push @filenames, $lane->all_files;
-    push @stats,     @{ $lane->stats };
+    foreach my $from ( $lane->all_files ) {
+      my $to = $lane->can('_edit_filenames')
+             ? $lane->_edit_filenames($from, $from)
+             : $from;
+      push @filenames, { $from => $to };
+    }
+    push @stats, @{ $lane->stats };
     $pb++;
   }
 
@@ -275,37 +294,83 @@ sub _collect_filenames {
 
 #-------------------------------------------------------------------------------
 
-# creates a tar archive containing the specified files
+# generates a new filename by converting hashes to underscores in the supplied
+# filename. Also converts the filename to unix format, for use with tar and
+# zip
+
+sub _rename_file {
+  my ( $self, $old_filename ) = @_;
+
+  return unless ( $old_filename and -f $old_filename );
+
+  my $new_basename = $old_filename->basename;
+
+  # honour the "--rename" option
+  $new_basename =~ s/\#/_/g if $self->rename;
+
+  # add on the folder to get the relative path for the file in the
+  # archive
+  my $folder_name = $self->_renamed_id;
+
+  my $new_filename = file( $folder_name, $new_basename );
+
+  # filenames in an archive are specified as Unix paths (see
+  # https://metacpan.org/pod/Archive::Tar#tar-rename-file-new_name)
+  $old_filename = file( $old_filename )->as_foreign('Unix');
+  $new_filename = file( $new_filename )->as_foreign('Unix');
+
+  $self->log->debug( "renaming |$old_filename| to |$new_filename|" );
+
+  return $new_filename;
+}
+
+#-------------------------------------------------------------------------------
+
+# creates an in-memory tar archive containing the specified files
 
 sub _create_tar_archive {
-  my ( $self, $filenames ) = @_;
+  my ( $self, $files, $stats_file ) = @_;
 
   my $tar = Archive::Tar->new;
 
-  my $pb = $self->_create_pb('adding files', scalar @$filenames);
+  my $pb = $self->_create_pb('adding files', scalar @$files);
 
-  foreach my $filename ( @$filenames ) {
-    $tar->add_files($filename);
-    $pb++;
-  }
+  # the files are added with their full paths. We want them to be relative, so
+  # we'll go through the archive and rename them all. If the "-rename" option
+  # is specified, we'll also rename the individual files to convert hashes to
+  # underscores
+  foreach my $file ( @$files ) {
+    my ( $from, $to ) = each %$file;
+    keys %$file; # reset the "each" iterator, or next $from and $to are empty
 
-  # the files are added with their full paths. We want them to be relative,
-  # so we'll go through the archive and rename them all. If the "-rename"
-  # option is specified, we'll also rename the individual files to convert
-  # hashes to underscores
-  foreach my $orig_filename ( @$filenames ) {
-
-    my $tar_filename = $self->_rename_file($orig_filename);
+    # put the real file into the archive
+    $tar->add_files($from);
 
     # filenames in the archive itself are relative to the root directory, i.e.
     # they lack a leading slash. Trim off that slash before trying to rename
     # files in the archive, otherwise they're simply not found. Take a copy
     # of the original filename before we trim it, to avoid stomping on the
     # original
-    ( my $trimmed_filename = $orig_filename ) =~ s|^/||;
+    ( my $trimmed_from = $from ) =~ s|^/||;
 
-    $tar->rename( $trimmed_filename, $tar_filename )
-      or carp "WARNING: couldn't rename '$trimmed_filename' in archive";
+    # edit the "to" name to do things like changing hash to underscore
+    my $renamed_to = $self->_rename_file($to);
+
+    # and now, in the archive, change the name of the file from "from"
+    # to "to"
+    $tar->rename( $trimmed_from, $renamed_to )
+      or carp "WARNING: couldn't rename '$trimmed_from' in archive";
+
+    $pb++;
+  }
+
+  # add the stats file, if there is one
+  if ( $stats_file ) {
+    my $renamed_stats_file = file( $self->_renamed_id, 'stats.csv');
+    $tar->add_files($stats_file);
+
+    $stats_file =~ s|^/||;
+    $tar->rename($stats_file, $renamed_stats_file);
   }
 
   return $tar;
@@ -316,14 +381,17 @@ sub _create_tar_archive {
 # creates a ZIP archive containing the specified files
 
 sub _create_zip_archive {
-  my ( $self, $filenames ) = @_;
+  my ( $self, $files, $stats_file ) = @_;
 
   my $zip = Archive::Zip->new;
 
-  my $pb = $self->_create_pb('adding files', scalar @$filenames);
+  my $pb = $self->_create_pb('adding files', scalar @$files);
 
-  foreach my $orig_filename ( @$filenames ) {
-    my $zip_filename = $self->_rename_file($orig_filename);
+  foreach my $file ( @$files ) {
+    my ( $from, $to ) = each %$file;
+    keys %$file; # explicitly reset "each" iterator
+
+    my $zip_filename = $self->_rename_file($to);
 
     # trim off the leading slash
     ( my $trimmed_zip_filename = $zip_filename ) =~ s|^/||;
@@ -331,9 +399,15 @@ sub _create_zip_archive {
     # this might not be strictly necessary, but there were some strange things
     # going on while testing this operation: stringify the filenames, to avoid
     # the Path::Class::File object going into the zip archive
-    $zip->addFile($orig_filename->stringify, $trimmed_zip_filename);
+    $zip->addFile($from, $trimmed_zip_filename);
 
     $pb++;
+  }
+
+  # add the stats file, if there is one
+  if ( $stats_file ) {
+    my $renamed_stats_file = file( $self->_renamed_id, 'stats.csv');
+    $zip->addFile($stats_file->stringify, $renamed_stats_file);
   }
 
   return $zip;

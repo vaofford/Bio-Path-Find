@@ -575,9 +575,12 @@ sub _get_dir_name {
 
 # overwrite two methods that are used by "_make_tar" and "_make_zip" from the
 # Archivist Role for gathering filenames and renaming them in the archives.
-
+#
 # we don't actually need to do anything in _collect_filenames. We've already
 # found the paths that we're interested in. Just replace the original.
+#
+# (this is a bit naughty. It changes the behaviour and the return value(s) of
+# the method.)
 
 sub _collect_filenames {
   my ( $self, $paths ) = @_;
@@ -587,8 +590,8 @@ sub _collect_filenames {
 
 #---------------------------------------
 
-# used by "_make_tar" and "_make_zip" from the Archivist Role for renaming
-# files in the archives.
+# this method is provided by the Archivist Role, and is used by the "_make_tar"
+# and "_make_zip" methods from the Role for renaming files in the archives
 
 sub _rename_file {
   my ( $self, $old_filename ) = @_;

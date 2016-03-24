@@ -73,7 +73,7 @@ $qc->clear_config;
 $qc = Bio::Path::Find::App::PathFind::QC->new(%params);
 
 output_like { $qc->run }
-  qr/kraken.report/,                # stdout
+  qr/kraken\.report/,              # stdout
   qr/Archiving data to '$output'/, # stderr
   'succeeded in writing tar file';
 

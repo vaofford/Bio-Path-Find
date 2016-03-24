@@ -350,7 +350,15 @@ sub run {
 sub _collect_filenames {
   my ( $self, $lanes ) = @_;
 
-  my @kraken_report_files = map { $_->all_files } @$lanes;
+  my @kraken_report_files;
+
+  foreach my $lane ( @$lanes ) {
+    foreach my $file ( $lane->all_files ) {
+      push @kraken_report_files, { $file => $file };
+    }
+  }
+
+  # my @kraken_report_files = map { $_->all_files } @$lanes;
 
   return \@kraken_report_files;
 }
