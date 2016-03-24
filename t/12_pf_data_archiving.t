@@ -73,6 +73,9 @@ my @expected_filenames = file( qw( t data 12_pf_data_archiving expected_filename
 my @expected_stats     = file( qw( t data 12_pf_data_archiving expected_stats.txt ) )->slurp(chomp => 1, split => qr|\t| );
 
 # turn all of the expected filenames into Path::Class::File objects...
+my @expected_file_hashes;
+push @expected_file_hashes, { file($_) => file($_) } for @expected_filenames;
+
 for ( my $i = 0; $i < scalar @expected_filenames; $i++ ) {
   $expected_filenames[$i] = file( $expected_filenames[$i] );
 }
@@ -99,7 +102,12 @@ warning_like { ( $got_filenames, $got_stats ) = $pf->_collect_filenames($lanes) 
   qr/Permission denied/,
   'got "permission denied" warning with unreadable job status file';
 
-is_deeply $got_filenames, \@expected_filenames,
+# convert the arrayref of hashrefs from _collect_filenames into just the
+# raw file paths
+my @got_files;
+push @got_files, keys %$_ for @$got_filenames;
+
+is_deeply \@got_files, \@expected_filenames,
   'got expected list of filenames from _collect_filenames';
 
 is_deeply $got_stats, \@expected_stats,
@@ -131,25 +139,24 @@ lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
   'got a new pathfind data command object';
 
 # add the stats file to the archive
-push @expected_filenames, file( qw( t data 12_pf_data_archiving stats.csv ) );
+my $stats_file = file( qw( t data 12_pf_data_archiving stats.csv ) );
 
 my $archive;
-lives_ok { $archive = $pf->_create_tar_archive(\@expected_filenames) }
+lives_ok { $archive = $pf->_create_tar_archive(\@expected_file_hashes, $stats_file) }
   'no problems adding files to archive';
 
 my @archived_files = $archive->list_files;
 
 is scalar @archived_files, 51, 'got expected number of files in archive';
-is $archived_files[0], '10018_1/10018_1#1_1.fastq.gz', 'first file looks right';
-# is $archived_files[-1], '10018_1/10018_1#51_1.fastq.gz', 'last file looks right';
-is $archived_files[-1], '10018_1/stats.csv', 'last file is stats.csv';
+is $archived_files[0],  '10018_1/10018_1#1_1.fastq.gz', 'first file is fastq';
+is $archived_files[-1], '10018_1/stats.csv',            'last file is stats.csv';
 
 my $gzipped_data = $archive->get_content('10018_1/10018_1#1_1.fastq.gz');
 my $raw_data = Compress::Zlib::memGunzip($gzipped_data);
 is $raw_data, "some data\n", 'first file has expected content';
 
-my $expected_stats_file = file( qw( t data 12_pf_data_archiving stats.csv ) )->slurp;
 my $got_stats_file = $archive->get_content('10018_1/stats.csv');
+my $expected_stats_file = file( qw( t data 12_pf_data_archiving stats.csv ) )->slurp;
 
 is $got_stats_file, $expected_stats_file, 'extracted stats file looks right';
 
@@ -157,9 +164,10 @@ is $got_stats_file, $expected_stats_file, 'extracted stats file looks right';
 
 # check the exception when we try to add a non-existent file to the archive
 
-push @expected_filenames, file('bad_filename');
+# put a bad file on the front of the list of hashes
+unshift @expected_file_hashes, { 'bad_filename' => file('bad_filename') };
 
-warnings_like { $pf->_create_tar_archive(\@expected_filenames) }
+warnings_like { $pf->_create_tar_archive(\@expected_file_hashes, $stats_file) }
   [
     { carped => qr/No such file:/ },
     { carped => qr/No such file in archive/ },
@@ -167,7 +175,8 @@ warnings_like { $pf->_create_tar_archive(\@expected_filenames) }
   ],
   'warnings when adding bogus file to archive';
 
-pop @expected_filenames;
+# reset file hashes; remove bad file
+shift @expected_file_hashes;
 
 #---------------------------------------
 
@@ -183,7 +192,7 @@ pop @expected_filenames;
 lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
   'no exception with "rename" option';
 
-lives_ok { $archive = $pf->_create_tar_archive(\@expected_filenames) }
+lives_ok { $archive = $pf->_create_tar_archive(\@expected_file_hashes, $stats_file) }
   'no problems adding files to archive';
 
 @archived_files = $archive->list_files;
@@ -261,17 +270,8 @@ is $uncompressed_slurped_data, $data, 'file written to disk matches original';
 
 $pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 
-# set up the list of expected filenames again from scratch
-@expected_filenames = file( qw( t data 12_pf_data_archiving expected_filenames.txt ) )->slurp(chomp => 1);
-push @expected_filenames, file( qw( t data 12_pf_data_archiving stats.csv ) );
-
-# turn all of the expected filenames into Path::Class::File objects...
-for ( my $i = 0; $i < scalar @expected_filenames; $i++ ) {
-  $expected_filenames[$i] = file( $expected_filenames[$i] );
-}
-
 my $zip;
-lives_ok { $zip = $pf->_create_zip_archive(\@expected_filenames) }
+lives_ok { $zip = $pf->_create_zip_archive(\@expected_file_hashes, $stats_file) }
   'no exception when building zip archive';
 
 isa_ok $zip, 'Archive::Zip::Archive', 'zip archive';
@@ -280,7 +280,7 @@ my @zip_members = $zip->memberNames;
 is scalar @zip_members, 51, 'zip has correct number of members';
 
 is $zip_members[0],  '10018_1/10018_1#1_1.fastq.gz', 'first member has correct name';
-is $zip_members[-1], '10018_1/stats.csv', 'last member has correct name';
+is $zip_members[-1], '10018_1/stats.csv',             'last member has correct name';
 
 #-------------------------------------------------------------------------------
 
@@ -313,7 +313,7 @@ ok -f $archive, 'found tar archive';
 my $tar = Archive::Tar->new;
 
 lives_ok { $tar->read($archive->stringify) } 'no problem reading tar archive';
-is_deeply [ $tar->list_files ], [ '10018_1#1/10018_1#1_1.fastq.gz', '10018_1#1/stats.csv' ],
+is_deeply [ $tar->list_files ], [ '10018_1_1/10018_1#1_1.fastq.gz', '10018_1_1/stats.csv' ],
   'got expected files in tar archive';
 
 # check we can write uncompressed tar files
@@ -392,7 +392,7 @@ ok ! $exception_thrown, 'no error when writing to existing file but "force" is t
 $zip = Archive::Zip->new;
 
 is $zip->read("$archive"), AZ_OK, 'no problem reading zip archive';
-is_deeply [ $zip->memberNames ], [ '10018_1#1/10018_1#1_1.fastq.gz', '10018_1#1/stats.csv' ],
+is_deeply [ $zip->memberNames ], [ '10018_1_1/10018_1#1_1.fastq.gz', '10018_1_1/stats.csv' ],
   'got expected files in zip archive';
 
 # check for errors when writing

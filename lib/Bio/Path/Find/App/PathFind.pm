@@ -539,37 +539,6 @@ sub _load_ids_from_file {
 
 #-------------------------------------------------------------------------------
 
-# generates a new filename by converting hashes to underscores in the supplied
-# filename. Also converts the filename to unix format, for use with tar and
-# zip
-
-sub _rename_file {
-  my ( $self, $old_filename ) = @_;
-
-  my $new_basename = $old_filename->basename;
-
-  # honour the "--rename" option
-  $new_basename =~ s/\#/_/g if $self->rename;
-
-  # add on the folder to get the relative path for the file in the
-  # archive
-  my $folder_name = $self->id;
-  $folder_name =~ s/\#/_/g if $self->rename;
-
-  my $new_filename = file( $folder_name, $new_basename );
-
-  # filenames in an archive are specified as Unix paths (see
-  # https://metacpan.org/pod/Archive::Tar#tar-rename-file-new_name)
-  $old_filename = file( $old_filename )->as_foreign('Unix');
-  $new_filename = file( $new_filename )->as_foreign('Unix');
-
-  $self->log->debug( "renaming |$old_filename| to |$new_filename|" );
-
-  return $new_filename;
-}
-
-#-------------------------------------------------------------------------------
-
 # modifier for methods that write to file. Takes care of validating arguments
 # and opening a filehandle for writing
 

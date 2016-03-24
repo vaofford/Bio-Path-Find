@@ -557,8 +557,8 @@ sub _make_file_symlinks {
     # provide a hook for Lane Roles to edit filenames, if necessary
     #
     # if the Lane has a "_edit_link_filenames" method, which should come from a
-    # Role applied to the Lane, call the method to edit the "from" and "to"
-    # filenames for the link
+    # Lane sub-class, call the method to edit the "from" and "to" filenames for
+    # the link
     ( $src_file, $dst_file ) = $self->_edit_filenames( $src_file, $dst_file )
       if $self->can('_edit_filenames');
 
