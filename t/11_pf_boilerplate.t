@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 16;
+use Test::More tests => 21;
 use Test::Exception;
 use Test::Output;
 use Path::Class;
@@ -42,6 +42,39 @@ $params{id} = '10018_1#1';
 $tf = Bio::Path::Find::App::PathFind->new(%params);
 
 is $tf->_renamed_id, '10018_1_1', 'renamed ID correctly generated';
+
+# check ID trimming works
+$params{id} = ' 10018_1	';
+
+lives_ok { $tf = Bio::Path::Find::App::PathFind->new(%params) }
+  'no exception with ID with flanking whitespace on command line';
+
+is_deeply $tf->_ids, [ '10018_1' ], 'got trimmed ID';
+
+# check behaviour with an invalid ID
+$params{id} = '100 18_1';
+
+throws_ok { $tf = Bio::Path::Find::App::PathFind->new(%params) }
+  qr/not a valid ID/,
+  'exception with invalid ID on command line';
+
+# look for exceptions when reading from file
+%params = (
+  config_file  => file( qw( t data 11_pf_boilerplate test.conf ) ),
+  id           => 'non-existent-file',
+  type         => 'file',
+  file_id_type => 'lane',
+);
+
+throws_ok { $tf = Bio::Path::Find::App::PathFind->new(%params) }
+  qr/no such file/,
+  'exception with non-existent ID input file';
+
+$params{id} = file( qw( t data 11_pf_boilerplate empty_ids.txt ) )->stringify;
+
+throws_ok { $tf = Bio::Path::Find::App::PathFind->new(%params) }
+  qr/no valid IDs found in file/,
+  'exception with input file with only bad IDs';
 
 # more complicated - get samples for lane IDs in a file
 %params = (

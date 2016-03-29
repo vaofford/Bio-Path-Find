@@ -532,27 +532,39 @@ sub BUILD {
     $type = $self->file_id_type;
 
     if ( $self->id eq '-' ) {
-      # read IDs from STDIN
+      # read multiple IDs from STDIN
+      my @ids_from_stdin;
       while ( <STDIN> ) {
         chomp;
-        push @$ids, $_;
+        push @ids_from_stdin, $_;
       }
-      $self->log->debug('found ' . scalar @$ids . qq( IDs from STDIN)
-                        . qq(, of type "$type") );
+
+      $ids = $self->_filter_ids(\@ids_from_stdin);
+
+      Bio::Path::Find::Exception->throw( msg => "ERROR: no valid IDs found on STDIN" )
+        unless scalar @$ids;
     }
     else {
       # read multiple IDs from a file
-      $ids  = $self->_load_ids_from_file( file($self->id) );
-      $self->log->debug('found ' . scalar @$ids . qq( IDs from file "$ids")
-                        . qq(, of type "$type") );
+      my $filename = file $self->id;
+      Bio::Path::Find::Exception->throw( msg => "ERROR: no such file ($filename)" )
+        unless -f $filename;
+
+      my @ids_from_file = $filename->slurp(chomp => 1);
+
+      $ids = $self->_filter_ids(\@ids_from_file);
+
+      Bio::Path::Find::Exception->throw( msg => "ERROR: no valid IDs found in file ($filename)" )
+        unless scalar @$ids;
     }
   }
   else {
     # use the single ID from the command line
-    $ids  = [ $self->id ];
+    $ids  = $self->_filter_ids( [ $self->id ] );
     $type = $self->type;
 
-    $self->log->debug( qq(looking for single ID, "$ids->[0]", of type "$type") );
+    Bio::Path::Find::Exception->throw( msg => 'ERROR: not a valid ID ("' . $self->id . '")' )
+      unless scalar @$ids;
   }
 
   $self->_ids($ids);
@@ -563,22 +575,14 @@ sub BUILD {
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# reads a list of IDs from the supplied filename. Treats lines beginning with
-# hash (#) as comments and ignores them
+# filter, uniquify and tidy a list of IDs
 
-sub _load_ids_from_file {
-  my ( $self, $filename ) = @_;
-
-  Bio::Path::Find::Exception->throw( msg => "ERROR: no such file ($filename)" )
-    unless -f $filename;
-
-  # TODO check if this will work with the expected usage. If users are used
-  # TODO to putting plex IDs as search terms, stripping lines starting with
-  # TODO "#" will break those searches
+sub _filter_ids {
+  my ( $self, $unfiltered_ids ) = @_;
 
   my %existing_ids;
   my @ids;
-  for ( $filename->slurp(chomp => 1) ) {
+  for ( @$unfiltered_ids ) {
     next if $existing_ids{$_};   # ignore duplicates
     next if m/^\s*$/;            # ignore empty or whitespace-only lines
     next if m/^#/;               # ignore comment lines
@@ -589,9 +593,6 @@ sub _load_ids_from_file {
     push @ids, $_;
     $existing_ids{$_} = 1;
   }
-
-  Bio::Path::Find::Exception->throw( msg => "ERROR: no IDs found in file ($filename)" )
-    unless scalar @ids;
 
   return \@ids;
 }
