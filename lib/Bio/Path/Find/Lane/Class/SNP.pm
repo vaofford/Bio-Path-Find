@@ -1,7 +1,7 @@
 
-package Bio::Path::Find::Lane::Class::Map;
+package Bio::Path::Find::Lane::Class::SNP;
 
-# ABSTRACT: a class that adds mapping-specific functionality to the B::P::F::Lane class
+# ABSTRACT: a class that adds SNP-finding functionality to the B::P::F::Lane class
 
 use v5.10; # for "say"
 
@@ -20,18 +20,16 @@ use Bio::Path::Find::Types qw( :all );
 
 extends 'Bio::Path::Find::Lane';
 
-with 'Bio::Path::Find::Lane::Role::Stats';
-
 #-------------------------------------------------------------------------------
 #- public attributes -----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# make the "filetype" attribute require values of type MapType. This is to make
+# make the "filetype" attribute require values of type SNPType. This is to make
 # sure that this class correctly restrict the sorts of files that it will
 # return.
 
 has '+filetype' => (
-  isa => Maybe[MapType],
+  isa => Maybe[SNPType],
 );
 
 #---------------------------------------
@@ -182,14 +180,26 @@ sub print_details {
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# find bam files for the lane
+# find VCF files for the lane
 
-# (This is a bit long for a single method, but it's quite convoluted and would
-# just generate more code if it had to be split off sensibly into smaller
-# methods.)
-
-sub _get_bam {
+sub _get_vcf {
   my $self = shift;
+
+  return $self->_get_snp_files('vcf');
+}
+
+sub _get_pseudogenome {
+  my $self = shift;
+
+  return $self->_get_snp_files('pseudogenome');
+}
+
+#-------------------------------------------------------------------------------
+
+# this method is cargo-culted from Bio::Path::Find::Lane::Class::Map
+
+sub _get_snp_files {
+  my ( $self, $filetype ) = @_;
 
   my $lane_row = $self->row;
 
@@ -239,31 +249,23 @@ sub _get_bam {
 
     #---------------------------------------
 
-    # build the name of the bam file for this mapping
+    # build the name of the VCF file for this mapping
 
     # single or paired end ?
     my $pairing = $lane_row->paired ? 'pe' : 'se';
 
-    my $markdup_file = "$mapstats_id.$pairing.markdup.bam";
-    my $raw_file = "$mapstats_id.$pairing.raw.sorted.bam";
+    my $mapping_dir = "$mapstats_id.$pairing.markdup.snp";
+    my $file = $filetype eq 'vcf'
+             ? 'mpileup.unfilt.vcf.gz'
+             : 'pseudo_genome.fasta';
 
-    my $returned_file;
-    if ( -f file($self->storage_path, $markdup_file) ) {
-      # if the markdup file exists, we show that. Note that we check that the
-      # file exists using the storage path (on NFS), but return the symlink
-      # path (on lustre)
-      $returned_file = file($self->symlink_path, $markdup_file);
-    }
-    else {
-      # if the markdup file *doesn't* exist, we fall back on the
-      # ".raw.sorted.bam" file, which should always exist. If it doesn't exist
-      # (check on the NFS filesystem), issue a warning, but return the path to
-      # file anyway
-      $returned_file = file( $self->symlink_path, $raw_file );
+    my $returned_file = file($self->symlink_path, $mapping_dir, $file);
 
-      carp qq(WARNING: expected to find raw bam file at "$returned_file", but it was missing)
-        unless -f file($self->storage_path, $raw_file);
-    }
+    # if the VCF file exists, we show that. Note that we check that the file
+    # exists using the storage path (on NFS), but return the symlink path (on
+    # lustre)
+    carp qq(WARNING: expected to find raw VCF file at "$returned_file", but it was missing)
+      unless -f file($self->storage_path, $mapping_dir, $file);
 
     # store the file itself, plus some extra details, which are used by the
     # "print_details" method
@@ -274,41 +276,6 @@ sub _get_bam {
       $mapstats_row->changed,   # last update timestamp
     ];
   }
-}
-
-#-------------------------------------------------------------------------------
-
-# build a row of statistics for the current lane and specified mapstats row
-
-sub _get_stats_row {
-  my ( $self, $ms ) = @_;
-
-  # shortcut to a hash containing Bio::Track::Schema::Result objects
-  my $t = $self->_tables;
-
-  return [
-    $t->{project}->ssid,
-    $t->{sample}->name,
-    $self->row->name,
-    $self->row->readlen,
-    $self->row->raw_reads,
-    $self->row->raw_bases,
-    $self->_map_type($ms),
-    defined $ms ? $ms->assembly->name           : undef,
-    defined $ms ? $ms->assembly->reference_size : undef,
-    defined $ms ? $ms->mapper->name             : undef,
-    defined $ms ? $ms->mapstats_id              : undef,
-    $self->_mapped_percentage($ms),
-    $self->_paired_percentage($ms),
-    defined $ms ? $ms->mean_insert              : undef,
-    $self->_depth_of_coverage($ms),
-    $self->_depth_of_coverage_sd($ms),
-    defined $ms && $ms->target_bases_1x   ? sprintf( '%.1f', $ms->target_bases_1x   ) : undef,
-    defined $ms && $ms->target_bases_5x   ? sprintf( '%.1f', $ms->target_bases_5x   ) : undef,
-    defined $ms && $ms->target_bases_10x  ? sprintf( '%.1f', $ms->target_bases_10x  ) : undef,
-    defined $ms && $ms->target_bases_50x  ? sprintf( '%.1f', $ms->target_bases_50x  ) : undef,
-    defined $ms && $ms->target_bases_100x ? sprintf( '%.1f', $ms->target_bases_100x ) : undef,
-  ];
 }
 
 #-------------------------------------------------------------------------------
