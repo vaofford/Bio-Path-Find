@@ -197,6 +197,39 @@ Show debugging information.
 
 =cut
 
+=head1 READING IDS FROM FILE
+
+As well as giving the search ID on the command line using C<--id>, you can also
+read one or more IDs from file:
+
+  pf data -t file --id list_of_ids.txt --file-id-type lane
+
+Give the ID type (C<--type>, C<-t>) as C<file>, give the B<name of the file>
+with your IDs using C<--id> (or C<-i>), and use the C<--file-id-type> (C<--ft>)
+option to specify the type of IDs that are contained in the text file.
+
+Your input file should be a simple, plain-text list of IDs, e.g.
+
+  ERS12345
+  ERS23456
+  ERS34567
+
+It must contain only one type of ID. In this example, the file contains only
+sample ids, so it would be read using this C<pf> command:
+
+  pf data -t file -i sample_ids.txt --file-id-type sample
+
+You can include comments in the file if necessary (lines beginning with a hash)
+and any blank lines are ignored:
+
+  # IDs from study 123
+  12345_1
+  23456_1
+
+  # IDs from study 234
+  34567_1
+  45678_2
+
 =head1 CONFIGURATION VIA ENVIRONMENT VARIABLES
 
 You can set defaults for several options using environment variables. For
@@ -474,7 +507,7 @@ sub BUILD {
 
   # check for dependencies between parameters: if "type" is "file", we need to
   # know what type of IDs we'll find in the file
-  Bio::Path::Find::Exception->throw( msg => q(ERROR: if "type" is "file", you must also specify "file_id_type") )
+  Bio::Path::Find::Exception->throw( msg => q(ERROR: if "type" is "file", you must also specify "file-id-type") )
     if ( $self->type eq 'file' and not $self->file_id_type );
 
   # look at the input parameters and decide whether we're dealing with a single
@@ -529,7 +562,7 @@ sub _load_ids_from_file {
   # TODO check if this will work with the expected usage. If users are used
   # TODO to putting plex IDs as search terms, stripping lines starting with
   # TODO "#" will break those searches
-  my @ids = grep ! m/^#/, $filename->slurp(chomp => 1);
+  my @ids = grep ! m/(^#|^\s*$)/, $filename->slurp(chomp => 1);
 
   Bio::Path::Find::Exception->throw( msg => "ERROR: no IDs found in file ($filename)" )
     unless scalar @ids;
