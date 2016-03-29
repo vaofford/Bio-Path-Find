@@ -562,7 +562,7 @@ sub _load_ids_from_file {
   # TODO check if this will work with the expected usage. If users are used
   # TODO to putting plex IDs as search terms, stripping lines starting with
   # TODO "#" will break those searches
-  my @ids = grep ! m/(^#|^$)/, $filename->slurp(chomp => 1);
+  my @ids = grep ! m/(^#|^\s*$)/, $filename->slurp(chomp => 1);
 
   Bio::Path::Find::Exception->throw( msg => "ERROR: no IDs found in file ($filename)" )
     unless scalar @ids;
