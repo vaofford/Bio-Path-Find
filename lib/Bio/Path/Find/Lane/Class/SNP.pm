@@ -177,28 +177,55 @@ sub print_details {
 }
 
 #-------------------------------------------------------------------------------
+
+=head2 get_file_info($file)
+
+Returns a reference to an array containing the details of the specified file.
+The file should be the L<Path::Class::File> object that's returned by a call
+to C<$lane-E<gt>all_files>. The returned array contains the following fields:
+
+=over
+
+=item reference
+
+The name of the reference genome that was used during mapping
+
+=item mapper
+
+The name of the mapping program
+
+=item timestamp
+
+The time/date at which the mapping was generated
+
+=cut
+
+sub get_file_info {
+  my ( $self, $file ) = @_;
+  return $self->_verbose_file_info->{$file};
+}
+
+#-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
 # find VCF files for the lane
 
 sub _get_vcf {
-  my $self = shift;
-
-  return $self->_get_snp_files('vcf');
+  return shift->_get_files('vcf');
 }
 
-sub _get_pseudogenome {
-  my $self = shift;
+#---------------------------------------
 
-  return $self->_get_snp_files('pseudogenome');
+sub _get_pseudogenome {
+  return shift->_get_files('pseudogenome');
 }
 
 #-------------------------------------------------------------------------------
 
 # this method is cargo-culted from Bio::Path::Find::Lane::Class::Map
 
-sub _get_snp_files {
+sub _get_files {
   my ( $self, $filetype ) = @_;
 
   my $lane_row = $self->row;
@@ -264,7 +291,7 @@ sub _get_snp_files {
     # if the VCF file exists, we show that. Note that we check that the file
     # exists using the storage path (on NFS), but return the symlink path (on
     # lustre)
-    carp qq(WARNING: expected to find raw VCF file at "$returned_file", but it was missing)
+    carp qq(WARNING: expected to find file at "$returned_file", but it was missing)
       unless -f file($self->storage_path, $mapping_dir, $file);
 
     # store the file itself, plus some extra details, which are used by the

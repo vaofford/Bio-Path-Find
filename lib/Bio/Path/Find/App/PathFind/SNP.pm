@@ -12,6 +12,7 @@ use MooseX::StrictConstructor;
 use Carp qw ( carp );
 use Path::Class;
 use Try::Tiny;
+use DateTime;
 
 use Types::Standard qw(
   ArrayRef
@@ -21,6 +22,8 @@ use Types::Standard qw(
 
 use Bio::Path::Find::Types qw( :types MappersFromMapper );
 
+use Bio::Path::Find::Exception;
+use Bio::Path::Find::RefFinder;
 use Bio::Path::Find::Lane::Class::SNP;
 
 extends 'Bio::Path::Find::App::PathFind';
@@ -224,6 +227,7 @@ option 'filetype' => (
   is            => 'ro',
   isa           => SNPType,
   cmd_aliases   => 'f',
+  default       => 'vcf',
 );
 
 option 'details' => (
@@ -256,13 +260,6 @@ option 'mapper' => (
   cmd_split     => qr/,/,
 );
 
-option 'pseudo' => (
-  documentation => 'generate a pseudogenome based on this reference',
-  is            => 'rw',
-  isa           => Bool,
-  cmd_aliases   => 'p',
-);
-
 option 'exclude_reference' => (
   documentation => 'exclude the reference when generating a pseudogenome',
   is            => 'rw',
@@ -270,6 +267,83 @@ option 'exclude_reference' => (
   cmd_aliases   => 'x',
   cmd_flag      => 'exclude-reference',
 );
+
+#---------------------------------------
+
+# this option can be used as a simple switch ("-p") or with an argument
+# ("-p myfile"). It's a bit fiddly to set that up...
+
+option 'pseudogenome' => (
+  documentation => 'generate a pseudogenome',
+  is            => 'rw',
+  isa           => Bool,
+  cmd_aliases   => 'p',
+  # trigger       => \&_check_for_pg_value,
+  # no "isa" because we want to accept both Bool and Str and it doesn't seem to
+  # be possible to specify that using the combination of MooseX::App and
+  # Type::Tiny that we're using here
+);
+
+# set up a trigger that checks for the value of the "pseudogenome" command-line
+# argument and tries to decide if it's a boolean, in which case we'll generate
+# a filename, or a string, in which case we'll treat that string as a filename.
+# sub _check_for_pg_value {
+#   my ( $self, $new, $old ) = @_;
+#
+#   if ( not defined $new ) {
+#     # write pseudogenome to default file
+#     $self->_pseudogenome_flag(1);
+#
+#     if ( not defined $self->reference and
+#          not $self->exclude_reference ) {
+#       Bio::Path::Find::Exception->throw(
+#         msg => 'ERROR: when building a pseudogenome you must either specify a reference or use the "--exclude-reference" option'
+#       );
+#     }
+#
+#     # set the default file name
+#     my $filename = $self->_renamed_id;
+#     if ( $self->exclude_reference ) {
+#       $filename .=  '_concatenated.aln';
+#     }
+#     else {
+#       $filename .=  '_' . $self->reference . '_concatenated.aln';
+#     }
+#     $self->_pseudogenome( file $filename );
+#   }
+#   elsif ( not is_Bool($new) ) {
+#     # write pseudogenome to file specified by the user
+#     $self->_pseudogenome_flag(1);
+#     $self->_pseudogenome( file $new );
+#   }
+#   else {
+#     # don't write file. Shouldn't ever get here
+#     $self->_pseudogenome_flag(0);
+#   }
+# }
+
+#-------------------------------------------------------------------------------
+#- private attributes ----------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+# private attributes to store the (optional) value of the "pseudogenome"
+# attribute.  When using all of this we can check for "_pseudogenome_flag"
+# being true or false, and, if it's true, check "_pseudogenome" for a value
+# has '_pseudogenome'      => ( is => 'rw', isa => PathClassFile, default => sub { file 'qc_summary.csv' } );
+# has '_pseudogenome_flag' => ( is => 'rw', isa => Bool );
+
+#---------------------------------------
+
+has '_ref_finder' => (
+  is      => 'ro',
+  isa     => BioPathFindRefFinder,
+  builder => '_build_ref_finder',
+  lazy    => 1,
+);
+
+sub _build_ref_finder {
+  return Bio::Path::Find::RefFinder->new;
+}
 
 #-------------------------------------------------------------------------------
 #- builders --------------------------------------------------------------------
@@ -291,6 +365,14 @@ sub run {
   my $self = shift;
 
   # TODO fail fast if we're going to overwrite something
+  # if ( $self->_pseudogenome_flag and
+  #      -e $self->_pseudogenome   and
+  #      not $self->force ) {
+  #   Bio::Path::Find::Exception->throw(
+  #     msg => q(ERROR: output file ") . $self->_pseudogenome
+  #            . q(" already exists; not overwriting. Use "-F" to force overwriting)
+  #   );
+  # }
 
   # build the parameters for the finder
   my %finder_params = (
@@ -298,9 +380,12 @@ sub run {
     type     => $self->_type,
   );
 
-  $finder_params{filetype} = defined $self->filetype
-                           ? $self->filetype
-                           : 'vcf';
+  # if we're building a pseudogenome, we need to collect the pseudogenome
+  # files for each lane, so override whatever value we have for filetype and
+  # force the lanes to return "pseudo_genome.fasta" files.
+  $finder_params{filetype} = $self->pseudogenome
+                           ? 'pseudogenome'
+                           : $self->filetype;
 
   #---------------------------------------
 
@@ -311,7 +396,7 @@ sub run {
 
   # should we look for lanes with the "snp_called" bit set on the "processed"
   # bit field ? Turning this off, i.e. setting the command line option
-  # "--ignore-processed-flag" will allow the command to return data for lanes
+  # "--ignore-processed-flag", will allow the command to return data for lanes
   # that haven't completed the SNP calling pipeline.
   $finder_params{processed} = Bio::Path::Find::Types::SNP_CALLED_PIPELINE
     unless $self->ignore_processed_flag;
@@ -341,11 +426,13 @@ sub run {
     return;
   }
 
-  # should we write out a stats file ?
-  # do something with the found lanes
-  if ( $self->_symlink_flag or
+  if ( $self->pseudogenome ) {
+    $self->_create_pseudogenomes($lanes);
+  }
+  elsif ( $self->_symlink_flag or
        $self->_tar_flag or
        $self->_zip_flag ) {
+    # do something with the found lanes
     $self->_make_symlinks($lanes) if $self->_symlink_flag;
     $self->_make_tar($lanes)      if $self->_tar_flag;
     $self->_make_zip($lanes)      if $self->_zip_flag;
@@ -358,9 +445,166 @@ sub run {
     }
     else {
       # no; just print the paths
-      $_->print_paths   for @$lanes;
+      $_->print_paths for @$lanes;
     }
   }
+}
+
+#-------------------------------------------------------------------------------
+#- private methods -------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+sub _create_pseudogenomes {
+  my ( $self, $lanes ) = @_;
+
+  my $references = $self->_collect_sequences($lanes);
+  $self->_write_pseudogenomes($references);
+}
+
+#-------------------------------------------------------------------------------
+
+# generate a list of the pseudogenome fasta files for the set of lanes
+
+sub _collect_sequences {
+  my ( $self, $lanes ) = @_;
+
+  my %references;
+  LANE: foreach my $lane ( @$lanes ) {
+
+    # for each lane, collect the most recent sequence file for each reference
+    my %latest_sequence_files;
+
+    # walk over the list of files for this lane. There may be multiple mappings
+    # and therefore multiple sequence files. Work out which one to return
+    FILE: foreach my $pg_fasta ( $lane->all_files ) {
+
+      # if a file should exist but doesn't, the user will get a warning from
+      # the finder. Here we'll just skip it.
+      next unless -f $pg_fasta;
+
+      # collect together the details of the current file
+      my $file_info = $lane->get_file_info($pg_fasta);
+      my $file_hash = {
+        file      => $pg_fasta,        # this file...
+        lane      => $lane,            # from this lane...
+        ref       => $file_info->[0],  # was mapped against this reference...
+        mapper    => $file_info->[1],  # using this mapper...
+        timestamp => $file_info->[2],  # at this time
+      };
+
+      # if we haven't got a file for this reference yet, or if the current file
+      # is newer than the previous file, keep this file
+      my $ref = $file_hash->{ref};
+      if ( not defined $latest_sequence_files{$ref} or
+           DateTime->compare($file_hash->{timestamp}, $latest_sequence_files{$ref}->{timestamp} ) > 0 ) {
+        $latest_sequence_files{$ref} = $file_hash;
+      }
+    }
+
+    # store the files for this lane. The result is a hash, keyed on the name of
+    # the reference, with a file info hash as the value.
+    foreach my $ref ( keys %latest_sequence_files ) {
+      push @{ $references{$ref} }, $latest_sequence_files{$ref};
+    }
+  }
+
+  return \%references;
+}
+
+#-------------------------------------------------------------------------------
+
+# generate sequence files for the pseudogenomes
+
+sub _write_pseudogenomes {
+  my ( $self, $references ) = @_;
+
+  say "omitting reference sequences from pseudogenomes"
+    if $self->exclude_reference;
+
+  my $pb = $self->_create_pb( 'building pseudogenomes', scalar keys %$references );
+
+  # keep track of the files that we actually write
+  my @written_files;
+
+  REFERENCE: while ( my ( $reference, $files ) = each %$references ) {
+
+    # get the path to the fasta file containing the reference genome sequence
+    my $ref_path = $self->_get_reference_path($reference);
+
+    # generate the filename for the pseudogenome sequence alignment file
+    my $pg_filename = $self->_renamed_id . "_${reference}_concatenated.aln";
+
+    # make sure we're not overwriting anything without permission
+    if ( -e $pg_filename and not $self->force ) {
+      Bio::Path::Find::Exception->throw(
+        msg => qq(ERROR: output file "$pg_filename" already exists; not overwriting. Use "-F" to force overwriting)
+      );
+    }
+
+    # open the output file
+    open PSEUDOGENOME, '>', $pg_filename
+      or Bio::Path::Find::Exception->throw(
+        msg => qq(ERROR: couldn't write the pseudogenome to file "$pg_filename": $!)
+      );
+
+    # should we add the reference sequence ?
+    if ( not $self->exclude_reference ) {
+      open REFERENCE, '<', $ref_path
+        or Bio::Path::Find::Exception->throw(
+          msg => qq(ERROR: couldn't read the reference genome sequence from "$ref_path": $!)
+        );
+      say PSEUDOGENOME ">$reference";
+      for ( grep { ! m/^\>/ } <REFERENCE> ) {
+        print PSEUDOGENOME $_;
+      }
+      close REFERENCE;
+    }
+
+    # add the sequences
+    FILE: foreach my $file ( @$files ) {
+      unless ( open PG_FILE, '<', $file->{file} ) {
+        carp q(WARNING: couldn't read the pseudogenome sequence file for lane ")
+               . $file->{lane}->row->name . q|" (file "| . $file->{file}
+               . qq|"): $!|;
+        next FILE;
+      }
+      while ( <PG_FILE> ) { print PSEUDOGENOME $_ }
+      close PG_FILE;
+    }
+    push @written_files, $pg_filename;
+
+    $pb++;
+  }
+
+  say qq(wrote "$_") for @written_files;
+}
+
+#-------------------------------------------------------------------------------
+
+# given the name of a reference genome, find the path to its sequence file
+
+sub _get_reference_path {
+  my ( $self, $ref ) = @_;
+
+  # find the path to the reference
+  my $refs = $self->_ref_finder->lookup_paths( [ $ref ], 'fa' );
+
+  # make sure we have one, and only one, file path
+  if ( not scalar @$refs ) {
+    Bio::Path::Find::Exception->throw(
+      msg => qq(ERROR: can't find reference genome "$ref"; try looking it up using "pf ref"),
+    );
+  }
+  if ( scalar @$refs > 1 ) {
+    # we shouldn't ever get here. The reference name is used to filter lanes,
+    # so if the supplied name isn't unique, it won't match the reference used
+    # when mapping the lanes, so we won't *have* any lanes.
+    Bio::Path::Find::Exception->throw(
+      msg => q(ERROR: reference genome name is ambiguous; try looking it up using "pf ref"),
+    );
+  }
+
+  return $refs->[0];
 }
 
 #-------------------------------------------------------------------------------
