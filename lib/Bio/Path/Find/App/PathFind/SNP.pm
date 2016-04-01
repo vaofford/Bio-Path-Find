@@ -274,65 +274,18 @@ option 'exclude_reference' => (
 # ("-p myfile"). It's a bit fiddly to set that up...
 
 option 'pseudogenome' => (
-  documentation => 'generate a pseudogenome',
+  documentation => 'generate pseudogenome(s)',
   is            => 'rw',
   isa           => Bool,
   cmd_aliases   => 'p',
-  # trigger       => \&_check_for_pg_value,
-  # no "isa" because we want to accept both Bool and Str and it doesn't seem to
-  # be possible to specify that using the combination of MooseX::App and
-  # Type::Tiny that we're using here
 );
-
-# set up a trigger that checks for the value of the "pseudogenome" command-line
-# argument and tries to decide if it's a boolean, in which case we'll generate
-# a filename, or a string, in which case we'll treat that string as a filename.
-# sub _check_for_pg_value {
-#   my ( $self, $new, $old ) = @_;
-#
-#   if ( not defined $new ) {
-#     # write pseudogenome to default file
-#     $self->_pseudogenome_flag(1);
-#
-#     if ( not defined $self->reference and
-#          not $self->exclude_reference ) {
-#       Bio::Path::Find::Exception->throw(
-#         msg => 'ERROR: when building a pseudogenome you must either specify a reference or use the "--exclude-reference" option'
-#       );
-#     }
-#
-#     # set the default file name
-#     my $filename = $self->_renamed_id;
-#     if ( $self->exclude_reference ) {
-#       $filename .=  '_concatenated.aln';
-#     }
-#     else {
-#       $filename .=  '_' . $self->reference . '_concatenated.aln';
-#     }
-#     $self->_pseudogenome( file $filename );
-#   }
-#   elsif ( not is_Bool($new) ) {
-#     # write pseudogenome to file specified by the user
-#     $self->_pseudogenome_flag(1);
-#     $self->_pseudogenome( file $new );
-#   }
-#   else {
-#     # don't write file. Shouldn't ever get here
-#     $self->_pseudogenome_flag(0);
-#   }
-# }
 
 #-------------------------------------------------------------------------------
 #- private attributes ----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# private attributes to store the (optional) value of the "pseudogenome"
-# attribute.  When using all of this we can check for "_pseudogenome_flag"
-# being true or false, and, if it's true, check "_pseudogenome" for a value
-# has '_pseudogenome'      => ( is => 'rw', isa => PathClassFile, default => sub { file 'qc_summary.csv' } );
-# has '_pseudogenome_flag' => ( is => 'rw', isa => Bool );
-
-#---------------------------------------
+# an instance of Bio::Path::Find::RefFinder. Used for converting a reference
+# genome name into a path to its sequence file
 
 has '_ref_finder' => (
   is      => 'ro',
@@ -365,14 +318,6 @@ sub run {
   my $self = shift;
 
   # TODO fail fast if we're going to overwrite something
-  # if ( $self->_pseudogenome_flag and
-  #      -e $self->_pseudogenome   and
-  #      not $self->force ) {
-  #   Bio::Path::Find::Exception->throw(
-  #     msg => q(ERROR: output file ") . $self->_pseudogenome
-  #            . q(" already exists; not overwriting. Use "-F" to force overwriting)
-  #   );
-  # }
 
   # build the parameters for the finder
   my %finder_params = (
@@ -381,8 +326,8 @@ sub run {
   );
 
   # if we're building a pseudogenome, we need to collect the pseudogenome
-  # files for each lane, so override whatever value we have for filetype and
-  # force the lanes to return "pseudo_genome.fasta" files.
+  # sequence files for each lane, so we need to override whatever value we have
+  # for filetype and make the lanes return "pseudo_genome.fasta" files.
   $finder_params{filetype} = $self->pseudogenome
                            ? 'pseudogenome'
                            : $self->filetype;
@@ -453,6 +398,35 @@ sub run {
 #-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
+
+# override the default method from Bio::Path::Find::App::Role::Archivist. If we
+# don't return a stats data structure, the Archivist methods for creating
+# archives won't try to write a stats file and include it in the zip or tar
+# files.
+
+sub _collect_filenames {
+  my ( $self, $lanes ) = @_;
+
+
+  my $pb = $self->_create_pb('collecting files', scalar @$lanes);
+
+  my @filenames;
+  foreach my $lane ( @$lanes ) {
+    foreach my $from ( $lane->all_files ) {
+      my $to = $lane->can('_edit_filenames')
+             ? $lane->_edit_filenames($from, $from)
+             : $from;
+      push @filenames, { $from => $to };
+    }
+    $pb++;
+  }
+
+  return \@filenames;
+}
+
+#-------------------------------------------------------------------------------
+
+# generate pseudo genomes for the given lanes
 
 sub _create_pseudogenomes {
   my ( $self, $lanes ) = @_;
