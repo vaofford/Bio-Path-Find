@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 24;
+use Test::More; # tests => 24;
 use Test::Exception;
 use Test::Warn;
 use Test::Output;
@@ -36,22 +36,12 @@ symlink dir( $orig_cwd, qw( t data ) ), dir( $temp_dir, qw( t data ) )
 # clone the "pathogen_prok_track.db" SQLite database, so that we can
 # modify it without changing the "master copy"
 copy file( $orig_cwd, qw( t data pathogen_prok_track.db ) ),
-     file( $temp_dir, 'mapping_tests.db' );
+     file( $temp_dir, 'snp_tests.db' );
 
 chdir $temp_dir;
 
-# clean up any files that might have been left over after previous failed
-# test runs
-my $job_status_file;
-{
-  no warnings 'qw';
-  $job_status_file =
-    file( qw(t data master hashed_lanes pathogen_prok_track a 0 9 9 10018_1#1 _12345678_1234_job_status ) );
-}
-$job_status_file->remove;
-
 # make sure we can compile the class that we're testing...
-use_ok('Bio::Path::Find::Lane::Class::Map');
+use_ok('Bio::Path::Find::Lane::Class::SNP');
 
 #---------------------------------------
 
@@ -62,30 +52,129 @@ my $config = {
     tracking => {
       driver       => 'SQLite',
       # use the clone of the "pathogen_prok_track.db" SQLite DB
-      dbname       => file('mapping_tests.db'),
+      dbname       => file('snp_tests.db'),
       schema_class => 'Bio::Track::Schema',
     },
   },
   # map the cloned DB to the same set of files on disk
   db_subdirs => {
-    mapping_tests => 'prokaryotes',
+    snp_tests => 'prokaryotes',
   },
   no_progress_bars => 1,
 };
 
 my $finder = Bio::Path::Find::Finder->new(
   config     => $config,
-  lane_class => 'Bio::Path::Find::Lane::Class::Map'
+  lane_class => 'Bio::Path::Find::Lane::Class::SNP'
 );
 
+# NB lane "10018_1#20" and onwards are specifically set up for these tests
+
 my $lanes;
-lives_ok { $lanes = $finder->find_lanes( ids => [ '10018_1' ], type => 'lane' ) }
+lives_ok { $lanes = $finder->find_lanes( ids => [ '10018_1#20' ], type => 'lane' ) }
   'no exception when finding lanes';
+
+is scalar @$lanes, 1, 'found one matching lane';
 
 my $lane = $lanes->[0];
 
 isa_ok $lane, 'Bio::Path::Find::Lane';
-isa_ok $lane, 'Bio::Path::Find::Lane::Class::Map';
+isa_ok $lane, 'Bio::Path::Find::Lane::Class::SNP';
+
+#-------------------------------------------------------------------------------
+
+# check "_edit_filenames"
+
+my $from = file( qw( path ID 12345_dir file ) );
+my $to   = file( qw( path ID 12345_dir ID.12345_dir_file ) );
+
+my ( $src, $dst ) = $lane->_edit_filenames( $from, $from );
+
+is "$src", "$from", '"_edit_filenames" returns source path unchanged';
+is "$dst", "$to",   '"_edit_filenames" returns expected destination path';
+
+#-------------------------------------------------------------------------------
+
+# and "_get_files"; looking for a VCF file
+
+$lane->_get_files('vcf');
+is $lane->file_count, 1, 'found one VCF file';
+is $lane->get_file(0)->stringify,
+  file( qw( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_T3_OP1 SLX APP_T3_OP1_7492545 ), '10018_1#20', '544213.se.markdup.snp', 'mpileup.unfilt.vcf.gz' ),
+  'got expected path for VCF file';
+
+# get a pseudogenome file
+$lane->clear_files;
+$lane->_get_files('pseudogenome');
+is $lane->file_count, 1, 'found one pseudogenome file';
+is $lane->get_file(0)->stringify,
+  file( qw( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_T3_OP1 SLX APP_T3_OP1_7492545 ), '10018_1#20', '544213.se.markdup.snp', 'pseudo_genome.fasta' ),
+  'got expected path for VCF file';
+
+#---------------------------------------
+
+# switch to a different lane, which has a job status file, meaning that it
+# should be ignored by the "_get_files" method
+$lanes = $finder->find_lanes( ids => [ '10018_1#21' ], type => 'lane' );
+$lane = $lanes->[0];
+$lane->_get_files('vcf');
+ok $lane->has_no_files, 'found no VCF files for lane with job status file';
+
+#---------------------------------------
+
+# filter on mapper
+$lanes = $finder->find_lanes(
+  ids             => ['10018_1#20'],
+  type            => 'lane',
+  lane_attributes => { mappers => [ 'bwa' ] },
+);
+$lane = $lanes->[0];
+$lane->_get_files('vcf');
+ok $lane->has_no_files, 'found no VCF files mapped with "bwa"';
+
+#---------------------------------------
+
+# single or paired end ?
+$lanes = $finder->find_lanes( ids => [ '10018_1#22' ], type => 'lane' );
+$lane = $lanes->[0];
+$lane->_get_files('vcf');
+
+is $lane->file_count, 1, 'found one VCF file';
+is $lane->get_file(0)->stringify,
+  file( qw( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_T4_OP1 SLX APP_T4_OP1_7492547 ), '10018_1#22', '544156.pe.markdup.snp', 'mpileup.unfilt.vcf.gz' ),
+  'got expected path for paired end VCF file';
+
+#---------------------------------------
+
+# get VCF plus index
+$lane->clear_files;
+$lane->_get_files('vcf', 'tbi');
+is $lane->file_count, 2, 'found two files when looking for index';
+like $lane->get_file(0), qr/\.vcf\.gz$/,      'found VCF';
+like $lane->get_file(1), qr/\.vcf\.gz\.tbi$/, 'found index';
+
+# test the negative too...
+$lane->clear_files;
+$lane->_get_files('vcf', 'non-existent');
+is $lane->file_count, 1, 'only VCF file found when non-existent index suffix supplied';
+like $lane->get_file(0), qr/\.vcf\.gz$/,      'found VCF';
+
+$lane->clear_files;
+stderr_like { $lane->_get_files('pseudogenome') }
+  qr/couldn't find file/,
+  'got warning about missing pseudogenome file';
+
+
+
+$DB::single = 1;
+
+#-------------------------------------------------------------------------------
+
+done_testing;
+
+chdir $orig_cwd;
+
+__END__
 
 #-------------------------------------------------------------------------------
 
@@ -273,7 +362,7 @@ is_deeply $lanes->[4]->stats, $expected_stats, 'got expected stats for lane with
 
 #-------------------------------------------------------------------------------
 
-# done_testing;
+done_testing;
 
 chdir $orig_cwd;
 

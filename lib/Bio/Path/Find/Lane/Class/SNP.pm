@@ -74,75 +74,6 @@ has '_verbose_file_info' => (
 );
 
 #-------------------------------------------------------------------------------
-#- builders --------------------------------------------------------------------
-#-------------------------------------------------------------------------------
-
-# this sets the mapping between filetype and patterns matching filenames on
-# disk. In this case the value is not needed, because the finding mechanism
-# calls "_get_bam", so we never fall back on the general "_get_extensions"
-# method.
-
-sub _build_filetype_extensions {
-  return {
-    bam => 'markdup.bam',
-  };
-}
-
-# (if there is a "_get_*" method for one of the keys, then calling
-# $lane->find_files(filetype=>'<key>') will call that method to find files.  If
-# there's no corresponding "_get_*" method, "find_files" will fall back on
-# calling "_get_files_by_extension", which will use Find::File::Rule to look
-# for files according to the pattern given in the hash value.)
-
-#---------------------------------------
-
-# build an array of headers for the statistics report
-#
-# required by the Stats Role
-
-sub _build_stats_headers {
-  return [
-    'Study ID',
-    'Sample',
-    'Lane Name',
-    'Cycles',
-    'Reads',
-    'Bases',
-    'Map Type',
-    'Reference',
-    'Reference Size',
-    'Mapper',
-    'Mapstats ID',
-    'Mapped %',
-    'Paired %',
-    'Mean Insert Size',
-    'Depth of Coverage',
-    'Depth of Coverage sd',
-    'Genome Covered (% >= 1X)',
-    'Genome Covered (% >= 5X)',
-    'Genome Covered (% >= 10X)',
-    'Genome Covered (% >= 50X)',
-    'Genome Covered (% >= 100X)',
-  ];
-}
-
-#-------------------------------------------------------------------------------
-
-# collect together the fields for the statistics report
-#
-# required by the Stats Role
-
-sub _build_stats {
-  my $self = shift;
-
-  # for each mapstats row for this lane, get a row of statistics, as an
-  # arrayref, and push it into the return array.
-  my @stats = map { $self->_get_stats_row($_) } $self->_all_mapstats_rows;
-
-  return \@stats;
-}
-
-#-------------------------------------------------------------------------------
 #- methods ---------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
@@ -341,7 +272,7 @@ sub _get_files {
     if ( $index_suffix ) {
       my $index_file = file($self->symlink_path, $mapping_dir, "$file.$index_suffix");
 
-      if ( -f file($self->storage_path, $mapping_dir, $index_file) ) {
+      if ( -f file($self->storage_path, $mapping_dir, "$file.$index_suffix") ) {
         $self->_add_file($index_file);
         $self->_verbose_file_info->{$index_file} = [
           $lane_reference,          # name of the reference
