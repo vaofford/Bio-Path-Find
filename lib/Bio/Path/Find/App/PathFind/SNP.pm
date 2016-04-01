@@ -268,11 +268,6 @@ option 'exclude_reference' => (
   cmd_flag      => 'exclude-reference',
 );
 
-#---------------------------------------
-
-# this option can be used as a simple switch ("-p") or with an argument
-# ("-p myfile"). It's a bit fiddly to set that up...
-
 option 'pseudogenome' => (
   documentation => 'generate pseudogenome(s)',
   is            => 'rw',
@@ -317,7 +312,38 @@ sub _build_lane_class {
 sub run {
   my $self = shift;
 
-  # TODO fail fast if we're going to overwrite something
+  # some quick checks that will allow us to fail fast if things aren't going to
+  # let the command run to successfully
+
+  if ( $self->_symlink_flag and           # flag is set; we're making symlinks.
+       $self->_symlink_dest and           # destination is specified.
+       -e $self->_symlink_dest and        # the destintation path exists.
+       not -d $self->_symlink_dest ) {    # but it's not a directory.
+    Bio::Path::Find::Exception->throw(
+      msg => 'ERROR: symlink destination "' . $self->_symlink_dest
+             . q(" exists but isn't a directory)
+    );
+  }
+
+  if ( not $self->force and       # we're not overwriting stuff.
+       $self->_tar_flag and       # flag is set; we're writing stats.
+       $self->_tar and            # destination file is specified.
+       -e $self->_tar ) {         # output file already exists.
+    Bio::Path::Find::Exception->throw(
+      msg => 'ERROR: tar archive "' . $self->_tar . '" already exists; not overwriting. Use "-F" to force overwriting'
+    );
+  }
+
+  if ( not $self->force and
+       $self->_zip_flag and
+       $self->_zip and
+       -e $self->_zip ) {
+    Bio::Path::Find::Exception->throw(
+      msg => 'ERROR: zip archive "' . $self->_zip . '" already exists; not overwriting. Use "-F" to force overwriting'
+    );
+  }
+
+  #---------------------------------------
 
   # build the parameters for the finder
   my %finder_params = (
@@ -325,9 +351,10 @@ sub run {
     type     => $self->_type,
   );
 
-  # if we're building a pseudogenome, we need to collect the pseudogenome
-  # sequence files for each lane, so we need to override whatever value we have
-  # for filetype and make the lanes return "pseudo_genome.fasta" files.
+  # first, if we're building a pseudogenome, we need to collect the
+  # pseudogenome sequence files for each lane, so we need to override whatever
+  # value we have for filetype and make the lanes return "pseudo_genome.fasta"
+  # files.
   $finder_params{filetype} = $self->pseudogenome
                            ? 'pseudogenome'
                            : $self->filetype;
@@ -349,7 +376,7 @@ sub run {
   #---------------------------------------
 
   # these are filters that are applied by the lanes themselves, when they're
-  # finding files to return (see "B::P::F::Lane::Class::Map::_get_bam")
+  # finding files to return (see "B::P::F::Lane::Class::SNP::_get_files")
 
   # when finding files, should the lane restrict the results to files created
   # with a specified mapper ?
@@ -371,13 +398,14 @@ sub run {
     return;
   }
 
+  # what are we returning ?
   if ( $self->pseudogenome ) {
     $self->_create_pseudogenomes($lanes);
   }
   elsif ( $self->_symlink_flag or
        $self->_tar_flag or
        $self->_zip_flag ) {
-    # do something with the found lanes
+    # can make symlinks, tarball or zip archive all in the same run
     $self->_make_symlinks($lanes) if $self->_symlink_flag;
     $self->_make_tar($lanes)      if $self->_tar_flag;
     $self->_make_zip($lanes)      if $self->_zip_flag;
@@ -407,7 +435,6 @@ sub run {
 sub _collect_filenames {
   my ( $self, $lanes ) = @_;
 
-
   my $pb = $self->_create_pb('collecting files', scalar @$lanes);
 
   my @filenames;
@@ -431,13 +458,16 @@ sub _collect_filenames {
 sub _create_pseudogenomes {
   my ( $self, $lanes ) = @_;
 
+  # get a list of the "pseudo_genome.fasta" files for the specified lanes
   my $references = $self->_collect_sequences($lanes);
+
+  # combine the pseudogeomes with their references and write them out
   $self->_write_pseudogenomes($references);
 }
 
 #-------------------------------------------------------------------------------
 
-# generate a list of the pseudogenome fasta files for the set of lanes
+# generate a list of the "pseudo_genome.fasta" files for the provided lanes
 
 sub _collect_sequences {
   my ( $self, $lanes ) = @_;
@@ -572,7 +602,7 @@ sub _get_reference_path {
   if ( scalar @$refs > 1 ) {
     # we shouldn't ever get here. The reference name is used to filter lanes,
     # so if the supplied name isn't unique, it won't match the reference used
-    # when mapping the lanes, so we won't *have* any lanes.
+    # when mapping the lanes, so we won't *have* any lanes. In theory.
     Bio::Path::Find::Exception->throw(
       msg => q(ERROR: reference genome name is ambiguous; try looking it up using "pf ref"),
     );

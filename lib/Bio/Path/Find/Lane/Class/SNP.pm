@@ -209,10 +209,40 @@ sub get_file_info {
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
+# given a "from" and "to" filename, edit the destination to change the format
+# of the filename. This gives this Lane a chance to edit the filenames that are
+# used, so that they can be specialised to assembly data.
+#
+# For example, this method is called by B::P::F::Role::Linker before it creates
+# links. This method makes the link destination look like:
+#
+#   <dst_path directory> / <id>.<mapstats_id>.mpileup.unfilt.vcf.gz
+#
+#  e.g. 11657_5#33/11657_5#33.851642.mpileup.unfilt.vcf.gz
+#       11657_5#33/11657_5#33.851642.mpileup.unfilt.vcf.gz.tbi
+
+sub _edit_filenames {
+  my ( $self, $src_path, $dst_path ) = @_;
+
+  my @src_path_components = $src_path->components;
+
+  my $id_dir      = $src_path_components[-3];
+  my $mapping_dir = $src_path_components[-2];
+  my $filename    = $src_path_components[-1];
+
+  ( my $mapstats_id = $mapping_dir ) =~ s/^(\d+)\..*$/$1/;
+
+  my $new_dst = file( $dst_path->dir, $id_dir . '.' . $mapstats_id . '_' . $filename );
+
+  return ( $src_path, $new_dst );
+}
+
+#-------------------------------------------------------------------------------
+
 # find VCF files for the lane
 
 sub _get_vcf {
-  return shift->_get_files('vcf');
+  return shift->_get_files('vcf', 'tbi');
 }
 
 #---------------------------------------
@@ -223,10 +253,11 @@ sub _get_pseudogenome {
 
 #-------------------------------------------------------------------------------
 
-# this method is cargo-culted from Bio::Path::Find::Lane::Class::Map
+# this method is cargo-culted from Bio::Path::Find::Lane::Class::Map, with
+# mapping-specific tweaks.
 
 sub _get_files {
-  my ( $self, $filetype ) = @_;
+  my ( $self, $filetype, $index_suffix ) = @_;
 
   my $lane_row = $self->row;
 
@@ -276,7 +307,7 @@ sub _get_files {
 
     #---------------------------------------
 
-    # build the name of the VCF file for this mapping
+    # build the name of the file(s) for this mapping
 
     # single or paired end ?
     my $pairing = $lane_row->paired ? 'pe' : 'se';
@@ -291,17 +322,36 @@ sub _get_files {
     # if the VCF file exists, we show that. Note that we check that the file
     # exists using the storage path (on NFS), but return the symlink path (on
     # lustre)
-    carp qq(WARNING: expected to find file at "$returned_file", but it was missing)
-      unless -f file($self->storage_path, $mapping_dir, $file);
+    if ( -f file($self->storage_path, $mapping_dir, $file) ) {
+      # store the file itself, plus some extra details, which are used by the
+      # "print_details" method
+      $self->_add_file($returned_file);
+      $self->_verbose_file_info->{$returned_file} = [
+        $lane_reference,          # name of the reference
+        $lane_mapper,             # name of the mapper
+        $mapstats_row->changed,   # last update timestamp
+      ];
+    }
+    else {
+      say STDERR qq(WARNING: couldn't find file "$mapping_dir/$file"; mapping $mapstats_id may not be finished?);
+    }
 
-    # store the file itself, plus some extra details, which are used by the
-    # "print_details" method
-    $self->_add_file($returned_file);
-    $self->_verbose_file_info->{$returned_file} = [
-      $lane_reference,          # name of the reference
-      $lane_mapper,             # name of the mapper
-      $mapstats_row->changed,   # last update timestamp
-    ];
+    # VCF files come with an index (".tbi"), which we want to add to archives
+    # along with the VCF itself
+    if ( $index_suffix ) {
+      my $index_file = file($self->symlink_path, $mapping_dir, "$file.$index_suffix");
+
+      if ( -f file($self->storage_path, $mapping_dir, $index_file) ) {
+        $self->_add_file($index_file);
+        $self->_verbose_file_info->{$index_file} = [
+          $lane_reference,          # name of the reference
+          $lane_mapper,             # name of the mapper
+          $mapstats_row->changed,   # last update timestamp
+        ];
+      }
+      # NOTE no warning for missing index files; the assumption is that if the
+      # VCF is missing, it's okay that the index is missing
+    }
   }
 }
 
