@@ -60,15 +60,18 @@ lives_ok { $mf = Bio::Path::Find::App::PathFind::Map->new(%params) }
 my $bam = "t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_IN_2/SLX/APP_IN_2_7492527/10018_1#2/544570.pe.markdup.bam\n";
 
 my $stdout;
-warning_like { $stdout = capture_stdout { $mf->run } }
-  { carped => qr/WARNING: expected to find raw bam file/ },
-  'got expected warning about missing file from "run"';
+warnings_like { $stdout = capture_stdout { $mf->run } }
+  [
+    { carped => qr/WARNING: expected to find raw bam file/ },
+    { carped => qr/WARNING: expected to find raw bam file/ },
+  ],
+  'got expected warnings about missing file from "run"';
 
 like $stdout, qr/$bam/, 'got sensible list of bam files';
 # (this run uses Lane::Class::Map::print_paths, so we've tested that implicitly)
 
 my @files = split m/\n/, $stdout;
-is scalar @files, 40, 'got expected number of bam files';
+is scalar @files, 39, 'got expected number of bam files';
 
 #---------------------------------------
 
@@ -107,7 +110,7 @@ $mf = Bio::Path::Find::App::PathFind::Map->new(%params);
 # stdout here
 ( $stdout ) = capture { $mf->run };
 @files = split m/\n/, $stdout;
-is scalar @files, 40, 'got expected bam files';
+is scalar @files, 39, 'got expected bam files';
 
 my $expected_stdout = join '', <DATA>;
 
@@ -138,8 +141,7 @@ t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING
 t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N5_OP1/SLX/APP_N5_OP1_7492543/10018_1#18/544264.se.markdup.bam	Streptococcus_suis_P1_7_v1	smalt	2013-07-13T14:39:46
 t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N5_OP2/SLX/APP_N5_OP2_7492544/10018_1#19/544249.se.markdup.bam	Streptococcus_suis_P1_7_v1	smalt	2013-07-13T14:39:37
 t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_T3_OP1/SLX/APP_T3_OP1_7492545/10018_1#20/544213.se.markdup.bam	Streptococcus_suis_P1_7_v1	smalt	2013-07-13T14:39:16
-t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_T3_OP2/SLX/APP_T3_OP2_7492546/10018_1#21/544183.se.markdup.bam	Streptococcus_suis_P1_7_v1	smalt	2013-07-13T14:39:00
-t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_T4_OP1/SLX/APP_T4_OP1_7492547/10018_1#22/544156.se.markdup.bam	Streptococcus_suis_P1_7_v1	smalt	2013-07-13T14:38:43
+t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_T4_OP1/SLX/APP_T4_OP1_7492547/10018_1#22/544156.pe.raw.sorted.bam	Streptococcus_suis_P1_7_v1	smalt	2013-07-13T14:38:43
 t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_T4_OP2/SLX/APP_T4_OP2_7492548/10018_1#23/544117.se.markdup.bam	Streptococcus_suis_P1_7_v1	smalt	2013-07-13T14:38:18
 t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_T5_OP1/SLX/APP_T5_OP1_7492549/10018_1#24/553870.se.markdup.bam	Streptococcus_suis_P1_7_v1	smalt	2013-07-17T13:38:12
 t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_T5_OP2/SLX/APP_T5_OP2_7492550/10018_1#25/544063.se.markdup.bam	Streptococcus_suis_P1_7_v1	smalt	2013-07-13T14:37:38

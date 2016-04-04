@@ -139,8 +139,8 @@ Name       Import QC   Mapping             Archive Improve SNP call RNASeq Assem
 10018_1#17 Done   Done Done                Done    -       -        -      -        -       
 10018_1#18 Done   Done Done                Done    -       -        -      -        -       
 10018_1#19 Done   Done Done                Done    -       -        -      -        -       
-10018_1#20 Done   Done Done                Done    -       -        -      -        -       
-10018_1#21 Done   Done Done                Done    -       -        -      -        -       
+10018_1#20 Done   Done Done                Done    -       Done     -      -        -       
+10018_1#21 Done   Done Done                Done    -       Done     -      -        -       
 10018_1#22 Done   Done Done                Done    -       -        -      -        -       
 10018_1#23 Done   Done Done                Done    -       -        -      -        -       
 10018_1#24 Done   Done Done                Done    -       -        -      -        -       
