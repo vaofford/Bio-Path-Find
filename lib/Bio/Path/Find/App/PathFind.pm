@@ -67,54 +67,52 @@ These are the available commands:
 Finds accessions associated with lanes. The default behaviour is to list
 the accessions, but the command can also show the URLs for retrieving
 FASTQ files from the ENA FTP archive, or for retrieving the submitted
-file from ENA. Equivalent to the original C<annotationfind> command.
+file from ENA.
 
 =head2 annotation
 
 Finds annotation data for lanes with assembled genomes. By default the
 command returns the paths to the GFF files for each lane. You can also search
-for lanes with specific genes or products. Equivalent to the original
+for lanes with specific genes or products.
 C<annotationfind> command.
 
 =head2 assembly
 
 Find genome assemblies. Lists assembly files, creates archives of or symbolic
-links to assembly data files. Equivalent to the original C<assemblyfind>
+links to assembly data files.
 command.
 
 =head2 data
 
 Shows information about the files and directories that are associated with
 sequencing runs. Can also generate archives (tar or zip format) containing data
-files for found lanes, or create symbolic links to data files. Equivalent to
-the original C<pathfind> command.
+files for found lanes, or create symbolic links to data files.
 
 =head2 info
 
 Shows information about the samples associated with sequencing runs.
-Equivalent to the original C<infofind> command.
 
 =head2 map
 
-Shows mapped C<bam> files for a set of lanes. Equivalent to the original
-C<mapfind> command.
+Shows mapped C<bam> files for a set of lanes.
 
 =head2 qc
 
 Show QC information for sequencing data, in the form of kraken reports.
-C<pf qc> can also generate summary reports in CSV format. Equivalent to
-C<qcfind>.
+C<pf qc> can also generate summary reports in CSV format.
 
 =head2 ref
 
 Finds reference genomes. Given the approximate name of a reference genome, C<pf
 ref> returns the path for the sequence file for the specified genome(s).
-Equivalent to the C<reffind> command.
+
+=head2 snp
+
+Find VCF files and generate pseudogenomes for sets of mapped lanes.
 
 =head2 status
 
 Shows the status of lanes for various pathogen informatics pipelines.
-Equivalent to the original C<statusfind> command.
 
 =cut
 

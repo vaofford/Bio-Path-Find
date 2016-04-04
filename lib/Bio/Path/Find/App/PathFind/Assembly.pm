@@ -169,6 +169,14 @@ You can also write the statistics as a more readable tab-separated file:
 
 (To enter a tab character you might need to press ctrl-V followed by tab.)
 
+=head1 SEE ALSO
+
+=over
+
+=item pf annotation - find annotations
+
+=back
+
 =cut
 
 #-------------------------------------------------------------------------------
