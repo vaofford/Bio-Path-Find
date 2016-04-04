@@ -5,7 +5,7 @@ use warnings;
 no warnings 'qw'; # don't warn about comments in lists when we put plux IDs
                   # inside qw( )
 
-use Test::More tests => 12;
+use Test::More tests => 17;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -70,28 +70,66 @@ my @files = (
   file( qw ( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_T3_OP1 SLX APP_T3_OP1_7492545 10018_1#20 544213.se.markdup.snp mpileup.unfilt.vcf.gz.tbi ) )->stringify,
 );
 
-stdout_is { $sf->run }
-  join( "\n", @files ) . "\n",
+stdout_is { $sf->run } join( "\n", @files ) . "\n",
   'got expected list of VCF/index files';
+
+#---------------------------------------
+
+# detailed output
+
+$params{details} = 1;
+
+$sf->clear_config;
+$sf = Bio::Path::Find::App::PathFind::SNP->new(%params);
+
+my $expected_info =
+  file( qw ( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_T3_OP1 SLX APP_T3_OP1_7492545 10018_1#20 544213.se.markdup.snp mpileup.unfilt.vcf.gz ) )->stringify
+  . "\tStreptococcus_suis_P1_7_v1"
+  . "\tsmalt"
+  . "\t2013-07-13T14:39:16\n"
+  . file( qw ( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_T3_OP1 SLX APP_T3_OP1_7492545 10018_1#20 544213.se.markdup.snp mpileup.unfilt.vcf.gz.tbi ) )->stringify
+  . "\tStreptococcus_suis_P1_7_v1"
+  . "\tsmalt"
+  . "\t2013-07-13T14:39:16\n";
+
+stdout_is { $sf->run } $expected_info, 'got expected detailed info';
 
 #---------------------------------------
 
 # check filtering
 
-$params{qc} = 'passed';
+# QC status
+$params{details} = 0;
+$params{qc}      = 'passed';
 
 $sf->clear_config;
 $sf = Bio::Path::Find::App::PathFind::SNP->new(%params);
 
 stderr_is { $sf->run } "No data found.\n", 'no data when requiring QC pass';
 
-# TODO filter by mapper and reference
+# mapper
+delete $params{qc};
+$params{mapper} = 'bwa';
+
+$sf->clear_config;
+$sf = Bio::Path::Find::App::PathFind::SNP->new(%params);
+
+stderr_is { $sf->run } "No data found.\n", 'no data when filtering on mapper';
+
+# reference
+delete $params{mapper};
+$params{reference} = 'non-existent reference';
+
+$sf->clear_config;
+$sf = Bio::Path::Find::App::PathFind::SNP->new(%params);
+
+stderr_is { $sf->run } "No data found.\n", 'no data when filtering on reference';
 
 #-------------------------------------------------------------------------------
 
 # check the "_collect_filenames" method
 
-delete $params{qc};
+delete $params{reference};
 
 $sf->clear_config;
 $sf = Bio::Path::Find::App::PathFind::SNP->new(%params);
@@ -155,7 +193,7 @@ $sf = Bio::Path::Find::App::PathFind::SNP->new(%params);
 
 my $aln_file = file '10018_1_20_Streptococcus_suis_P1_7_v1_concatenated.aln';
 
-stdout_is { $sf->_write_pseudogenomes($got_pseudogenomes) }
+stderr_is { $sf->_write_pseudogenomes($got_pseudogenomes) }
   qq(wrote "$aln_file"\n),
   'got expected pseudogenome file from "_write_pseudogenomes"';
 
@@ -183,7 +221,7 @@ $aln_file->remove;
 $sf->clear_config;
 $sf = Bio::Path::Find::App::PathFind::SNP->new(%params);
 
-stdout_is { $sf->run }
+stderr_is { $sf->run }
   qq(wrote "$aln_file"\n),
   'got expected pseudogenome file from "_create_pseudogenomes"';
 
@@ -193,6 +231,27 @@ $got_contents = join '', $aln_file->slurp;
 
 is $got_contents, $expected_contents,
   'got expected pseudogenome sequences from "_create_pseudogenomes"';
+
+#---------------------------------------
+
+# excluding reference sequences from output alignment
+
+$sf->clear_config;
+$sf = Bio::Path::Find::App::PathFind::SNP->new(%params);
+
+throws_ok { $sf->run }
+  qr/already exists/,
+  'got error about overwriting';
+
+$params{exclude_reference} = 1;
+
+$sf->clear_config;
+$sf = Bio::Path::Find::App::PathFind::SNP->new(%params);
+
+$aln_file->remove;
+stderr_like { $sf->run }
+  qr/omitting reference/,
+  'got message about omitting reference';
 
 #-------------------------------------------------------------------------------
 
