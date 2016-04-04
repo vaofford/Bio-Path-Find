@@ -2,6 +2,9 @@
 use strict;
 use warnings;
 
+no warnings 'qw'; # don't warn about comments in lists when we put plex IDs
+                  # in a list using qw( )
+
 use Test::More tests => 9;
 use Test::Exception;
 use Test::Output;
@@ -57,7 +60,7 @@ my $mf;
 lives_ok { $mf = Bio::Path::Find::App::PathFind::Map->new(%params) }
   'got a new map command object';
 
-my $bam = "t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_IN_2/SLX/APP_IN_2_7492527/10018_1#2/544570.pe.markdup.bam\n";
+my $bam = file( qw( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_IN_2 SLX APP_IN_2_7492527 10018_1#2 544570.pe.markdup.bam ) )->stringify . "\n";
 
 my $stdout;
 warnings_like { $stdout = capture_stdout { $mf->run } }
