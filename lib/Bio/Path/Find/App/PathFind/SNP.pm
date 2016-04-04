@@ -459,10 +459,10 @@ sub _create_pseudogenomes {
   my ( $self, $lanes ) = @_;
 
   # get a list of the "pseudo_genome.fasta" files for the specified lanes
-  my $references = $self->_collect_sequences($lanes);
+  my $pg_sequences = $self->_collect_sequences($lanes);
 
   # combine the pseudogeomes with their references and write them out
-  $self->_write_pseudogenomes($references);
+  $self->_write_pseudogenomes($pg_sequences);
 }
 
 #-------------------------------------------------------------------------------
@@ -472,10 +472,11 @@ sub _create_pseudogenomes {
 sub _collect_sequences {
   my ( $self, $lanes ) = @_;
 
-  my %references;
+  my %pseudogenomes;
   LANE: foreach my $lane ( @$lanes ) {
 
-    # for each lane, collect the most recent sequence file for each reference
+    # for each lane, collect the most recent sequence file for each
+    # pseudogenome
     my %latest_sequence_files;
 
     # walk over the list of files for this lane. There may be multiple mappings
@@ -508,11 +509,11 @@ sub _collect_sequences {
     # store the files for this lane. The result is a hash, keyed on the name of
     # the reference, with a file info hash as the value.
     foreach my $ref ( keys %latest_sequence_files ) {
-      push @{ $references{$ref} }, $latest_sequence_files{$ref};
+      push @{ $pseudogenomes{$ref} }, $latest_sequence_files{$ref};
     }
   }
 
-  return \%references;
+  return \%pseudogenomes;
 }
 
 #-------------------------------------------------------------------------------
@@ -520,23 +521,23 @@ sub _collect_sequences {
 # generate sequence files for the pseudogenomes
 
 sub _write_pseudogenomes {
-  my ( $self, $references ) = @_;
+  my ( $self, $pseudogenomes ) = @_;
 
   say "omitting reference sequences from pseudogenomes"
     if $self->exclude_reference;
 
-  my $pb = $self->_create_pb( 'building pseudogenomes', scalar keys %$references );
+  my $pb = $self->_create_pb( 'building pseudogenomes', scalar keys %$pseudogenomes );
 
   # keep track of the files that we actually write
   my @written_files;
 
-  REFERENCE: while ( my ( $reference, $files ) = each %$references ) {
+  REFERENCE: while ( my ( $pseudogenome, $files ) = each %$pseudogenomes ) {
 
     # get the path to the fasta file containing the reference genome sequence
-    my $ref_path = $self->_get_reference_path($reference);
+    my $ref_path = $self->_get_reference_path($pseudogenome);
 
     # generate the filename for the pseudogenome sequence alignment file
-    my $pg_filename = $self->_renamed_id . "_${reference}_concatenated.aln";
+    my $pg_filename = $self->_renamed_id . "_${pseudogenome}_concatenated.aln";
 
     # make sure we're not overwriting anything without permission
     if ( -e $pg_filename and not $self->force ) {
@@ -557,7 +558,7 @@ sub _write_pseudogenomes {
         or Bio::Path::Find::Exception->throw(
           msg => qq(ERROR: couldn't read the reference genome sequence from "$ref_path": $!)
         );
-      say PSEUDOGENOME ">$reference";
+      say PSEUDOGENOME ">$pseudogenome";
       for ( grep { ! m/^\>/ } <REFERENCE> ) {
         print PSEUDOGENOME $_;
       }
@@ -576,6 +577,8 @@ sub _write_pseudogenomes {
       close PG_FILE;
     }
     push @written_files, $pg_filename;
+
+    close PSEUDOGENOME;
 
     $pb++;
   }
