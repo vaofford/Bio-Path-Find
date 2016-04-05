@@ -85,10 +85,10 @@ is scalar @$lanes, 0, 'no lanes from "_find_lanes" when filtered on QC status';
 
 # check "_find_all_lanes"
 
-is $f->_find_all_lanes, undef, '"_find_all_lanes" returns undef without IDs';
-is $f->_find_all_lanes([]), undef, '"_find_all_lanes" returns undef with empty IDs array';
-is $f->_find_all_lanes( ['pathogen_prok_track']), undef, '"_find_all_lanes" returns undef without type';
-is $f->_find_all_lanes( ['pathogen_prok_track'], 'lane'), undef,
+is_deeply $f->_find_all_lanes, [], '"_find_all_lanes" returns undef without IDs';
+is_deeply $f->_find_all_lanes([]), [], '"_find_all_lanes" returns undef with empty IDs array';
+is_deeply $f->_find_all_lanes( ['pathogen_prok_track']), [], '"_find_all_lanes" returns undef without type';
+is_deeply $f->_find_all_lanes( ['pathogen_prok_track'], 'lane'), [],
   '"_find_all_lanes" returns undef with type ne "database';
 
 stderr_like { $f->_find_all_lanes(['no_such_db'], 'database') }
