@@ -537,7 +537,7 @@ sub BUILD {
         push @ids_from_stdin, $_;
       }
 
-      $ids = $self->_filter_ids(\@ids_from_stdin);
+      $ids = \@ids_from_stdin;
 
       Bio::Path::Find::Exception->throw( msg => "ERROR: no valid IDs found on STDIN" )
         unless scalar @$ids;
@@ -550,7 +550,7 @@ sub BUILD {
 
       my @ids_from_file = $filename->slurp(chomp => 1);
 
-      $ids = $self->_filter_ids(\@ids_from_file);
+      $ids = \@ids_from_file;
 
       Bio::Path::Find::Exception->throw( msg => "ERROR: no valid IDs found in file ($filename)" )
         unless scalar @$ids;
@@ -558,15 +558,15 @@ sub BUILD {
   }
   else {
     # use the single ID from the command line
-    $ids  = $self->_filter_ids( [ $self->id ] );
+    $ids  = [ $self->id ];
     $type = $self->type;
 
     Bio::Path::Find::Exception->throw( msg => 'ERROR: not a valid ID ("' . $self->id . '")' )
       unless scalar @$ids;
   }
 
-  $self->_ids($ids);
   $self->_type($type);
+  $self->_ids( $self->_filter_ids($ids) );
 }
 
 #-------------------------------------------------------------------------------
@@ -584,7 +584,6 @@ sub _filter_ids {
     next if $existing_ids{$_};   # ignore duplicates
     next if m/^\s*$/;            # ignore empty or whitespace-only lines
     next if m/^#/;               # ignore comment lines
-    next if m/\S+\s+\S+/;        # ignore IDs containing whitespace
 
     s/^\s*(.*?)\s*$/$1/;         # trim leading and trailing whitespace
 
