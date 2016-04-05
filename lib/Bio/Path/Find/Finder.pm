@@ -281,8 +281,8 @@ sub find_lanes {
 sub _find_all_lanes {
   my ( $self, $ids, $type, $processed, $qc, $lane_attributes ) = @_;
 
-  return unless ( defined $ids and scalar @$ids == 1 );
-  return unless ( defined $type and $type eq 'database' );
+  return [] unless ( defined $ids and scalar @$ids == 1 );
+  return [] unless ( defined $type and $type eq 'database' );
 
   my $dbname = $ids->[0];
 
@@ -290,7 +290,7 @@ sub _find_all_lanes {
   my $database = $self->_db_manager->get_database($dbname);
   unless ( defined $database ) {
     say STDERR qq|No such database ("$dbname")|;
-    return;
+    return [];
   }
 
   # get all lanes... This step is a cheap operation, because DBIC doesn't do a
