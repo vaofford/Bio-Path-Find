@@ -242,6 +242,14 @@ pipeline:
 
   pf annotation -t lane -i 12345_1#1 -s -P iva
 
+=head1 SEE ALSO
+
+=over
+
+=item pf assembly - find assemblies
+
+=back
+
 =cut
 
 #-------------------------------------------------------------------------------

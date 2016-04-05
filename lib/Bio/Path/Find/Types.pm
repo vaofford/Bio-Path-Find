@@ -67,6 +67,7 @@ use Type::Library -base, -declare => qw(
   ProcessedFlag
   QCType
   MapType
+  SNPType
   Mapper
   TaxLevel
 );
@@ -165,9 +166,10 @@ enum AnnotationType, [qw( gff faa ffn gbk fasta fastn genbank )];
 enum RefType,        [qw( fa gff embl )];
 enum QCType,         [qw( kraken )];
 enum MapType,        [qw( bam )];
+enum SNPType,        [qw( vcf pseudogenome )];
 
 declare FileType,
-  as AnnotationType|AssemblyType|DataType|RefType|QCType|MapType;
+  as AnnotationType|AssemblyType|DataType|RefType|QCType|MapType|SNPType;
 
 #---------------------------------------
 

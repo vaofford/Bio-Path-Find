@@ -53,7 +53,7 @@ This pathfind command will return information about mapped assemblies.  Specify
 the type of data using C<--type> and give the accession, name or identifier for
 the data using C<--id>.
 
-Use "pf man" or "pf man info" to see more information.
+Use "pf man" or "pf man map" to see more information.
 
 =head1 EXAMPLES
 

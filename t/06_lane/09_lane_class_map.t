@@ -273,7 +273,7 @@ is_deeply $lanes->[4]->stats, $expected_stats, 'got expected stats for lane with
 
 #-------------------------------------------------------------------------------
 
-done_testing;
+# done_testing;
 
 chdir $orig_cwd;
 

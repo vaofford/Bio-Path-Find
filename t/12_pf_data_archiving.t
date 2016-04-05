@@ -98,9 +98,12 @@ lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
 
 my ( $got_filenames, $got_stats );
 
-warning_like { ( $got_filenames, $got_stats ) = $pf->_collect_filenames($lanes) }
-  qr/Permission denied/,
-  'got "permission denied" warning with unreadable job status file';
+warnings_like { ( $got_filenames, $got_stats ) = $pf->_collect_filenames($lanes) }
+  [
+    { carped => qr/^WARNING: failed to read job status file/ },
+    { carped => qr/^WARNING: not a valid job status file/ },
+  ],
+  'got warnings with unreadable job status file';
 
 # convert the arrayref of hashrefs from _collect_filenames into just the
 # raw file paths

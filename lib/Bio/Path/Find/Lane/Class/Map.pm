@@ -26,8 +26,8 @@ with 'Bio::Path::Find::Lane::Role::Stats';
 #- public attributes -----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# make the "filetype" attribute require values of type AssemblyType. This is to
-# make sure that this class correctly restrict the sorts of files that it will
+# make the "filetype" attribute require values of type MapType. This is to make
+# sure that this class correctly restrict the sorts of files that it will
 # return.
 
 has '+filetype' => (

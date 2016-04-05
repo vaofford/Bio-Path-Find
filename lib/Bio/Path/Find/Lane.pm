@@ -138,6 +138,7 @@ has 'files' => (
     has_no_files => 'is_empty',
     file_count   => 'count',
     clear_files  => 'clear',
+    get_file     => 'get',        # used in tests
   },
 );
 

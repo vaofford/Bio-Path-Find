@@ -312,6 +312,16 @@ it already exists) and will create soft links in that new directory:
   Creating link from '/scratch/patho...' to 'my_links/Yersinia_enterocolitica_subsp_enterocolitica_8081_v1.fa'
   Creating link from '/scratch/patho...' to 'my_links/Yersinia_pestis_CO92_v1.fa'
 
+=head1 SEE ALSO
+
+=over
+
+=item pf map - find mappings
+
+=item pf snp - find VCFs and generate pseudogenomes
+
+=back
+
 =cut
 
 #-------------------------------------------------------------------------------

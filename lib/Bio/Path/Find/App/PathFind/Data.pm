@@ -206,6 +206,16 @@ necessary permissions for creating files or links in the working directory.
 As when creating archives, you can rename filenames when creating symlinks
 using C<--rename> to convert hashes to underscores.
 
+=head1 SEE ALSO
+
+=over
+
+=item pf info - find information about samples
+
+=item pf status - find the status of samples in the processing pipelines
+
+=back
+
 =cut
 
 #-------------------------------------------------------------------------------

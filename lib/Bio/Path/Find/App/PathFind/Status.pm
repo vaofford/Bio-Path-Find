@@ -164,6 +164,16 @@ resulting file more readable:
 
 (To enter a tab character you might need to press ctrl-V followed by tab.)
 
+=head1 SEE ALSO
+
+=over
+
+=item pf data - find data files
+
+=item pf info - find information about samples
+
+=back
+
 =cut
 
 #-------------------------------------------------------------------------------
