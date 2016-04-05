@@ -216,13 +216,17 @@ sub find_lanes {
                      . ' IDs of type "' . $params->{type} . q(") );
 
   # get a list of Bio::Path::Find::Lane objects
-  my $lanes = $self->_find_lanes(
+  my $finder_params = [
     $params->{ids},
     $params->{type},
     $params->{processed},         # filter
     $params->{qc},                # filter
     $params->{lane_attributes},
-  );
+  ];
+
+  my $lanes = $params->{type} eq 'database'
+            ? $self->_find_all_lanes(@$finder_params)
+            : $self->_find_lanes(@$finder_params);
 
   my $max = scalar @$lanes;
   $self->log->debug("found $max lanes");
@@ -272,7 +276,75 @@ sub find_lanes {
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# actually queries the database(s) to get lane data for the specified ID(s)
+# return all lanes for a specific database
+
+sub _find_all_lanes {
+  my ( $self, $ids, $type, $processed, $qc, $lane_attributes ) = @_;
+
+  return unless ( defined $ids and scalar @$ids == 1 );
+  return unless ( defined $type and $type eq 'database' );
+
+  my $dbname = $ids->[0];
+
+  # check DB actually exists
+  my $database = $self->_db_manager->get_database($dbname);
+  unless ( defined $database ) {
+    say STDERR qq|No such database ("$dbname")|;
+    return;
+  }
+
+  # get all lanes... This step is a cheap operation, because DBIC doesn't do a
+  # database query until we actually try to read something from the ResultSet
+  my $rs = $database->schema->get_all_lanes;
+
+  my $num_rows = $rs->count;
+
+  # check for explicit authorisation before doing something this dumb
+  unless ( $ENV{PF_ENABLE_DB_DUMP} ) {
+    # throw an exception about what a dumb idea this is
+    Bio::Path::Find::Exception->throw(
+      msg => <<"EOF_bad_idea"
+WARNING: you are about to retrieve $num_rows lanes from the database; that
+         could be a *very* bad thing to do. If you're sure you know what
+         you're doing, set the environment variable PF_ENABLE_DB_DUMP to 1
+         and try again.
+EOF_bad_idea
+    );
+  }
+
+  # OK. The user *really* wants to do this...
+
+  my $pb = $self->_create_pb('finding lanes', $rs->count);
+
+  my @lanes;
+  while ( my $lane_row = $rs->next ) {
+    $pb++;
+
+    # build the Lane object, subject to any filters
+    my $lane = $self->_create_lane(
+      $lane_row,
+      $processed,
+      $qc,
+      $lane_attributes
+    );
+
+    next unless defined $lane;
+
+    # tell every result (a Bio::Track::Schema::Result object) which
+    # database it comes from. We need this later to generate paths on disk
+    # for the files associated with each result
+    $lane->row->database($database);
+
+    push @lanes, $lane if defined $lane;
+
+  }
+
+  return \@lanes;
+}
+
+#-------------------------------------------------------------------------------
+
+# query the databases to find lane data for the specified ID(s)
 
 sub _find_lanes {
   my ( $self, $ids, $type, $processed, $qc, $lane_attributes ) = @_;
@@ -294,7 +366,7 @@ sub _find_lanes {
     ID: foreach my $id ( @$ids ) {
       $self->log->debug( qq(looking for ID "$id") );
 
-      my $rs = $database->schema->get_lanes_by_id($id, $type);
+      my $rs = $database->schema->get_lanes_by_id($id, $type, $processed);
 
       next ID unless $rs; # no matching lanes
 
@@ -302,51 +374,22 @@ sub _find_lanes {
 
       ROW: while ( my $lane_row = $rs->next ) {
 
-        # apply any filters
+        # build the Lane object, subject to any filters
+        my $lane = $self->_create_lane(
+          $lane_row,
+          $processed,
+          $qc,
+          $lane_attributes
+        );
 
-        # if we have a value for "processed", use it as a bit mask and see if
-        # this lane has the specified bit set
-        next ROW if ( defined $processed and ( $lane_row->processed & $processed ) == 0 );
-
-        # ignore this lane if:
-        #   1. we've been told to look for a specific QC status, and
-        #   2. the lane has a QC status set, and
-        #   3. this lane's QC status doesn't match the required status
-        if ( defined $qc and
-             defined $lane_row->qc_status and
-             $lane_row->qc_status ne $qc ) {
-          $self->log->debug(
-            'lane "' . $lane_row->name
-            . '" filtered by QC status (actual status is "' . $lane_row->qc_status
-            . qq|'"; requiring status "$qc")|
-          );
-          next ROW;
-        }
-
-        #---------------------------------------
+        next unless defined $lane;
 
         # tell every result (a Bio::Track::Schema::Result object) which
         # database it comes from. We need this later to generate paths on disk
         # for the files associated with each result
-        $lane_row->database($database);
+        $lane->row->database($database);
 
-        # build a lightweight object to hold all of the data about a particular
-        # row
-        my $lane;
-
-        try {
-          # return the type of class that's specified by the "lane_class"
-          # attribute. Set attributes on the lanes at instantiation
-          $lane = $self->lane_class->new( row => $lane_row, %$lane_attributes );
-        } catch {
-          Bio::Path::Find::Exception->throw(
-            msg => q(ERROR: couldn't build lane class ") . $self->lane_class . qq(": $_)
-          );
-        };
-
-        #---------------------------------------
-
-        push @lanes, $lane;
+        push @lanes, $lane if defined $lane;
       }
 
       $pb++;
@@ -355,6 +398,57 @@ sub _find_lanes {
   }
 
   return \@lanes;
+}
+
+#-------------------------------------------------------------------------------
+
+# given a row from the database and some filters, try to create a Lane object
+
+sub _create_lane {
+  my ( $self, $lane_row, $processed, $qc, $lane_attributes ) = @_;
+
+  # apply any filters
+
+  # if we have a value for "processed", use it as a bit mask and see if
+  # this lane has the specified bit set
+  return if ( defined $processed and ( $lane_row->processed & $processed ) == 0 );
+
+  # (there's a mechanism for filtering on "processed" in the
+  # Bio::Track::Schema code, but it has to walk through the resultset and
+  # check each lane in turn.  We're doing that anyway here, so it's more
+  # efficient to check for the processed flag in this code than in the
+  # schema.)
+
+  # ignore this lane if:
+  #   1. we've been told to look for a specific QC status, and
+  #   2. the lane has a QC status set, and
+  #   3. this lane's QC status doesn't match the required status
+  if ( defined $qc and
+       defined $lane_row->qc_status and
+       $lane_row->qc_status ne $qc ) {
+    $self->log->debug(
+      'lane "' . $lane_row->name
+      . '" filtered by QC status (actual status is "' . $lane_row->qc_status
+      . qq|'"; requiring status "$qc")|
+    );
+    return;
+  }
+
+  # build a lightweight object to hold all of the data about a particular
+  # row
+  my $lane;
+
+  try {
+    # return the type of class that's specified by the "lane_class"
+    # attribute. Set attributes on the lanes at instantiation
+    $lane = $self->lane_class->new( row => $lane_row, %$lane_attributes );
+  } catch {
+    Bio::Path::Find::Exception->throw(
+      msg => q(ERROR: couldn't build lane class ") . $self->lane_class . qq(": $_)
+    );
+  };
+
+  return $lane;
 }
 
 #-------------------------------------------------------------------------------
