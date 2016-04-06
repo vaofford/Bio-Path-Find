@@ -306,7 +306,7 @@ option 'reference' => (
 );
 
 option 'mapper' => (
-  documentation => 'show assemblies mapped with specific mapper(s)',
+  documentation => 'show lanes with assemblies mapped using a specific mapper(s)',
   is            => 'rw',
   isa           => Mappers->plus_coercions(MappersFromMapper),
   coerce        => 1,
@@ -494,9 +494,15 @@ sub _collect_filenames {
   my @filenames;
   foreach my $lane ( @$lanes ) {
     foreach my $from ( $lane->all_files ) {
-      my $to = $lane->can('_edit_filenames')
-             ? $lane->_edit_filenames($from, $from)
-             : $from;
+      my $to;
+      if ( $lane->can('_edit_filenames') ) {
+        # the "_edit_filenames" method returns an array containing the original
+        # "from" path and an edited version of "to", the second parameter
+        ( $from, $to ) = $lane->_edit_filenames($from, $from);
+      }
+      else {
+        $to = $from;
+      }
       push @filenames, { $from => $to };
     }
     $pb++;

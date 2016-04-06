@@ -20,7 +20,8 @@ use Bio::Path::Find::Types qw( :all );
 
 extends 'Bio::Path::Find::Lane';
 
-with 'Bio::Path::Find::Lane::Role::Stats';
+with 'Bio::Path::Find::Lane::Role::Stats',
+     'Bio::Path::Find::Lane::Role::HasMapping';
 
 #-------------------------------------------------------------------------------
 #- public attributes -----------------------------------------------------------
@@ -32,47 +33,6 @@ with 'Bio::Path::Find::Lane::Role::Stats';
 
 has '+filetype' => (
   isa => Maybe[MapType],
-);
-
-#---------------------------------------
-
-has 'mappers' => (
-  is      => 'ro',
-  isa     => Mappers,
-  lazy    => 1,
-  builder => '_build_mappers',
-);
-
-sub _build_mappers {
-  return Mapper->values;
-}
-
-#---------------------------------------
-
-=head1 ATTRIBUTES
-
-=attr reference
-
-The name of the reference genome on which to filter returned lanes.
-
-=cut
-
-has 'reference' => (
-  is  => 'ro',
-  isa => Str,
-);
-
-#-------------------------------------------------------------------------------
-#- private attributes ----------------------------------------------------------
-#-------------------------------------------------------------------------------
-
-# somewhere to store extra information about the files that we find. The info
-# is stored as hashref, keyed on the file path.
-
-has '_verbose_file_info' => (
-  is      => 'rw',
-  isa     => HashRef[ArrayRef[Str]],
-  default => sub { {} },
 );
 
 #-------------------------------------------------------------------------------
@@ -145,135 +105,50 @@ sub _build_stats {
 }
 
 #-------------------------------------------------------------------------------
-#- methods ---------------------------------------------------------------------
-#-------------------------------------------------------------------------------
-
-=head1 METHODS
-
-=head2 print_details
-
-For each bam file found by this lane, print:
-
-=over
-
-=item the path to the file itself
-
-=item the reference to which reads were mapped
-
-=item the name of the mapping software used
-
-=item the date at which the mapping was generated
-
-=back
-
-The items are printed as a simple tab-separated list, one row per file.
-
-=cut
-
-sub print_details {
-  my $self = shift;
-
-  foreach my $file ( $self->all_files ) {
-    say join "\t", $file, @{ $self->_verbose_file_info->{$file} };
-  }
-}
-
-#-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# find bam files for the lane
-
-# (This is a bit long for a single method, but it's quite convoluted and would
-# just generate more code if it had to be split off sensibly into smaller
-# methods.)
+# find files for the lane. This is a call to a method on the "HasMapping" Role.
+# That method takes care of finding the mapstats IDs for the lane, then turns
+# around and calls "_generate_filenames" back here. 
 
 sub _get_bam {
-  my $self = shift;
+  return shift->_get_files('bam');
+  # NOTE that the filetype argument isn't really necessary, because the
+  # "_generate_filenames" method will only return bam files
+}
 
-  my $lane_row = $self->row;
+#-------------------------------------------------------------------------------
 
-  my $mapstats_rows = $lane_row->search_related_rs( 'latest_mapstats', { is_qc => 0 } );
+# called from the "_get_files" method on the HasMapping Role, this method
+# handles the specifics of finding bam files for this lane. It returns a list
+# of files that its found for this lane.
 
-  # if there are no rows for this lane in the mapstats table, it hasn't had
-  # mapping run on it, so we're done here
-  return unless $mapstats_rows->count;
+sub _generate_filenames {
+  my ( $self, $mapstats_id, $pairing ) = @_;
 
-  MAPPING: foreach my $mapstats_row ( $mapstats_rows->all ) {
+  my $markdup_file = "$mapstats_id.$pairing.markdup.bam";
+  my $raw_file     = "$mapstats_id.$pairing.raw.sorted.bam";
 
-    my $mapstats_id = $mapstats_row->mapstats_id;
-    my $prefix      = $mapstats_row->prefix;
-
-    # find the path (on NFS) to the job status file for this mapping run
-    my $job_status_file = file( $lane_row->storage_path, "${prefix}job_status" );
-
-    # if the job failed or is still running, the file "<prefix>job_status" will
-    # still exist, in which case we don't want to return *any* bam files
-    next MAPPING if -f $job_status_file;
-
-    # at this point there's no job status file, so the mapping job is done
-
-    #---------------------------------------
-
-    # apply filters
-
-    # this is the mapper that was actually used to map this lane's reads
-    my $lane_mapper = $mapstats_row->mapper->name;
-
-    # this is the reference that was used for this particular mapping
-    my $lane_reference = $mapstats_row->assembly->name;
-
-    # return only mappings generated using a specific mapper
-    if ( $self->mappers ) {
-      # the user provided a list of mappers. Convert it into a hash so that
-      # we can quickly look up the lane's mapper in there
-      my %wanted_mappers = map { $_ => 1 } @{ $self->mappers };
-
-      # unless the lane's mapper is one of the mappers that the user specified,
-      # skip this mapping
-      next MAPPING unless exists $wanted_mappers{$lane_mapper};
-    }
-
-    # return only mappings that use a specific reference genome
-    next MAPPING if ( $self->reference and $lane_reference ne $self->reference );
-
-    #---------------------------------------
-
-    # build the name of the bam file for this mapping
-
-    # single or paired end ?
-    my $pairing = $lane_row->paired ? 'pe' : 'se';
-
-    my $markdup_file = "$mapstats_id.$pairing.markdup.bam";
-    my $raw_file = "$mapstats_id.$pairing.raw.sorted.bam";
-
-    my $returned_file;
-    if ( -f file($self->storage_path, $markdup_file) ) {
-      # if the markdup file exists, we show that. Note that we check that the
-      # file exists using the storage path (on NFS), but return the symlink
-      # path (on lustre)
-      $returned_file = file($self->symlink_path, $markdup_file);
-    }
-    else {
-      # if the markdup file *doesn't* exist, we fall back on the
-      # ".raw.sorted.bam" file, which should always exist. If it doesn't exist
-      # (check on the NFS filesystem), issue a warning, but return the path to
-      # file anyway
-      $returned_file = file( $self->symlink_path, $raw_file );
-
-      carp qq(WARNING: expected to find raw bam file at "$returned_file", but it was missing)
-        unless -f file($self->storage_path, $raw_file);
-    }
-
-    # store the file itself, plus some extra details, which are used by the
-    # "print_details" method
-    $self->_add_file($returned_file);
-    $self->_verbose_file_info->{$returned_file} = [
-      $lane_reference,          # name of the reference
-      $lane_mapper,             # name of the mapper
-      $mapstats_row->changed,   # last update timestamp
-    ];
+  my $returned_file;
+  if ( -f file($self->storage_path, $markdup_file) ) {
+    # if the markdup file exists, we show that. Note that we check that the
+    # file exists using the storage path (on NFS), but return the symlink
+    # path (on lustre)
+    $returned_file = $markdup_file;
   }
+  else {
+    # if the markdup file *doesn't* exist, we fall back on the
+    # ".raw.sorted.bam" file, which should always exist. If it doesn't exist
+    # (check on the NFS filesystem), issue a warning, but return the path to
+    # file anyway
+    $returned_file = $raw_file;
+
+    carp qq(WARNING: expected to find raw bam file at "$returned_file", but it was missing)
+      unless -f file($self->storage_path, $raw_file);
+  }
+
+  return $returned_file;
 }
 
 #-------------------------------------------------------------------------------

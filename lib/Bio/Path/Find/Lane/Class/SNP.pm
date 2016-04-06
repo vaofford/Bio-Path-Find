@@ -20,6 +20,8 @@ use Bio::Path::Find::Types qw( :all );
 
 extends 'Bio::Path::Find::Lane';
 
+with 'Bio::Path::Find::Lane::Role::HasMapping';
+
 #-------------------------------------------------------------------------------
 #- public attributes -----------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -31,110 +33,6 @@ extends 'Bio::Path::Find::Lane';
 has '+filetype' => (
   isa => Maybe[SNPType],
 );
-
-#---------------------------------------
-
-has 'mappers' => (
-  is      => 'ro',
-  isa     => Mappers,
-  lazy    => 1,
-  builder => '_build_mappers',
-);
-
-sub _build_mappers {
-  return Mapper->values;
-}
-
-#---------------------------------------
-
-=head1 ATTRIBUTES
-
-=attr reference
-
-The name of the reference genome on which to filter returned lanes.
-
-=cut
-
-has 'reference' => (
-  is  => 'ro',
-  isa => Str,
-);
-
-#-------------------------------------------------------------------------------
-#- private attributes ----------------------------------------------------------
-#-------------------------------------------------------------------------------
-
-# somewhere to store extra information about the files that we find. The info
-# is stored as hashref, keyed on the file path.
-
-has '_verbose_file_info' => (
-  is      => 'rw',
-  isa     => HashRef[ArrayRef[Str]],
-  default => sub { {} },
-);
-
-#-------------------------------------------------------------------------------
-#- methods ---------------------------------------------------------------------
-#-------------------------------------------------------------------------------
-
-=head1 METHODS
-
-=head2 print_details
-
-For each bam file found by this lane, print:
-
-=over
-
-=item the path to the file itself
-
-=item the reference to which reads were mapped
-
-=item the name of the mapping software used
-
-=item the date at which the mapping was generated
-
-=back
-
-The items are printed as a simple tab-separated list, one row per file.
-
-=cut
-
-sub print_details {
-  my $self = shift;
-
-  foreach my $file ( $self->all_files ) {
-    say join "\t", $file, @{ $self->_verbose_file_info->{$file} };
-  }
-}
-
-#-------------------------------------------------------------------------------
-
-=head2 get_file_info($file)
-
-Returns a reference to an array containing the details of the specified file.
-The file should be the L<Path::Class::File> object that's returned by a call
-to C<$lane-E<gt>all_files>. The returned array contains the following fields:
-
-=over
-
-=item reference
-
-The name of the reference genome that was used during mapping
-
-=item mapper
-
-The name of the mapping program
-
-=item timestamp
-
-The time/date at which the mapping was generated
-
-=cut
-
-sub get_file_info {
-  my ( $self, $file ) = @_;
-  return $self->_verbose_file_info->{$file};
-}
 
 #-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------
@@ -170,7 +68,9 @@ sub _edit_filenames {
 
 #-------------------------------------------------------------------------------
 
-# find VCF files for the lane
+# find files for the lane. This is a call to a method on the "HasMapping" Role.
+# That method takes care of finding the mapstats IDs for the lane, then turns
+# around and calls "_generate_filenames" back here.
 
 sub _get_vcf {
   return shift->_get_files('vcf', 'tbi');
@@ -184,106 +84,34 @@ sub _get_pseudogenome {
 
 #-------------------------------------------------------------------------------
 
-# this method is cargo-culted from Bio::Path::Find::Lane::Class::Map, with
-# mapping-specific tweaks.
+# called from the "_get_files" method on the HasMapping Role, this method
+# handles the specifics of finding VCF and index files for this lane. It
+# returns a list of files that its found for this lane.
 
-sub _get_files {
-  my ( $self, $filetype, $index_suffix ) = @_;
+sub _generate_filenames {
+  my ( $self, $mapstats_id, $pairing, $filetype, $index_suffix ) = @_;
 
-  my $lane_row = $self->row;
+  my $mapping_dir = "$mapstats_id.$pairing.markdup.snp";
+  my $file = $filetype eq 'vcf'
+           ? 'mpileup.unfilt.vcf.gz'
+           : 'pseudo_genome.fasta';
 
-  my $mapstats_rows = $lane_row->search_related_rs( 'latest_mapstats', { is_qc => 0 } );
+  my @returned_files;
 
-  # if there are no rows for this lane in the mapstats table, it hasn't had
-  # mapping run on it, so we're done here
-  return unless $mapstats_rows->count;
+  if ( -f file($self->storage_path, $mapping_dir, $file) ) {
+    push @returned_files, file($mapping_dir, $file);
+  }
+  else {
+    say STDERR qq(WARNING: couldn't find file "$mapping_dir/$file"; mapping $mapstats_id may not be finished?);
+  }
 
-  MAPPING: foreach my $mapstats_row ( $mapstats_rows->all ) {
-
-    my $mapstats_id = $mapstats_row->mapstats_id;
-    my $prefix      = $mapstats_row->prefix;
-
-    # find the path (on NFS) to the job status file for this mapping run
-    my $job_status_file = file( $lane_row->storage_path, "${prefix}job_status" );
-
-    # if the job failed or is still running, the file "<prefix>job_status" will
-    # still exist, in which case we don't want to return *any* bam files
-    next MAPPING if -f $job_status_file;
-
-    # at this point there's no job status file, so the mapping job is done
-
-    #---------------------------------------
-
-    # apply filters
-
-    # this is the mapper that was actually used to map this lane's reads
-    my $lane_mapper = $mapstats_row->mapper->name;
-
-    # this is the reference that was used for this particular mapping
-    my $lane_reference = $mapstats_row->assembly->name;
-
-    # return only mappings generated using a specific mapper
-    if ( $self->mappers ) {
-      # the user provided a list of mappers. Convert it into a hash so that
-      # we can quickly look up the lane's mapper in there
-      my %wanted_mappers = map { $_ => 1 } @{ $self->mappers };
-
-      # unless the lane's mapper is one of the mappers that the user specified,
-      # skip this mapping
-      next MAPPING unless exists $wanted_mappers{$lane_mapper};
-    }
-
-    # return only mappings that use a specific reference genome
-    next MAPPING if ( $self->reference and $lane_reference ne $self->reference );
-
-    #---------------------------------------
-
-    # build the name of the file(s) for this mapping
-
-    # single or paired end ?
-    my $pairing = $lane_row->paired ? 'pe' : 'se';
-
-    my $mapping_dir = "$mapstats_id.$pairing.markdup.snp";
-    my $file = $filetype eq 'vcf'
-             ? 'mpileup.unfilt.vcf.gz'
-             : 'pseudo_genome.fasta';
-
-    my $returned_file = file($self->symlink_path, $mapping_dir, $file);
-
-    # if the VCF file exists, we show that. Note that we check that the file
-    # exists using the storage path (on NFS), but return the symlink path (on
-    # lustre)
-    if ( -f file($self->storage_path, $mapping_dir, $file) ) {
-      # store the file itself, plus some extra details, which are used by the
-      # "print_details" method
-      $self->_add_file($returned_file);
-      $self->_verbose_file_info->{$returned_file} = [
-        $lane_reference,          # name of the reference
-        $lane_mapper,             # name of the mapper
-        $mapstats_row->changed,   # last update timestamp
-      ];
-    }
-    else {
-      say STDERR qq(WARNING: couldn't find file "$mapping_dir/$file"; mapping $mapstats_id may not be finished?);
-    }
-
-    # VCF files come with an index (".tbi"), which we want to add to archives
-    # along with the VCF itself
-    if ( $index_suffix ) {
-      my $index_file = file($self->symlink_path, $mapping_dir, "$file.$index_suffix");
-
-      if ( -f file($self->storage_path, $mapping_dir, "$file.$index_suffix") ) {
-        $self->_add_file($index_file);
-        $self->_verbose_file_info->{$index_file} = [
-          $lane_reference,          # name of the reference
-          $lane_mapper,             # name of the mapper
-          $mapstats_row->changed,   # last update timestamp
-        ];
-      }
-      # NOTE no warning for missing index files; the assumption is that if the
-      # VCF is missing, it's okay that the index is missing
+  if ( $index_suffix ) {
+    if ( -f file($self->storage_path, $mapping_dir, "$file.$index_suffix") ) {
+      push @returned_files, file($mapping_dir, "$file.$index_suffix");
     }
   }
+
+  return @returned_files;
 }
 
 #-------------------------------------------------------------------------------
