@@ -73,18 +73,18 @@ sub _edit_filenames {
 # around and calls "_generate_filenames" back here.
 
 sub _get_vcf {
-  return shift->_get_files('vcf', 'tbi');
+  return shift->_get_mapping_files('vcf', 'tbi');
 }
 
 #---------------------------------------
 
 sub _get_pseudogenome {
-  return shift->_get_files('pseudogenome');
+  return shift->_get_mapping_files('pseudogenome');
 }
 
 #-------------------------------------------------------------------------------
 
-# called from the "_get_files" method on the HasMapping Role, this method
+# called from the "_get_mapping_files" method on the HasMapping Role, this method
 # handles the specifics of finding VCF and index files for this lane. It
 # returns a list of files that its found for this lane.
 

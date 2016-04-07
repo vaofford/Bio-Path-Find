@@ -304,6 +304,15 @@ sub _build_lane_class {
   return 'Bio::Path::Find::Lane::Class::RNASeq';
 }
 
+#---------------------------------------
+
+# change the name of the stats file
+
+sub _build_stats_file {
+  my $self = shift;
+  return file($self->_renamed_id . '.rnaseqfind_stats.csv');
+}
+
 #-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -314,33 +323,37 @@ sub run {
   # some quick checks that will allow us to fail fast if things aren't going to
   # let the command run to successfully
 
-  # if ( $self->_symlink_flag and           # flag is set; we're making symlinks.
-  #      $self->_symlink_dest and           # destination is specified.
-  #      -e $self->_symlink_dest and        # the destintation path exists.
-  #      not -d $self->_symlink_dest ) {    # but it's not a directory.
-  #   Bio::Path::Find::Exception->throw(
-  #     msg => 'ERROR: symlink destination "' . $self->_symlink_dest
-  #            . q(" exists but isn't a directory)
-  #   );
-  # }
-  #
-  # if ( not $self->force and       # we're not overwriting stuff.
-  #      $self->_tar_flag and       # flag is set; we're writing stats.
-  #      $self->_tar and            # destination file is specified.
-  #      -e $self->_tar ) {         # output file already exists.
-  #   Bio::Path::Find::Exception->throw(
-  #     msg => 'ERROR: tar archive "' . $self->_tar . '" already exists; not overwriting. Use "-F" to force overwriting'
-  #   );
-  # }
-  #
-  # if ( not $self->force and
-  #      $self->_zip_flag and
-  #      $self->_zip and
-  #      -e $self->_zip ) {
-  #   Bio::Path::Find::Exception->throw(
-  #     msg => 'ERROR: zip archive "' . $self->_zip . '" already exists; not overwriting. Use "-F" to force overwriting'
-  #   );
-  # }
+  if ( $self->_symlink_flag and           # flag is set; we're making symlinks.
+       $self->_symlink_dest and           # destination is specified.
+       -e $self->_symlink_dest and        # the destintation path exists.
+       not -d $self->_symlink_dest ) {    # but it's not a directory.
+    Bio::Path::Find::Exception->throw(
+      msg => 'ERROR: symlink destination "' . $self->_symlink_dest
+             . q(" exists but isn't a directory)
+    );
+  }
+
+  if ( not $self->force ) {
+    if ( $self->_tar_flag and       # flag is set; we're writing stats.
+         $self->_tar and            # destination file is specified.
+         -e $self->_tar ) {         # output file already exists.
+      Bio::Path::Find::Exception->throw(
+        msg => 'ERROR: tar archive "' . $self->_tar . '" already exists; not overwriting. Use "-F" to force overwriting'
+      );
+    }
+
+    if ( $self->_zip_flag and $self->_zip and -e $self->_zip ) {
+      Bio::Path::Find::Exception->throw(
+        msg => 'ERROR: zip archive "' . $self->_zip . '" already exists; not overwriting. Use "-F" to force overwriting'
+      );
+    }
+
+    if ( $self->_stats_flag and $self->_stats_file and -e $self->_stats_file ) {
+      Bio::Path::Find::Exception->throw(
+        msg => 'ERROR: stats file "' . $self->_stats_file . '" already exists; not overwriting. Use "-F" to force overwriting'
+      );
+    }
+  }
 
   #---------------------------------------
 
@@ -368,7 +381,7 @@ sub run {
   #---------------------------------------
 
   # these are filters that are applied by the lanes themselves, when they're
-  # finding files to return (see "B::P::F::Lane::Class::SNP::_get_files")
+  # finding files to return
 
   # when finding files, should the lane restrict the results to files created
   # with a specified mapper ?
@@ -392,11 +405,13 @@ sub run {
 
   if ( $self->_symlink_flag or
        $self->_tar_flag or
-       $self->_zip_flag ) {
+       $self->_zip_flag or
+       $self->_stats_flag ) {
     # can make symlinks, tarball or zip archive all in the same run
     $self->_make_symlinks($lanes) if $self->_symlink_flag;
     $self->_make_tar($lanes)      if $self->_tar_flag;
     $self->_make_zip($lanes)      if $self->_zip_flag;
+    $self->_make_stats($lanes)    if $self->_stats_flag;
   }
   else {
     # print the list of files. Should we show extra info ?
@@ -409,31 +424,6 @@ sub run {
       $_->print_paths for @$lanes;
     }
   }
-}
-
-#-------------------------------------------------------------------------------
-#- private methods -------------------------------------------------------------
-#-------------------------------------------------------------------------------
-
-# build an array of headers for the statistics display
-#
-# required by the Stats Role
-
-sub _build_stats_header {
-  return [
-
-  ];
-}
-
-#-------------------------------------------------------------------------------
-
-# collect together the fields for the statistics display
-#
-# required by the Stats Role
-
-sub _build_stats {
-  my $self = shift;
-
 }
 
 #-------------------------------------------------------------------------------

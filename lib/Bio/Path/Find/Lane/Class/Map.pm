@@ -20,8 +20,7 @@ use Bio::Path::Find::Types qw( :all );
 
 extends 'Bio::Path::Find::Lane';
 
-with 'Bio::Path::Find::Lane::Role::Stats',
-     'Bio::Path::Find::Lane::Role::HasMapping';
+with 'Bio::Path::Find::Lane::Role::HasMapping';
 
 #-------------------------------------------------------------------------------
 #- public attributes -----------------------------------------------------------
@@ -56,38 +55,6 @@ sub _build_filetype_extensions {
 # calling "_get_files_by_extension", which will use Find::File::Rule to look
 # for files according to the pattern given in the hash value.)
 
-#---------------------------------------
-
-# build an array of headers for the statistics report
-#
-# required by the Stats Role
-
-sub _build_stats_headers {
-  return [
-    'Study ID',
-    'Sample',
-    'Lane Name',
-    'Cycles',
-    'Reads',
-    'Bases',
-    'Map Type',
-    'Reference',
-    'Reference Size',
-    'Mapper',
-    'Mapstats ID',
-    'Mapped %',
-    'Paired %',
-    'Mean Insert Size',
-    'Depth of Coverage',
-    'Depth of Coverage sd',
-    'Genome Covered (% >= 1X)',
-    'Genome Covered (% >= 5X)',
-    'Genome Covered (% >= 10X)',
-    'Genome Covered (% >= 50X)',
-    'Genome Covered (% >= 100X)',
-  ];
-}
-
 #-------------------------------------------------------------------------------
 
 # collect together the fields for the statistics report
@@ -104,25 +71,28 @@ sub _build_stats {
   return \@stats;
 }
 
+# NOTE the "_build_stats_header" and "_get_stats_row" methods come from the
+# NOTE "HasMapping" Role
+
 #-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
 # find files for the lane. This is a call to a method on the "HasMapping" Role.
 # That method takes care of finding the mapstats IDs for the lane, then turns
-# around and calls "_generate_filenames" back here. 
+# around and calls "_generate_filenames" back here.
 
 sub _get_bam {
-  return shift->_get_files('bam');
+  return shift->_get_mapping_files('bam');
   # NOTE that the filetype argument isn't really necessary, because the
   # "_generate_filenames" method will only return bam files
 }
 
 #-------------------------------------------------------------------------------
 
-# called from the "_get_files" method on the HasMapping Role, this method
-# handles the specifics of finding bam files for this lane. It returns a list
-# of files that its found for this lane.
+# called from the "_get_mapping_files" method on the HasMapping Role, this
+# method handles the specifics of finding bam files for this lane. It returns a
+# list of files that its found for this lane.
 
 sub _generate_filenames {
   my ( $self, $mapstats_id, $pairing ) = @_;
@@ -149,41 +119,6 @@ sub _generate_filenames {
   }
 
   return $returned_file;
-}
-
-#-------------------------------------------------------------------------------
-
-# build a row of statistics for the current lane and specified mapstats row
-
-sub _get_stats_row {
-  my ( $self, $ms ) = @_;
-
-  # shortcut to a hash containing Bio::Track::Schema::Result objects
-  my $t = $self->_tables;
-
-  return [
-    $t->{project}->ssid,
-    $t->{sample}->name,
-    $self->row->name,
-    $self->row->readlen,
-    $self->row->raw_reads,
-    $self->row->raw_bases,
-    $self->_map_type($ms),
-    defined $ms ? $ms->assembly->name           : undef,
-    defined $ms ? $ms->assembly->reference_size : undef,
-    defined $ms ? $ms->mapper->name             : undef,
-    defined $ms ? $ms->mapstats_id              : undef,
-    $self->_mapped_percentage($ms),
-    $self->_paired_percentage($ms),
-    defined $ms ? $ms->mean_insert              : undef,
-    $self->_depth_of_coverage($ms),
-    $self->_depth_of_coverage_sd($ms),
-    defined $ms && $ms->target_bases_1x   ? sprintf( '%.1f', $ms->target_bases_1x   ) : undef,
-    defined $ms && $ms->target_bases_5x   ? sprintf( '%.1f', $ms->target_bases_5x   ) : undef,
-    defined $ms && $ms->target_bases_10x  ? sprintf( '%.1f', $ms->target_bases_10x  ) : undef,
-    defined $ms && $ms->target_bases_50x  ? sprintf( '%.1f', $ms->target_bases_50x  ) : undef,
-    defined $ms && $ms->target_bases_100x ? sprintf( '%.1f', $ms->target_bases_100x ) : undef,
-  ];
 }
 
 #-------------------------------------------------------------------------------

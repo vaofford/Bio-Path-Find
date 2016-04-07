@@ -18,7 +18,8 @@ use Types::Standard qw(
 
 use Bio::Path::Find::Types qw( :types );
 
-with 'Bio::Path::Find::Role::HasConfig';
+with 'Bio::Path::Find::Role::HasConfig',
+     'Bio::Path::Find::Lane::Role::Stats';
 
 requires '_generate_filenames';
 
@@ -91,6 +92,40 @@ has '_verbose_file_info' => (
 );
 
 #-------------------------------------------------------------------------------
+#- builders --------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+# build an array of headers for the statistics display
+#
+# required by the Stats Role
+
+sub _build_stats_headers {
+  return [
+    'Study ID',
+    'Sample',
+    'Lane Name',
+    'Cycles',
+    'Reads',
+    'Bases',
+    'Map Type',
+    'Reference',
+    'Reference Size',
+    'Mapper',
+    'Mapstats ID',
+    'Mapped %',
+    'Paired %',
+    'Mean Insert Size',
+    'Depth of Coverage',
+    'Depth of Coverage sd',
+    'Genome Covered (% >= 1X)',
+    'Genome Covered (% >= 5X)',
+    'Genome Covered (% >= 10X)',
+    'Genome Covered (% >= 50X)',
+    'Genome Covered (% >= 100X)'
+  ];
+}
+
+#-------------------------------------------------------------------------------
 #- methods ---------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
@@ -157,7 +192,7 @@ sub get_file_info {
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-sub _get_files {
+sub _get_mapping_files {
   my ( $self, $filetype, @additional_args ) = @_;
 
   my $lane_row = $self->row;
@@ -243,6 +278,41 @@ sub _get_files {
     }
 
   } # end of "MAPPING" foreach
+}
+
+#-------------------------------------------------------------------------------
+
+# build a row of statistics for the current lane and specified mapstats row
+
+sub _get_stats_row {
+  my ( $self, $ms ) = @_;
+
+  # shortcut to a hash containing Bio::Track::Schema::Result objects
+  my $t = $self->_tables;
+
+  return [
+    $t->{project}->ssid,
+    $t->{sample}->name,
+    $self->row->name,
+    $self->row->readlen,
+    $self->row->raw_reads,
+    $self->row->raw_bases,
+    $self->_map_type($ms),
+    defined $ms ? $ms->assembly->name           : undef,
+    defined $ms ? $ms->assembly->reference_size : undef,
+    defined $ms ? $ms->mapper->name             : undef,
+    defined $ms ? $ms->mapstats_id              : undef,
+    $self->_mapped_percentage($ms),
+    $self->_paired_percentage($ms),
+    defined $ms ? $ms->mean_insert              : undef,
+    $self->_depth_of_coverage($ms),
+    $self->_depth_of_coverage_sd($ms),
+    defined $ms && $ms->target_bases_1x   ? sprintf( '%.1f', $ms->target_bases_1x   ) : undef,
+    defined $ms && $ms->target_bases_5x   ? sprintf( '%.1f', $ms->target_bases_5x   ) : undef,
+    defined $ms && $ms->target_bases_10x  ? sprintf( '%.1f', $ms->target_bases_10x  ) : undef,
+    defined $ms && $ms->target_bases_50x  ? sprintf( '%.1f', $ms->target_bases_50x  ) : undef,
+    defined $ms && $ms->target_bases_100x ? sprintf( '%.1f', $ms->target_bases_100x ) : undef,
+  ];
 }
 
 #-------------------------------------------------------------------------------

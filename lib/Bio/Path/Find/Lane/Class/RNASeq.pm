@@ -20,6 +20,8 @@ use Bio::Path::Find::Types qw( :all );
 
 extends 'Bio::Path::Find::Lane';
 
+with 'Bio::Path::Find::Lane::Role::HasMapping';
+
 #-------------------------------------------------------------------------------
 #- public attributes -----------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -32,6 +34,8 @@ has '+filetype' => (
   isa => Maybe[RNASeqType],
 );
 
+#-------------------------------------------------------------------------------
+#- builders --------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
 # build mapping between filetype and file extension. The mapping is specific
@@ -54,7 +58,59 @@ sub _build_filetype_extensions {
 # NOTE look for files according to the pattern given in the hash value.
 
 #-------------------------------------------------------------------------------
+
+# collect together the fields for the statistics display
+#
+# required by the Stats Role
+
+sub _build_stats {
+  my $self = shift;
+
+  # for each mapstats row for this lane, get a row of statistics, as an
+  # arrayref, and push it into the return array.
+  my @stats = map { $self->_get_stats_row($_) } $self->_all_mapstats_rows;
+
+  return \@stats;
+}
+
+# NOTE the "_build_stats_header" and "_get_stats_row" methods come from the
+# NOTE "HasMapping" Role
+
+#-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+# called from the "_get_mapping_files" method on the HasMapping Role, this
+# method handles the specifics of finding bam files for this lane. It returns a
+# list of files that its found for this lane.
+
+sub _generate_filenames {
+  my ( $self, $mapstats_id, $pairing ) = @_;
+
+  my $markdup_file = "$mapstats_id.$pairing.markdup.bam";
+  my $raw_file     = "$mapstats_id.$pairing.raw.sorted.bam";
+
+  my $returned_file;
+  if ( -f file($self->storage_path, $markdup_file) ) {
+    # if the markdup file exists, we show that. Note that we check that the
+    # file exists using the storage path (on NFS), but return the symlink
+    # path (on lustre)
+    $returned_file = $markdup_file;
+  }
+  else {
+    # if the markdup file *doesn't* exist, we fall back on the
+    # ".raw.sorted.bam" file, which should always exist. If it doesn't exist
+    # (check on the NFS filesystem), issue a warning, but return the path to
+    # file anyway
+    $returned_file = $raw_file;
+
+    carp qq(WARNING: expected to find raw bam file at "$returned_file", but it was missing)
+      unless -f file($self->storage_path, $raw_file);
+  }
+
+  return $returned_file;
+}
+
 #-------------------------------------------------------------------------------
 
 # given a "from" and "to" filename, edit the destination to change the format
