@@ -39,6 +39,16 @@ app_fuzzy 0;
 # line
 app_strict 1;
 
+# edit the names under which the command classes are registered. Convert
+# the Perl module name to lowercase and strip out any non-word characters, so
+# that, for example, Bio::Path::Find::App::PathFind::RNASeq is registered as
+# the command "rnaseq" (the default is "rna_seq").
+app_command_name {
+  my ( $name, $package ) = @_;
+  ( my $command_name = lc $name ) =~ s/\W//g;
+  return $command_name;
+};
+
 #-------------------------------------------------------------------------------
 
 =head1 NAME

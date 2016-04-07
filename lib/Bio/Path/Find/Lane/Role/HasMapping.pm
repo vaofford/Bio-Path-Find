@@ -5,7 +5,7 @@ package Bio::Path::Find::Lane::Role::HasMapping;
 
 use v5.10; # for "say"
 
-use Moose::Role;
+use MooseX::App::Role;
 
 use Path::Class;
 
@@ -13,9 +13,10 @@ use Types::Standard qw(
   ArrayRef
   HashRef
   Str
+  Bool
 );
 
-use Bio::Path::Find::Types qw( :all );
+use Bio::Path::Find::Types qw( :types );
 
 with 'Bio::Path::Find::Role::HasConfig';
 

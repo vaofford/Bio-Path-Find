@@ -68,6 +68,7 @@ use Type::Library -base, -declare => qw(
   QCType
   MapType
   SNPType
+  RNASeqType
   Mapper
   TaxLevel
 );
@@ -167,9 +168,10 @@ enum RefType,        [qw( fa gff embl )];
 enum QCType,         [qw( kraken )];
 enum MapType,        [qw( bam )];
 enum SNPType,        [qw( vcf pseudogenome )];
+enum RNASeqType,     [qw( bam coverage intergenic featurecounts spreadsheet )];
 
 declare FileType,
-  as AnnotationType|AssemblyType|DataType|RefType|QCType|MapType|SNPType;
+  as AnnotationType|AssemblyType|DataType|RefType|QCType|MapType|SNPType|RNASeqType;
 
 #---------------------------------------
 
