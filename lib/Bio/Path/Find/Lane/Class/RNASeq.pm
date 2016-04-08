@@ -43,72 +43,54 @@ has '+filetype' => (
 
 sub _build_filetype_extensions {
   {
-    coverage      => '*coverageplot.gz',
-    intergenic    => '*tab.gz',
     bam           => '*corrected.bam',
-    spreadsheet   => '*expression.csv',
+    coverage      => '*coverageplot.gz',
     featurecounts => '*featurecounts.csv',
+    intergenic    => '*tab.gz',
+    spreadsheet   => '*expression.csv',
   };
 }
-
-# NOTE if there is a "_get_*" method for one of the keys, then calling
-# NOTE $lane->find_files(filetype=>'<key>') will call that method to find files.
-# NOTE If there's no corresponding "_get_*" method, "find_files" will fall back
-# NOTE on calling "_get_files_by_extension", which will use Find::File::Rule to
-# NOTE look for files according to the pattern given in the hash value.
-
-#-------------------------------------------------------------------------------
-
-# collect together the fields for the statistics display
-#
-# required by the Stats Role
-
-sub _build_stats {
-  my $self = shift;
-
-  # for each mapstats row for this lane, get a row of statistics, as an
-  # arrayref, and push it into the return array.
-  my @stats = map { $self->_get_stats_row($_) } $self->_all_mapstats_rows;
-
-  return \@stats;
-}
-
-# NOTE the "_build_stats_header" and "_get_stats_row" methods come from the
-# NOTE "HasMapping" Role
 
 #-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
+# The file-finding code in this Lane class uses a hybrid of the approaches in
+# the others Lane classes.
+#
+# We need to be able to filter lanes on mapper and reference, so we have a
+# method for each of the filetypes that we support, and those methods call the
+# "_get_mapping_files" method from the "HasMapping" role. "_get_mapping_files"
+# calls "_generate_filenames" back in here, and THAT method turns around and
+# calls "_get_files_by_extension", which uses the extension-to-regex mapping
+# set up by "build_filetype_extensions" above.
+
+sub _get_bam           { shift->_get_mapping_files('bam') }
+sub _get_coverage      { shift->_get_mapping_files('coverage') }
+sub _get_featurecounts { shift->_get_mapping_files('featurecounts') }
+sub _get_intergenic    { shift->_get_mapping_files('intergenic') }
+sub _get_spreadsheet   { shift->_get_mapping_files('spreadsheet') }
+
+#-------------------------------------------------------------------------------
+
 # called from the "_get_mapping_files" method on the HasMapping Role, this
-# method handles the specifics of finding bam files for this lane. It returns a
-# list of files that its found for this lane.
+# method handles the specifics of finding files for this lane
 
 sub _generate_filenames {
-  my ( $self, $mapstats_id, $pairing ) = @_;
+  my ( $self, $mapstats_id, $pairing, $filetype, $index_suffix ) = @_;
 
-  my $markdup_file = "$mapstats_id.$pairing.markdup.bam";
-  my $raw_file     = "$mapstats_id.$pairing.raw.sorted.bam";
+  my $extension = $self->filetype_extensions->{$filetype};
 
-  my $returned_file;
-  if ( -f file($self->storage_path, $markdup_file) ) {
-    # if the markdup file exists, we show that. Note that we check that the
-    # file exists using the storage path (on NFS), but return the symlink
-    # path (on lustre)
-    $returned_file = $markdup_file;
-  }
-  else {
-    # if the markdup file *doesn't* exist, we fall back on the
-    # ".raw.sorted.bam" file, which should always exist. If it doesn't exist
-    # (check on the NFS filesystem), issue a warning, but return the path to
-    # file anyway
-    $returned_file = $raw_file;
+  # Should Never Happen (tm). The extension should *always* be found in the
+  # list of extensions, otherwise $filetype would have hit a Moose type
+  # validation exception when it was set. This is true as long as the list of
+  # extensions in "_build_filetype_extensions" is in sync with the list in the
+  # enum in B::P::F::Types.
+  return unless defined $extension;
 
-    carp qq(WARNING: expected to find raw bam file at "$returned_file", but it was missing)
-      unless -f file($self->storage_path, $raw_file);
-  }
+  my $files = $self->_get_files_by_extension($extension);
 
-  return $returned_file;
+  return $files;
 }
 
 #-------------------------------------------------------------------------------

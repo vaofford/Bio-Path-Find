@@ -342,7 +342,7 @@ Clears the list of found files. No return value.
 
 # these are concrete methods from this class
 
-=head2 find_files($filetype)
+=head2 find_files($filetype, ?$subdirs)
 
 Look for files associated with this lane with a given filetype. In scalar
 context, the method returns the number of files found. In list context, returns
@@ -351,6 +351,7 @@ a list of the found files.
 Given a specific filetype, this method checks to see if its class has a method
 named C<_get_${filetype}> and runs it if the method exists. If there is no such
 method, we fall back on a mechanism for finding files based on their extension.
+
 We first look up an extension pattern in the mapping provided by
 C<filename_extension>, then call
 L<_get_files_by_extension|Bio::Path::Find::Lane::_get_files_by_extension> to
@@ -358,11 +359,15 @@ try to find files matching the pattern.
 
 This base class has an empty C<filename_extension> mapping and no C<_get_*>
 methods, beyond C<_get_files_by_extensions>. The intention is that the mapping
-and C<_get_*> methods will be provided by sub-classes, which are specialised to
+and C<_get_*> methods will be provided by sub-classes that are specialised to
 finding files in a specific context. For example, the C<data> command needs to
 find C<fastq> files, so it uses a specialised C<Lane> class,
 L<Bio::Path::Find::Lane::Class::Data>, which implements a
 C<_get_fastq|Bio::Path::Find::Lane::Class::Data::_get_fastq> method.
+
+If C<$subdirs> is given, it should be a reference to an array containing a list
+of sub-directories. Only files within one of the specified sub-directories will
+be returned.
 
 B<Note> that calling this method will set the L<filetype> attribute on the
 object to C<$filetype>.
@@ -392,10 +397,11 @@ sub find_files {
 
   # can't find files of a specific type; fall back on the mapping between
   # filetype and filename extension
-  if ( $self->has_no_files ) {
-    my $extension = $self->filetype_extensions->{$filetype};
-    $self->_get_files_by_extension($extension)
-      if defined $extension;
+  my $extension = $self->filetype_extensions->{$filetype};
+  if ( $self->has_no_files and defined $extension ) {
+    my $found_files = $self->_get_files_by_extension($extension);
+    $self->_set_files($found_files);
+
     $self->log->debug( 'found ' . $self->file_count . ' files using extension mapping' )
       if $self->has_files;
   }
@@ -671,14 +677,11 @@ sub _get_files_by_extension {
 
   $self->log->trace( 'found ' . scalar @files . ' files using extension' );
 
-  # if the "store_filenames" attribute is true, we should store filenames
-  # as strings, rather than Path::Class::File objects
-  if ( $self->store_filenames ) {
-    $self->_add_file(@files);
-  }
-  else {
-    $self->_add_file( file($_) ) for @files;
-  }
+  # should we store filenames as Path::Class::File objects, or as plain
+  # strings ?
+  @files = map { file $_ } @files if not $self->store_filenames;
+
+  return \@files;
 }
 
 #-------------------------------------------------------------------------------

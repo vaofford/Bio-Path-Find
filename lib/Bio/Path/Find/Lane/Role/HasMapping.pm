@@ -126,6 +126,22 @@ sub _build_stats_headers {
 }
 
 #-------------------------------------------------------------------------------
+
+# collect together the fields for the statistics report
+#
+# required by the Stats Role
+
+sub _build_stats {
+  my $self = shift;
+
+  # for each mapstats row for this lane, get a row of statistics, as an
+  # arrayref, and push it into the return array.
+  my @stats = map { $self->_get_stats_row($_) } $self->_all_mapstats_rows;
+
+  return \@stats;
+}
+
+#-------------------------------------------------------------------------------
 #- methods ---------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
@@ -252,25 +268,17 @@ sub _get_mapping_files {
     # of the lane, and we'll add on the symlink path before storing, so that
     # the lane always returns paths in its symlink directory.
 
-    my @files = $self->_generate_filenames(
+    my $files = $self->_generate_filenames(
       $mapstats_id,
       $pairing,
       $filetype,
       @additional_args,
     );
 
-    FILE: foreach my $file ( @files ) {
-
-      # prepend the lane's directroy path
-      my $symlink_path = file($self->symlink_path, $file)->cleanup;
-      # NOTE: for some reason, we need to clean up the path that we're
-      # generating here, in order to remove an empty directory layer that gets
-      # added when we combine the symlink directory path and the relative file
-      # path. It could, just maybe, be a bug in Path::Class...
-
+    foreach my $file ( @$files ) {
       # store the file and the extra information for the file
-      $self->_add_file($symlink_path);
-      $self->_verbose_file_info->{$symlink_path} = [
+      $self->_add_file($file);
+      $self->_verbose_file_info->{$file} = [
         $lane_reference,          # name of the reference
         $lane_mapper,             # name of the mapper
         $mapstats_row->changed,   # last update timestamp

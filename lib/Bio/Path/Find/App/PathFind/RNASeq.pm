@@ -306,12 +306,11 @@ sub _build_lane_class {
 
 #---------------------------------------
 
-# change the name of the stats file
+# change the name of the tar, zip and stats files
 
-sub _build_stats_file {
-  my $self = shift;
-  return file($self->_renamed_id . '.rnaseqfind_stats.csv');
-}
+sub _build_tar_filename { file $_[0]->_renamed_id . '.rnaseqfind' . ( $_[0]->no_tar_compression ? '.tar' : '.tar.gz' ) }
+sub _build_zip_filename { file shift->_renamed_id . '.rnaseqfind.zip' }
+sub _build_stats_file   { file shift->_renamed_id . '.rnaseqfind_stats.csv' }
 
 #-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------

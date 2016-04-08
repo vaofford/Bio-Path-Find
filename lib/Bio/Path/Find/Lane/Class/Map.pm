@@ -56,25 +56,6 @@ sub _build_filetype_extensions {
 # for files according to the pattern given in the hash value.)
 
 #-------------------------------------------------------------------------------
-
-# collect together the fields for the statistics report
-#
-# required by the Stats Role
-
-sub _build_stats {
-  my $self = shift;
-
-  # for each mapstats row for this lane, get a row of statistics, as an
-  # arrayref, and push it into the return array.
-  my @stats = map { $self->_get_stats_row($_) } $self->_all_mapstats_rows;
-
-  return \@stats;
-}
-
-# NOTE the "_build_stats_header" and "_get_stats_row" methods come from the
-# NOTE "HasMapping" Role
-
-#-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
@@ -118,7 +99,7 @@ sub _generate_filenames {
       unless -f file($self->storage_path, $raw_file);
   }
 
-  return $returned_file;
+  return [ file( $self->symlink_path, $returned_file) ];
 }
 
 #-------------------------------------------------------------------------------
