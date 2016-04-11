@@ -294,12 +294,41 @@ has 'store_filenames' => (
 #- private attributes ----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
+# a flag to show that this lane has run its file-finding process
+
 has '_finding_run' => (
   is      => 'rw',
   isa     => Bool,
   default => 0,
   clearer => '_clear_finding_run',
 );
+
+#---------------------------------------
+
+# this is a flag to handle an annoying special case
+#
+# The usual file-finding process is run via "find_files". If we're looking
+# for a specific file type and there's a method to "_get_<filetype>" on the
+# Lane class, we use that. If that mechanism doesn't return any files, we
+# fall back on the "_get_files_by_extension" method.
+#
+# With the Lane::Class::RNASeq class, we don't want to fall back on the usual
+# "_get_files_by_extension" method, because it bypasses the custom
+# file-finding mechanism that takes notice of the "mapper" and "reference"
+# command-line options
+#
+# So, this attribute is a one-use flag to tell the "find_files" method not
+# to fall back on "_get_files_by_extension" mechanism.
+
+has '_skip_extension_fallback' => (
+  is      => 'ro',
+  isa     => Bool,
+  builder => '_build_skip_extension_fallback',
+);
+
+# set the default in a builder, so that it can be overridden by child classes.
+# Default is to fall back on the "_get_files_by_extension" method if possible
+sub _build_skip_extension_fallback { 0 }
 
 #-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
@@ -395,10 +424,14 @@ sub find_files {
   my $method_name = "_get_$filetype";
   $self->$method_name if $self->can($method_name);
 
-  # can't find files of a specific type; fall back on the mapping between
-  # filetype and filename extension
+  # can't find files of a specific type; should we fall back on the mapping
+  # between filetype and filename extension ?
   my $extension = $self->filetype_extensions->{$filetype};
-  if ( $self->has_no_files and defined $extension ) {
+
+  # should we try to find files using their filename extension ? Yes, if...
+  if ( $self->has_no_files and                  # we didn't find any files so far...
+       defined $extension  and                  # there's an extension we can use...
+       not $self->_skip_extension_fallback ) {  # we've not be told to skip this step
     my $found_files = $self->_get_files_by_extension($extension);
     $self->_set_files($found_files);
 
