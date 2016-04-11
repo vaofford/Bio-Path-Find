@@ -51,6 +51,14 @@ sub _build_filetype_extensions {
   };
 }
 
+#---------------------------------------
+
+# when file-finding, don't fall back on the "_get_files_by_extension"
+# mechanism, otherwise we end up bypassing the "mapper" and "extension"
+# filters
+
+sub _build_skip_extension_fallback { 1 }
+
 #-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -102,26 +110,22 @@ sub _generate_filenames {
 # For example, this method is called by B::P::F::Role::Linker before it creates
 # links. This method makes the link destination look like:
 #
-#   <dst_path directory> / <id>.<mapstats_id>.mpileup.unfilt.vcf.gz
+#   <dst_path directory> / <id>.<mapstats_id>.pe.markdup.bam.expression.csv
 #
-#  e.g. 11657_5#33/11657_5#33.851642.mpileup.unfilt.vcf.gz
-#       11657_5#33/11657_5#33.851642.mpileup.unfilt.vcf.gz.tbi
+#  e.g. 11657_5#33/11657_5#33.851642.pe.markdup.bam.expression.csv
 
-# sub _edit_filenames {
-#   my ( $self, $src_path, $dst_path ) = @_;
-#
-#   my @src_path_components = $src_path->components;
-#
-#   my $id_dir      = $src_path_components[-3];
-#   my $mapping_dir = $src_path_components[-2];
-#   my $filename    = $src_path_components[-1];
-#
-#   ( my $mapstats_id = $mapping_dir ) =~ s/^(\d+)\..*$/$1/;
-#
-#   my $new_dst = file( $dst_path->dir, $id_dir . '.' . $mapstats_id . '_' . $filename );
-#
-#   return ( $src_path, $new_dst );
-# }
+sub _edit_filenames {
+  my ( $self, $src_path, $dst_path ) = @_;
+
+  my @src_path_components = $src_path->components;
+
+  my $id_dir      = $src_path_components[-2];
+  my $filename    = $src_path_components[-1];
+
+  my $new_dst = file( $dst_path->dir, $id_dir . '.' . $filename );
+
+  return ( $src_path, $new_dst );
+}
 
 #-------------------------------------------------------------------------------
 
