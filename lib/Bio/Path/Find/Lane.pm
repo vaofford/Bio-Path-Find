@@ -294,12 +294,41 @@ has 'store_filenames' => (
 #- private attributes ----------------------------------------------------------
 #-------------------------------------------------------------------------------
 
+# a flag to show that this lane has run its file-finding process
+
 has '_finding_run' => (
   is      => 'rw',
   isa     => Bool,
   default => 0,
   clearer => '_clear_finding_run',
 );
+
+#---------------------------------------
+
+# this is a flag to handle an annoying special case
+#
+# The usual file-finding process is run via "find_files". If we're looking
+# for a specific file type and there's a method to "_get_<filetype>" on the
+# Lane class, we use that. If that mechanism doesn't return any files, we
+# fall back on the "_get_files_by_extension" method.
+#
+# With the Lane::Class::RNASeq class, we don't want to fall back on the usual
+# "_get_files_by_extension" method, because it bypasses the custom
+# file-finding mechanism that takes notice of the "mapper" and "reference"
+# command-line options
+#
+# So, this attribute is a one-use flag to tell the "find_files" method not
+# to fall back on "_get_files_by_extension" mechanism.
+
+has '_skip_extension_fallback' => (
+  is      => 'ro',
+  isa     => Bool,
+  builder => '_build_skip_extension_fallback',
+);
+
+# set the default in a builder, so that it can be overridden by child classes.
+# Default is to fall back on the "_get_files_by_extension" method if possible
+sub _build_skip_extension_fallback { 0 }
 
 #-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
@@ -342,7 +371,7 @@ Clears the list of found files. No return value.
 
 # these are concrete methods from this class
 
-=head2 find_files($filetype)
+=head2 find_files($filetype, ?$subdirs)
 
 Look for files associated with this lane with a given filetype. In scalar
 context, the method returns the number of files found. In list context, returns
@@ -351,6 +380,7 @@ a list of the found files.
 Given a specific filetype, this method checks to see if its class has a method
 named C<_get_${filetype}> and runs it if the method exists. If there is no such
 method, we fall back on a mechanism for finding files based on their extension.
+
 We first look up an extension pattern in the mapping provided by
 C<filename_extension>, then call
 L<_get_files_by_extension|Bio::Path::Find::Lane::_get_files_by_extension> to
@@ -358,11 +388,15 @@ try to find files matching the pattern.
 
 This base class has an empty C<filename_extension> mapping and no C<_get_*>
 methods, beyond C<_get_files_by_extensions>. The intention is that the mapping
-and C<_get_*> methods will be provided by sub-classes, which are specialised to
+and C<_get_*> methods will be provided by sub-classes that are specialised to
 finding files in a specific context. For example, the C<data> command needs to
 find C<fastq> files, so it uses a specialised C<Lane> class,
 L<Bio::Path::Find::Lane::Class::Data>, which implements a
 C<_get_fastq|Bio::Path::Find::Lane::Class::Data::_get_fastq> method.
+
+If C<$subdirs> is given, it should be a reference to an array containing a list
+of sub-directories. Only files within one of the specified sub-directories will
+be returned.
 
 B<Note> that calling this method will set the L<filetype> attribute on the
 object to C<$filetype>.
@@ -390,12 +424,17 @@ sub find_files {
   my $method_name = "_get_$filetype";
   $self->$method_name if $self->can($method_name);
 
-  # can't find files of a specific type; fall back on the mapping between
-  # filetype and filename extension
-  if ( $self->has_no_files ) {
-    my $extension = $self->filetype_extensions->{$filetype};
-    $self->_get_files_by_extension($extension)
-      if defined $extension;
+  # can't find files of a specific type; should we fall back on the mapping
+  # between filetype and filename extension ?
+  my $extension = $self->filetype_extensions->{$filetype};
+
+  # should we try to find files using their filename extension ? Yes, if...
+  if ( $self->has_no_files and                  # we didn't find any files so far...
+       defined $extension  and                  # there's an extension we can use...
+       not $self->_skip_extension_fallback ) {  # we've not be told to skip this step
+    my $found_files = $self->_get_files_by_extension($extension);
+    $self->_set_files($found_files);
+
     $self->log->debug( 'found ' . $self->file_count . ' files using extension mapping' )
       if $self->has_files;
   }
@@ -671,14 +710,11 @@ sub _get_files_by_extension {
 
   $self->log->trace( 'found ' . scalar @files . ' files using extension' );
 
-  # if the "store_filenames" attribute is true, we should store filenames
-  # as strings, rather than Path::Class::File objects
-  if ( $self->store_filenames ) {
-    $self->_add_file(@files);
-  }
-  else {
-    $self->_add_file( file($_) ) for @files;
-  }
+  # should we store filenames as Path::Class::File objects, or as plain
+  # strings ?
+  @files = map { file $_ } @files if not $self->store_filenames;
+
+  return \@files;
 }
 
 #-------------------------------------------------------------------------------

@@ -20,7 +20,7 @@ use Types::Standard qw(
   +Bool
 );
 
-use Bio::Path::Find::Types qw( :types MappersFromMapper );
+use Bio::Path::Find::Types qw( :types );
 
 use Bio::Path::Find::Exception;
 use Bio::Path::Find::RefFinder;
@@ -29,7 +29,8 @@ use Bio::Path::Find::Lane::Class::SNP;
 extends 'Bio::Path::Find::App::PathFind';
 
 with 'Bio::Path::Find::App::Role::Archivist',
-     'Bio::Path::Find::App::Role::Linker';
+     'Bio::Path::Find::App::Role::Linker',
+     'Bio::Path::Find::App::Role::UsesMappings';
 
 #-------------------------------------------------------------------------------
 #- usage text ------------------------------------------------------------------
@@ -284,34 +285,11 @@ option 'filetype' => (
   default       => 'vcf',
 );
 
-option 'details' => (
-  documentation => 'show details for each mapping run',
-  is            => 'ro',
-  isa           => Bool,
-  cmd_aliases   => 'd',
-);
-
 option 'qc' => (
   documentation => 'filter results by lane QC state',
   is            => 'ro',
   isa           => QCState,
   cmd_aliases   => 'q',
-);
-
-option 'reference' => (
-  documentation => 'show lanes that were mapped against a specific reference',
-  is            => 'ro',
-  isa           => Str,
-  cmd_aliases   => 'R',
-);
-
-option 'mapper' => (
-  documentation => 'show assemblies mapped with specific mapper(s)',
-  is            => 'rw',
-  isa           => Mappers->plus_coercions(MappersFromMapper),
-  coerce        => 1,
-  cmd_aliases   => 'M',
-  cmd_split     => qr/,/,
 );
 
 option 'exclude_reference' => (
@@ -494,9 +472,15 @@ sub _collect_filenames {
   my @filenames;
   foreach my $lane ( @$lanes ) {
     foreach my $from ( $lane->all_files ) {
-      my $to = $lane->can('_edit_filenames')
-             ? $lane->_edit_filenames($from, $from)
-             : $from;
+      my $to;
+      if ( $lane->can('_edit_filenames') ) {
+        # the "_edit_filenames" method returns an array containing the original
+        # "from" path and an edited version of "to", the second parameter
+        ( $from, $to ) = $lane->_edit_filenames($from, $from);
+      }
+      else {
+        $to = $from;
+      }
       push @filenames, { $from => $to };
     }
     $pb++;

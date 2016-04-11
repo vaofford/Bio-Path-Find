@@ -36,11 +36,6 @@ my $orig_cwd = getcwd;
 symlink dir( $orig_cwd, qw( t data ) ), dir( $temp_dir, qw( t data ) )
   or die "ERROR: couldn't link data directory into temp directory";
 
-# clone the "pathogen_prok_track.db" SQLite database, so that we can
-# modify it without changing the "master copy"
-copy file( $orig_cwd, qw( t data pathogen_prok_track.db ) ),
-     file( $temp_dir, 'snp_tests.db' );
-
 chdir $temp_dir;
 
 # make sure we can compile the class that we're testing...
@@ -54,14 +49,9 @@ my $config = {
   connection_params => {
     tracking => {
       driver       => 'SQLite',
-      # use the clone of the "pathogen_prok_track.db" SQLite DB
-      dbname       => file('snp_tests.db'),
+      dbname       => file('t', 'data', 'pathogen_prok_track.db'),
       schema_class => 'Bio::Track::Schema',
     },
-  },
-  # map the cloned DB to the same set of files on disk
-  db_subdirs => {
-    snp_tests => 'prokaryotes',
   },
   no_progress_bars => 1,
 };
@@ -100,7 +90,7 @@ is "$dst", "$to",   '"_edit_filenames" returns expected destination path';
 
 # check "get_file_info"
 
-$lane->_get_files('vcf');
+$lane->_get_mapping_files('vcf');
 
 my $expected_info = [
   'Streptococcus_suis_P1_7_v1',
@@ -123,7 +113,7 @@ stdout_is { $lane->print_details }
 
 #-------------------------------------------------------------------------------
 
-# check "_get_files"; looking for a VCF file
+# check "_get_mapping_files"; looking for a VCF file
 
 is $lane->file_count, 1, 'found one VCF file';
 is $lane->get_file(0)->stringify,
@@ -136,7 +126,7 @@ is $lane->file_count, 2, 'found two files using "_get_vcf"';
 
 # looking for a pseudogenome file
 $lane->clear_files;
-$lane->_get_files('pseudogenome');
+$lane->_get_mapping_files('pseudogenome');
 is $lane->file_count, 1, 'found one pseudogenome file';
 is $lane->get_file(0)->stringify,
   file( qw( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_T3_OP1 SLX APP_T3_OP1_7492545 10018_1#20 544213.se.markdup.snp pseudo_genome.fasta ) ),
@@ -152,10 +142,10 @@ is $lane->get_file(0)->stringify,
 #---------------------------------------
 
 # switch to a different lane, which has a job status file, meaning that it
-# should be ignored by the "_get_files" method
+# should be ignored by the "_get_mapping_files" method
 $lanes = $finder->find_lanes( ids => [ '10018_1#21' ], type => 'lane' );
 $lane = $lanes->[0];
-$lane->_get_files('vcf');
+$lane->_get_mapping_files('vcf');
 ok $lane->has_no_files, 'found no VCF files for lane with job status file';
 
 #---------------------------------------
@@ -167,7 +157,7 @@ $lanes = $finder->find_lanes(
   lane_attributes => { mappers => [ 'bwa' ] },
 );
 $lane = $lanes->[0];
-$lane->_get_files('vcf');
+$lane->_get_mapping_files('vcf');
 ok $lane->has_no_files, 'found no VCF files mapped with "bwa"';
 
 #---------------------------------------
@@ -175,7 +165,7 @@ ok $lane->has_no_files, 'found no VCF files mapped with "bwa"';
 # single or paired end ?
 $lanes = $finder->find_lanes( ids => [ '10018_1#22' ], type => 'lane' );
 $lane = $lanes->[0];
-$lane->_get_files('vcf');
+$lane->_get_mapping_files('vcf');
 
 is $lane->file_count, 1, 'found one VCF file';
 is $lane->get_file(0)->stringify,
@@ -186,19 +176,19 @@ is $lane->get_file(0)->stringify,
 
 # get VCF plus index
 $lane->clear_files;
-$lane->_get_files('vcf', 'tbi');
+$lane->_get_mapping_files('vcf', 'tbi');
 is $lane->file_count, 2, 'found two files when looking for index';
 like $lane->get_file(0), qr/\.vcf\.gz$/,      'found VCF';
 like $lane->get_file(1), qr/\.vcf\.gz\.tbi$/, 'found index';
 
 # test the negative too...
 $lane->clear_files;
-$lane->_get_files('vcf', 'non-existent');
+$lane->_get_mapping_files('vcf', 'non-existent');
 is $lane->file_count, 1, 'only VCF file found when non-existent index suffix supplied';
 like $lane->get_file(0), qr/\.vcf\.gz$/,      'found VCF';
 
 $lane->clear_files;
-stderr_like { $lane->_get_files('pseudogenome') }
+stderr_like { $lane->_get_mapping_files('pseudogenome') }
   qr/couldn't find file/,
   'got warning about missing pseudogenome file';
 
