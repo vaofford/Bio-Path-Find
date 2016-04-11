@@ -36,11 +36,6 @@ my $orig_cwd = getcwd;
 symlink dir( $orig_cwd, qw( t data ) ), dir( $temp_dir, qw( t data ) )
   or die "ERROR: couldn't link data directory into temp directory";
 
-# clone the "pathogen_prok_track.db" SQLite database, so that we can
-# modify it without changing the "master copy"
-copy file( $orig_cwd, qw( t data pathogen_prok_track.db ) ),
-     file( $temp_dir, 'snp_tests.db' );
-
 chdir $temp_dir;
 
 # make sure we can compile the class that we're testing...
@@ -54,14 +49,9 @@ my $config = {
   connection_params => {
     tracking => {
       driver       => 'SQLite',
-      # use the clone of the "pathogen_prok_track.db" SQLite DB
-      dbname       => file('snp_tests.db'),
+      dbname       => file('t', 'data', 'pathogen_prok_track.db'),
       schema_class => 'Bio::Track::Schema',
     },
-  },
-  # map the cloned DB to the same set of files on disk
-  db_subdirs => {
-    snp_tests => 'prokaryotes',
   },
   no_progress_bars => 1,
 };
