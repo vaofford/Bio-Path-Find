@@ -5,8 +5,8 @@ addons:
     packages:
     - libssl-dev
 perl:
-  - "5.10"
   - "5.14"
+  - "5.16"
   - "5.22"
 branches:
   only:

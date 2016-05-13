@@ -48,6 +48,12 @@ option (C<lane>, C<sample>, etc), and the ID, using the C<--id> option.
 
 Use "pf man" or "pf man assembly" to see more information.
 
+If you use the assemblies in your analysis please cite:
+"Robust high throughput prokaryote de novo assembly and improvement pipeline for Illumina data", 
+Andrew J. Page, Nishadi De Silva, Martin Hunt, Michael A. Quail, 
+Julian Parkhill, Simon R. Harris, Thomas D. Otto, Jacqueline A. Keane. (2016).
+http://dx.doi.org/10.1101/052688
+
 =head1 EXAMPLES
 
   # get paths for scaffolds for a set of lanes
