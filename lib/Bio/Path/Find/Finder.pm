@@ -368,7 +368,7 @@ sub _find_lanes {
 
       my $rs = $database->schema->get_lanes_by_id($id, $type, $processed);
 
-      next ID unless $rs; # no matching lanes
+      next ID if( $rs->count == 0); # no matching lanes
 
       $self->log->debug('found ' . $rs->count . ' lanes');
 
