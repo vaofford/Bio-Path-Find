@@ -51,8 +51,8 @@ Use "pf man" or "pf man assembly" to see more information.
 If you use the assemblies in your analysis please cite:
 "Robust high throughput prokaryote de novo assembly and improvement pipeline for Illumina data", 
 Andrew J. Page, Nishadi De Silva, Martin Hunt, Michael A. Quail, 
-Julian Parkhill, Simon R. Harris, Thomas D. Otto, Jacqueline A. Keane. (2016).
-http://dx.doi.org/10.1101/052688
+Julian Parkhill, Simon R. Harris, Thomas D. Otto, Jacqueline A. Keane. (2016). 
+Microbial Genomics 2(8): doi:10.1099/mgen.0.000083
 
 =head1 EXAMPLES
 
