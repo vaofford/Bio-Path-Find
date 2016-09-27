@@ -63,6 +63,18 @@ return the found genes as nucleotide, rather than amino-acid sequences.
 
 Use "pf man" or "pf man annotation" to see more information.
 
+If you use the assemblies in your analysis please cite:
+"Robust high throughput prokaryote de novo assembly and improvement pipeline for Illumina data",
+Andrew J. Page, Nishadi De Silva, Martin Hunt, Michael A. Quail,
+Julian Parkhill, Simon R. Harris, Thomas D. Otto, Jacqueline A. Keane. (2016).
+Microbial Genomics 2(8): doi:10.1099/mgen.0.000083
+
+and
+
+"Prokka: rapid prokaryotic genome annotation", Torsten Seemann. (2014). 
+Bioinformatics 30(14):2068-9. doi:10.1093/bioinformatics/btu153
+
+
 =head1 EXAMPLES
 
   # find GFF files for lanes
