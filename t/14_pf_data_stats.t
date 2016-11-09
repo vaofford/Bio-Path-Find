@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 17;
+use Test::More tests => 16;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -75,7 +75,6 @@ lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
 my $output;
 lives_ok { $output = capture_merged { $pf->_make_stats($lanes) } }
   'no exception when calling _make_stats';
-like $output, qr/Permission denied/, 'warning about unreadable job status file when making stats';
 
 my $stats_file = file( $temp_dir, '10018_1.pathfind_stats.csv' );
 ok -e $stats_file, 'stats named as expected';
