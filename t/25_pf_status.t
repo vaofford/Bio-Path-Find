@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 10;
+use Test::More tests => 9;
 use Test::Exception;
 use Test::Output;
 use Path::Class;
@@ -64,8 +64,6 @@ my ( $stdout, $stderr ) = Test::Output::output_from { $sf->run };
 # "output_from", but it doesn't seem to work without the package name.)
 
 is $stdout, $expected_info, 'printed status table is correct';
-like $stderr, qr/WARNING: failed to read job status file/,
-  'got warning about unreadable job status file';
 
 # write a CSV file
 

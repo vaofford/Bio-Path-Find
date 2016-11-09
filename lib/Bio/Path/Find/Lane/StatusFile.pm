@@ -66,12 +66,6 @@ sub _build_pipeline_name {
   foreach my $file_re ( keys %{ $self->_file_mapping } ) {
     return $self->_file_mapping->{$file_re} if $self->config_file =~ m/$file_re/;
   }
-
-  # if we get to here then the status file specified a valid, found-on-disk
-  # config file, but that config file doesn't match any of the known
-  # pipelines in the _file_mapping. That suggests it's a new, or otherwise
-  # unknown, pipeline, so we should at least warn about it.
-  carp "ERROR: unrecognised pipeline in config file";
   return '';
 }
 
@@ -114,10 +108,12 @@ sub BUILD {
 
   my $read_error = 0;
   my @lines;
+  
+  return unless (-r $self->status_file );
+  
   try {
     @lines = $self->status_file->slurp(chomp => 1);
   } catch {
-    carp 'WARNING: failed to read job status file (' . $self->status_file . "): $_";
     $read_error++;
   };
   return if $read_error;

@@ -100,7 +100,6 @@ my ( $got_filenames, $got_stats );
 
 warnings_like { ( $got_filenames, $got_stats ) = $pf->_collect_filenames($lanes) }
   [
-    { carped => qr/^WARNING: failed to read job status file/ },
     { carped => qr/^WARNING: not a valid job status file/ },
   ],
   'got warnings with unreadable job status file';

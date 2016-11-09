@@ -126,9 +126,7 @@ lives_ok { $lane_status = Bio::Path::Find::Lane::Status->new( lane => $lane ) }
 warnings_are { $lane_status->pipeline_status('qc') } [], 'no warning getting status for QC pipeline';
 
 my $status;
-warning_like { $status = $lane_status->pipeline_status('annotated') }
-  { carped => qr/Permission denied/ },
-  'got "permission denied" warning when reading status file';
+ok $status = $lane_status->pipeline_status('annotated') ;
 
 is $status, '-', 'status is "-" when status file is unreadable';
 
