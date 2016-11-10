@@ -71,6 +71,8 @@ sub _build_status_files {
 
   my $files = {};
 
+  return $files unless(-r $self->lane->symlink_path);
+
   foreach my $status_file ( grep m/_job_status$/, $self->lane->symlink_path->children ) {
     my $status_file_object = Bio::Path::Find::Lane::StatusFile->new( status_file => $status_file );
     push @{ $files->{ $status_file_object->pipeline_name } }, $status_file_object;
