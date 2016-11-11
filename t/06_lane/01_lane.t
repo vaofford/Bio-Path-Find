@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 24;
+use Test::More tests => 23;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -182,13 +182,6 @@ SKIP: {
   $files_in_temp_dir[1]->remove;
   $lane->_clear_finding_run;
   $lane->clear_files;
-
-  # set the permissions on the directory to remove write permission
-  chmod 0500, $symlink_dir;
-
-  warning_like { $lane->make_symlinks( dest => $symlink_dir ) }
-    { carped => qr/failed to create symlink/ },
-    'warning when destination directory not writeable';
 
   # re-make the temp dir
   $temp_dir = File::Temp->newdir;

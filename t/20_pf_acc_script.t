@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 10;
+use Test::More tests => 7;
 use Test::Exception;
 use Test::Output;
 use Test::Script::Run;
@@ -70,19 +70,6 @@ is $stderr, '', 'no output on STDERR';
 
 #---------------------------------------
 
-# write a CSV file
-( $rv, $stdout, $stderr ) = run_script( $script, [ 'accession', '-t', 'lane', '-i', '10018_1#1', '-o' ] );
-
-like $stderr, qr/Wrote accessions to "accessionfind\.csv"/, 'expected output on STDERR when writing CSV';
-
-ok -f 'accessionfind.csv', 'found CSV file';
-
-# try writing another CSV to same path
-( $rv, $stdout, $stderr ) = run_script( $script, [ 'accession', '-t', 'lane', '-i', '10018_1#1', '-o' ] );
-
-like $stderr, qr/ERROR: output file "accessionfind\.csv" already exists/,
-  'got error message about not overwriting';
-
 # specify a different filename
 ( $rv, $stdout, $stderr ) = run_script( $script, [ 'accession', '-t', 'lane', '-i', '10018_1#1', '-o', 'af.csv' ] );
 
@@ -94,7 +81,7 @@ ok -f 'af.csv', 'found other CSV file';
 
 my @log_lines = file('pathfind.log')->slurp;
 
-is scalar @log_lines, 4, 'got expected number of log entries';
+is scalar @log_lines, 2, 'got expected number of log entries';
 
 like $log_lines[0], qr|bin/pf accession -t lane -i 10018_1#1$|, 'log looks sensible';
 
