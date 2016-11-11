@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 13;
+use Test::More tests => 12;
 use Test::Exception;
 use Test::Output;
 use Path::Class;
@@ -100,22 +100,6 @@ ok -d $dest, 'found link directory';
 
 @links = $dest->children;
 is scalar( @links ), 50, 'found all links';
-
-SKIP: {
-  skip "can't check mkdir except on unix", 1,
-    unless file( qw( t data linked ) ) eq 't/data/linked';
-
-  # see what happens when we can't mkdir the specified dir
-
-  $params{symlink} = '/var/my_link_dir'; # not very cross-platform...
-  $pf = Bio::Path::Find::App::PathFind::Data->new(%params);
-
-  $dest = dir( '/var/my_link_dir' );
-
-  throws_ok { $pf->_make_symlinks($lanes) }
-    qr/couldn't make link directory/,
-    'exception when trying to mkdir in /var';
-};
 
 # look for exception when directory already exists as a file
 file( $temp_dir, 'pre-existing-file' )->touch;
