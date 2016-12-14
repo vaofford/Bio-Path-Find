@@ -311,6 +311,7 @@ sub _het_snp_stats {
 
   my $report_file = file(
     $self->symlink_path,
+    'qc-sample',
     $self->row->hierarchy_name . '_heterozygous_snps_report.txt'
   );
 
