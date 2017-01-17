@@ -18,5 +18,5 @@ RUN apt-get update -qq && apt-get install -y  cpanminus libssl-dev git make gcc 
 #
 RUN cpanm ExtUtils::MakeMaker && mkdir /usr/local/share/perl/5.24.1/inc && cp -R /usr/local/share/perl/5.24.1/ExtUtils /usr/local/share/perl/5.24.1/inc
 
-RUN git clone https://github.com/sanger-pathogens/Bio-Path-Find && cd Bio-Path-Find && ./install-travis-dependencies.sh
+RUN git clone https://github.com/sanger-pathogens/Bio-Path-Find.git && cd Bio-Path-Find && ./install-travis-dependencies.sh
 
