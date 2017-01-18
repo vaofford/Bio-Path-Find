@@ -80,20 +80,20 @@ stdout_is { $sf->run } join( "\n", @files ) . "\n",
 $params{details} = 1;
 
 $sf->clear_config;
+
 $sf = Bio::Path::Find::App::PathFind::SNP->new(%params);
 
 my $expected_info =
   file( qw ( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_T3_OP1 SLX APP_T3_OP1_7492545 10018_1#20 544213.se.markdup.snp mpileup.unfilt.vcf.gz ) )->stringify
   . "\tStreptococcus_suis_P1_7_v1"
   . "\tsmalt"
-  . "\t2013-07-13T14:39:16\n"
+  . "\t".'[\d]{4}-[\d]{2}-[\d]{2} [\d]{2}:[\d]{2}:[\d]{2}'."\n"
   . file( qw ( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_T3_OP1 SLX APP_T3_OP1_7492545 10018_1#20 544213.se.markdup.snp mpileup.unfilt.vcf.gz.tbi ) )->stringify
   . "\tStreptococcus_suis_P1_7_v1"
   . "\tsmalt"
-  . "\t2013-07-13T14:39:16\n";
+  . "\t".'[\d]{4}-[\d]{2}-[\d]{2} [\d]{2}:[\d]{2}:[\d]{2}'."\n";
 
-stdout_is { $sf->run } $expected_info, 'got expected detailed info';
-
+stdout_like { $sf->run } qr/$expected_info/, 'got expected detailed info';
 #---------------------------------------
 
 # check filtering
@@ -172,13 +172,13 @@ my $expected_pseudogenomes = {
       lane => $lanes->[0],
       mapper => 'smalt',
       ref => 'Streptococcus_suis_P1_7_v1',
-      timestamp => '2013-07-13T14:39:16',
+      timestamp => 'xxxx',
     },
   ],
 };
 
 my $got_pseudogenomes = $sf->_collect_sequences($lanes);
-
+$got_pseudogenomes->{Streptococcus_suis_P1_7_v1}[0]{timestamp} = 'xxxx';
 is_deeply $got_pseudogenomes, $expected_pseudogenomes,
   'got expected data structure from "_collect_sequences"';
 

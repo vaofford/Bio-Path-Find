@@ -95,21 +95,23 @@ $lane->_get_mapping_files('vcf');
 my $expected_info = [
   'Streptococcus_suis_P1_7_v1',
   'smalt',
-  '2013-07-13T14:39:16',
+  'TIMESTAMP',
 ];
 
-is_deeply $lane->get_file_info($lane->get_file(0)), $expected_info, 'got correct detailed info';
+my $actual_info_returned = $lane->get_file_info($lane->get_file(0));
+$actual_info_returned->[2] = 'TIMESTAMP';
+is_deeply $actual_info_returned, $expected_info, 'got correct detailed info';
 
 #---------------------------------------
 
 # "print_details"
 
-stdout_is { $lane->print_details }
-  file( qw( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_T3_OP1 SLX APP_T3_OP1_7492545 10018_1#20 544213.se.markdup.snp mpileup.unfilt.vcf.gz ) )->stringify
+my $expected_output_regex =  file( qw( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_T3_OP1 SLX APP_T3_OP1_7492545 10018_1#20 544213.se.markdup.snp mpileup.unfilt.vcf.gz ) )->stringify
   . "\tStreptococcus_suis_P1_7_v1"
   . "\tsmalt"
-  . "\t2013-07-13T14:39:16\n",
-  '"print_details" gives expected info';
+  . "\tTIMESTAMP\n";
+  
+stdout_like { $lane->print_details } qr/$expected_output_regex/, '"print_details" gives expected info';
 
 #-------------------------------------------------------------------------------
 
