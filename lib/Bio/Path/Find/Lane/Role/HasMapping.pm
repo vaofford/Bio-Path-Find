@@ -8,7 +8,8 @@ use v5.10; # for "say"
 use MooseX::App::Role;
 
 use Path::Class;
-
+use File::stat;
+use POSIX;
 use Types::Standard qw(
   ArrayRef
   HashRef
@@ -276,12 +277,13 @@ sub _get_mapping_files {
     );
 
     foreach my $file ( @$files ) {
+      next unless(-e $file);
       # store the file and the extra information for the file
       $self->_add_file($file);
       $self->_verbose_file_info->{$file} = [
         $lane_reference,          # name of the reference
         $lane_mapper,             # name of the mapper
-        $mapstats_row->changed,   # last update timestamp
+        _file_time_stamp($file),  # file modification time
       ];
     }
 
@@ -289,6 +291,14 @@ sub _get_mapping_files {
 }
 
 #-------------------------------------------------------------------------------
+
+# Lookup the timestamp of a file and format it in the same way as in the Database
+sub _file_time_stamp
+{
+  my ( $file ) = @_;
+  return POSIX::strftime( "%Y-%m-%d %H:%M:%S", localtime(  stat($file)->mtime));
+}
+
 
 # build a row of statistics for the current lane and specified mapstats row
 

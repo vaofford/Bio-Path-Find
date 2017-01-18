@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 24;
+use Test::More tests => 21;
 use Test::Exception;
 use Test::Warn;
 use Test::Output;
@@ -143,22 +143,6 @@ is $lane->files->[0],
 
 #---------------------------------------
 
-# check that we get a warning if we fall back to the raw file but it doesn't
-# exist on disk
-
-$lane = $lanes->[3];
-
-warnings_like { $lane->_get_bam }
-  [ { carped => qr/expected to find raw bam/ } ],
-  'got warning from "_get_bam" about missing raw file';
-
-is $lane->file_count, 1, 'found one file';
-is $lane->files->[0],
-  't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_IN_4/SLX/APP_IN_4_7492537/10018_1#4/543937.se.raw.sorted.bam',
-  'got expected (missing) raw.sorted.bam file';
-
-#---------------------------------------
-
 # make sure _get_bam works with multiple mapstats rows
 
 $lane = $lanes->[4];
@@ -176,16 +160,16 @@ is_deeply $lane->files,
 #-------------------------------------------------------------------------------
 
 # "print_details"
+my $expected_result = 't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/544477.se.markdup.bam	Streptococcus_suis_P1_7_v1	smalt	[\d]{4}-[\d]{2}-[\d]{2} [\d]{2}:[\d]{2}:[\d]{2}
+';
+stdout_like { $lanes->[0]->print_details } qr/$expected_result/, 'got expected details for lane with one mapping';
 
-stdout_is { $lanes->[0]->print_details }
-  't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/544477.se.markdup.bam	Streptococcus_suis_P1_7_v1	smalt	2013-07-13T14:41:22
-',
-  'got expected details for lane with one mapping';
 
-stdout_is { $lanes->[4]->print_details }
-  't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N1_OP2/SLX/APP_N1_OP2_7492529/10018_1#5/525342.se.markdup.bam	Streptococcus_suis_P1_7_v1	bwa	2013-06-25T10:51:43
-t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N1_OP2/SLX/APP_N1_OP2_7492529/10018_1#5/544510.se.markdup.bam	Streptococcus_suis_P1_7_v1	smalt	2013-07-13T14:41:31
-',
+$expected_result = 't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N1_OP2/SLX/APP_N1_OP2_7492529/10018_1#5/525342.se.markdup.bam	Streptococcus_suis_P1_7_v1	bwa	[\d]{4}-[\d]{2}-[\d]{2} [\d]{2}:[\d]{2}:[\d]{2}
+t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N1_OP2/SLX/APP_N1_OP2_7492529/10018_1#5/544510.se.markdup.bam	Streptococcus_suis_P1_7_v1	smalt	[\d]{4}-[\d]{2}-[\d]{2} [\d]{2}:[\d]{2}:[\d]{2}
+';
+stdout_like { $lanes->[4]->print_details }
+  qr/$expected_result/,
   'got expected details for lane with two mappings';
 
 #-------------------------------------------------------------------------------

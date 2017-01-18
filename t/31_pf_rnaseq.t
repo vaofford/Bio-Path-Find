@@ -134,16 +134,16 @@ foreach my $filetype ( qw( bam coverage featurecounts intergenic spreadsheet ) )
 }
 
 # check detailed output
-my $expected_file = file( qw( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_N1_OP2 SLX APP_N1_OP2_7492554 10018_1#30 525345.se.markdup.bam.expression.csv ) );
-
-my $expected_info = <<"EOF_info";
-$expected_file	Streptococcus_suis_P1_7_v1	smalt	2013-07-13T14:41:30
-EOF_info
+my $expected_info =
+  file( qw( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_N1_OP2 SLX APP_N1_OP2_7492554 10018_1#30 525345.se.markdup.bam.expression.csv ) )->stringify
+  . "\tStreptococcus_suis_P1_7_v1"
+  . "\tsmalt"
+  . "\t".'[\d]{4}-[\d]{2}-[\d]{2} [\d]{2}:[\d]{2}:[\d]{2}'."\n";
 
 $params{details} = 1;
 $sf->clear_config;
 $sf = Bio::Path::Find::App::PathFind::RNASeq->new(%params);
-stdout_is { $sf->run } $expected_info, 'got expected details';
+stdout_like { $sf->run } qr/$expected_info/, 'got expected details';
 
 delete $params{details};
 
