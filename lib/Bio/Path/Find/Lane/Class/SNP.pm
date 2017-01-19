@@ -101,7 +101,7 @@ sub _generate_filenames {
     push @returned_files, file($self->symlink_path, $mapping_dir, $file);
   }
   else {
-    say STDERR qq(WARNING: couldn't find file "$mapping_dir/$file"; mapping $mapstats_id may not be finished?);
+    #say STDERR qq(WARNING: couldn't find file "$mapping_dir/$file"; mapping $mapstats_id may not be finished?);
   }
 
   if ( $index_suffix ) {

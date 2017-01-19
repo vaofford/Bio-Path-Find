@@ -87,11 +87,11 @@ my $expected_info =
   file( qw ( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_T3_OP1 SLX APP_T3_OP1_7492545 10018_1#20 544213.se.markdup.snp mpileup.unfilt.vcf.gz ) )->stringify
   . "\tStreptococcus_suis_P1_7_v1"
   . "\tsmalt"
-  . "\t".'[\d]{4}-[\d]{2}-[\d]{2} [\d]{2}:[\d]{2}:[\d]{2}'."\n"
+  . "\t".'[\d]{4}-[\d]{2}-[\d]{2}T[\d]{2}:[\d]{2}:[\d]{2}'."\n"
   . file( qw ( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_T3_OP1 SLX APP_T3_OP1_7492545 10018_1#20 544213.se.markdup.snp mpileup.unfilt.vcf.gz.tbi ) )->stringify
   . "\tStreptococcus_suis_P1_7_v1"
   . "\tsmalt"
-  . "\t".'[\d]{4}-[\d]{2}-[\d]{2} [\d]{2}:[\d]{2}:[\d]{2}'."\n";
+  . "\t".'[\d]{4}-[\d]{2}-[\d]{2}T[\d]{2}:[\d]{2}:[\d]{2}'."\n";
 
 stdout_like { $sf->run } qr/$expected_info/, 'got expected detailed info';
 #---------------------------------------

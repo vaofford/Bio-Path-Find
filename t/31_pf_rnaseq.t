@@ -138,7 +138,7 @@ my $expected_info =
   file( qw( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_N1_OP2 SLX APP_N1_OP2_7492554 10018_1#30 525345.se.markdup.bam.expression.csv ) )->stringify
   . "\tStreptococcus_suis_P1_7_v1"
   . "\tsmalt"
-  . "\t".'[\d]{4}-[\d]{2}-[\d]{2} [\d]{2}:[\d]{2}:[\d]{2}'."\n";
+  . "\t".'[\d]{4}-[\d]{2}-[\d]{2}T[\d]{2}:[\d]{2}:[\d]{2}'."\n";
 
 $params{details} = 1;
 $sf->clear_config;

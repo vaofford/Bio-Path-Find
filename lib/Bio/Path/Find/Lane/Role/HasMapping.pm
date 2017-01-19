@@ -9,7 +9,7 @@ use MooseX::App::Role;
 
 use Path::Class;
 use File::stat;
-use POSIX;
+use DateTime;
 use Types::Standard qw(
   ArrayRef
   HashRef
@@ -296,9 +296,9 @@ sub _get_mapping_files {
 sub _file_time_stamp
 {
   my ( $file ) = @_;
-  return POSIX::strftime( "%Y-%m-%d %H:%M:%S", localtime(  stat($file)->mtime));
+  my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime( stat($file)->mtime );
+  return DateTime->new( year => $year+1900, month => $mon +1, day => $mday, hour => $hour, minute => $min, second => $sec);
 }
-
 
 # build a row of statistics for the current lane and specified mapstats row
 
