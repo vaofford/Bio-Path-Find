@@ -190,9 +190,6 @@ is $lane->file_count, 1, 'only VCF file found when non-existent index suffix sup
 like $lane->get_file(0), qr/\.vcf\.gz$/,      'found VCF';
 
 $lane->clear_files;
-stderr_like { $lane->_get_mapping_files('pseudogenome') }
-  qr/couldn't find file/,
-  'got warning about missing pseudogenome file';
 
 #-------------------------------------------------------------------------------
 
