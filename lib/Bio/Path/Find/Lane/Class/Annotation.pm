@@ -48,11 +48,41 @@ sub _build_filetype_extensions {
   };
 }
 
+# when file-finding, don't fall back on the "_get_files_by_extension"
+# mechanism, otherwise we end up bypassing the "mapper" and "extension"
+# filters
+
+sub _build_skip_extension_fallback { 1 }
+
+
+
 # (if there is a "_get_*" method for one of the keys, then calling
 # $lane->find_files(filetype=>'<key>') will call that method to find files.  If
 # there's no corresponding "_get_*" method, "find_files" will fall back on
 # calling "_get_files_by_extension", which will use Find::File::Rule to look
 # for files according to the pattern given in the hash value.)
+
+sub _get_faa {shift->_filter_by_file_extension('faa')}
+sub _get_ffn {shift->_filter_by_file_extension('ffn')}
+sub _get_gbk {shift->_filter_by_file_extension('gbk')}
+sub _get_fasta {shift->_filter_by_file_extension('faa')}
+sub _get_fastn {shift->_filter_by_file_extension('ffn')}	
+sub _get_genbank {shift->_filter_by_file_extension('gbk')}
+sub _get_gff { shift->_filter_by_file_extension('gff') }
+
+
+# Filter by the assembly type
+sub _filter_by_file_extension {
+  my($self, $file_extension) = @_;
+  $self->log->trace( q(looking for ).$file_extension.q( in ") . $self->symlink_path . q(") );
+
+  my $lane_name = $self->row->hierarchy_name;
+  foreach my $assembler ( sort @{ $self->assemblers} ) {
+    my $filename = file( $self->symlink_path, "${assembler}_assembly", 'annotation', $lane_name.'.'.$file_extension );
+    $self->_add_file($filename) if -f $filename;
+  }
+}
+
 
 #-------------------------------------------------------------------------------
 #- builders for statistics gathering -------------------------------------------
@@ -100,7 +130,6 @@ sub _build_stats {
 
     foreach my $gff_file_path ( @{ $self->files } ) {
       my $gff_file = file $gff_file_path;
-
       # don't show stats for this assembler unless the GFF file is actually in
       # the assembler's output directory
       next unless $assembly_dir->subsumes($gff_file);

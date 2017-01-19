@@ -557,9 +557,12 @@ EOF_warning
   }
   else {
     my $pb = $self->_create_pb('finding GFFs', scalar @$lanes);
-    for ( @$lanes ) {
-      push @gffs, $_->find_files('gff', $self->_subdirs);
-      $pb++;
+    for my $current_lane ( @$lanes ) {
+      for my $current_gff ( $current_lane->find_files('gff', $self->_subdirs))
+      {
+        push @gffs, $current_gff."";
+        $pb++;
+      }
     }
   }
 
@@ -585,7 +588,6 @@ EOF_warning
   $params{output_file} = $self->output if defined $self->output;
 
   my $gf = Bio::AutomatedAnnotation::ParseGenesFromGFFs->new(%params);
-
   print "finding genes... ";
 
   # the "ParseGenesFromGFFs" method calls out to BioPerl which issues several

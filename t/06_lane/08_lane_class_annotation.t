@@ -148,7 +148,7 @@ $lane->find_files('gff');
 
 # "_get_stats_row"
 
-lives_ok { $stats = $lane->_get_stats_row('spades', 'contigs.fa.stats', $lane->files->[0]) }
+lives_ok { $stats = $lane->_get_stats_row('spades', 'contigs.fa.stats', $lane->files->[1]) }
   'no exception when getting stats row';
 
 $expected_stats = [
