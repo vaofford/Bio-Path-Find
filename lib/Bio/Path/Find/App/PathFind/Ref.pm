@@ -551,7 +551,7 @@ sub _build_symlink_dest {
 # based on the path to a single reference genome directory, build a stub for a
 # destination filename. Convert a path like
 #
-#     /lustre/scratch108/pathogen/pathpipe/refs/Yersinia/pestis_CO92
+#     /lustre/scratch118/pathogen/pathpipe/refs/Yersinia/pestis_CO92
 #
 # to an string like
 #
