@@ -1,4 +1,4 @@
-stats for /lustre/scratch108/pathogen/pathpipe/viruses/seq-pipelines/Human/immunodeficiency_virus_1/TRACKING/479/93_HIV_T146/SLX/93_HIV_T146_236926/5008_5#1/spades_assembly/contigs.fa
+stats for /lustre/scratch118/pathogen/pathpipe/viruses/seq-pipelines/Human/immunodeficiency_virus_1/TRACKING/479/93_HIV_T146/SLX/93_HIV_T146_236926/5008_5#1/spades_assembly/contigs.fa
 sum = 2895, n = 36, ave = 80.42, largest = 408
 N50 = 73, n = 12
 N60 = 70, n = 16

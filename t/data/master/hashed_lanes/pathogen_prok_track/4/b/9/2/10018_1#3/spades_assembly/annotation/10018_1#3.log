@@ -18,7 +18,7 @@
 [13:13:58] Determined infernal version is 1.1
 [13:13:58] Determined signalp version is 4.1
 [13:13:58] Using genetic code table 1.
-[13:13:58] Loading and checking input file: /lustre/scratch108/pathogen/pathpipe/viruses/seq-pipelines/Human/immunodeficiency_virus_1/TRACKING/479/93_HIV_T146/SLX/93_HIV_T146_236926/5008_5#1/spades_assembly//contigs.fa
+[13:13:58] Loading and checking input file: /lustre/scratch118/pathogen/pathpipe/viruses/seq-pipelines/Human/immunodeficiency_virus_1/TRACKING/479/93_HIV_T146/SLX/93_HIV_T146_236926/5008_5#1/spades_assembly//contigs.fa
 [13:13:58] Skipping short (<200 bp) contig: .5008_5_1.2
 [13:13:58] Skipping short (<200 bp) contig: .5008_5_1.3
 [13:13:58] Skipping short (<200 bp) contig: .5008_5_1.4
@@ -67,7 +67,7 @@
 [13:13:59] Running: prodigal -i annotation/5008_5#1.fna -c -m -g 1 -p meta -f sco -q
 [13:13:59] Found 0 CDS
 [13:13:59] Connecting features back to sequences
-[13:13:59] Skipping genus-specific proteins as can't see /lustre/scratch108/pathogen/pathpipe/prokka/Human
+[13:13:59] Skipping genus-specific proteins as can't see /lustre/scratch118/pathogen/pathpipe/prokka/Human
 [13:13:59] Annotating CDS, please be patient.
 [13:13:59] Will use 1 CPUs for similarity searching.
 [13:13:59] Found 0 unique /gene codes.

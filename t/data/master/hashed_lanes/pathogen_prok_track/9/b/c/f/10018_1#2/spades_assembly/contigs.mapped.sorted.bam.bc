@@ -1,5 +1,5 @@
 # This file was produced by bamcheck (2012-09-04)
-# The command line was:  bamcheck -c 1,20000,5 -r /lustre/scratch108/pathogen/pathpipe/viruses/seq-pipelines/Human/immunodeficiency_virus_1/TRACKING/479/104_HIV_T146/SLX/104_HIV_T146_236929/5008_5#4/spades_assembly/contigs.fa /lustre/scratch108/pathogen/pathpipe/viruses/seq-pipelines/Human/immunodeficiency_virus_1/TRACKING/479/104_HIV_T146/SLX/104_HIV_T146_236929/5008_5#4/spades_assembly/contigs.mapped.sorted.bam
+# The command line was:  bamcheck -c 1,20000,5 -r /lustre/scratch118/pathogen/pathpipe/viruses/seq-pipelines/Human/immunodeficiency_virus_1/TRACKING/479/104_HIV_T146/SLX/104_HIV_T146_236929/5008_5#4/spades_assembly/contigs.fa /lustre/scratch118/pathogen/pathpipe/viruses/seq-pipelines/Human/immunodeficiency_virus_1/TRACKING/479/104_HIV_T146/SLX/104_HIV_T146_236929/5008_5#4/spades_assembly/contigs.mapped.sorted.bam
 # Summary Numbers. Use `grep ^SN | cut -f 2-` to extract this part.
 SN	raw total sequences:	342392
 SN	filtered sequences:	0
