@@ -18,7 +18,7 @@
 [11:59:31] Determined infernal version is 1.1
 [11:59:31] Determined signalp version is 4.1
 [11:59:31] Using genetic code table 1.
-[11:59:31] Loading and checking input file: /lustre/scratch118/pathogen/pathpipe/viruses/seq-pipelines/Human/immunodeficiency_virus_1/TRACKING/479/97_HIV_T146/SLX/97_HIV_T146_236932/5008_5#7/spades_assembly//contigs.fa
+[11:59:31] Loading and checking input file: /lustre/scratch118/infgen/pathogen/pathpipe/viruses/seq-pipelines/Human/immunodeficiency_virus_1/TRACKING/479/97_HIV_T146/SLX/97_HIV_T146_236932/5008_5#7/spades_assembly//contigs.fa
 [11:59:31] Skipping short (<200 bp) contig: .5008_5_7.4
 [11:59:31] Skipping short (<200 bp) contig: .5008_5_7.9
 [11:59:31] Skipping short (<200 bp) contig: .5008_5_7.17
@@ -168,11 +168,11 @@
 [11:59:44] Not including CDS which overlaps existing RNA at ERS005795|SC|contig000006:10..435 on - strand
 [11:59:44] Found 6 CDS
 [11:59:44] Connecting features back to sequences
-[11:59:44] Skipping genus-specific proteins as can't see /lustre/scratch118/pathogen/pathpipe/prokka/Human
+[11:59:44] Skipping genus-specific proteins as can't see /lustre/scratch118/infgen/pathogen/pathpipe/prokka/Human
 [11:59:44] Annotating CDS, please be patient.
 [11:59:44] Will use 1 CPUs for similarity searching.
-[11:59:44] blast 6 (of 6) proteins against /lustre/scratch118/pathogen/pathpipe/prokka/kingdom/Viruses/sprot
-[11:59:44] Running: nice parallel -j 1 blastp -query {} -db /lustre/scratch118/pathogen/pathpipe/prokka/kingdom/Viruses/sprot -evalue 1e-06 -num_threads 1 -out {}.out -num_descriptions 1 -num_alignments 1 2>/dev/null ::: /lustre/scratch118/pathogen/pathpipe/tmp/qrOX5Yo2pG/*.seq
+[11:59:44] blast 6 (of 6) proteins against /lustre/scratch118/infgen/pathogen/pathpipe/prokka/kingdom/Viruses/sprot
+[11:59:44] Running: nice parallel -j 1 blastp -query {} -db /lustre/scratch118/infgen/pathogen/pathpipe/prokka/kingdom/Viruses/sprot -evalue 1e-06 -num_threads 1 -out {}.out -num_descriptions 1 -num_alignments 1 2>/dev/null ::: /lustre/scratch118/infgen/pathogen/pathpipe/tmp/qrOX5Yo2pG/*.seq
 [11:59:45] Labelling remaining 2 proteins as 'hypothetical protein'
 [11:59:45] Found 4 unique /gene codes.
 [11:59:45] Fixed 0 colliding /gene names.

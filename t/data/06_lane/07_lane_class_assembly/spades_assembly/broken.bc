@@ -1,5 +1,5 @@
 # This file was produced by bamcheck (2012-09-04)
-# The command line was:  bamcheck -c 1,20000,5 -r /lustre/scratch118/pathogen/pathpipe/viruses/seq-pipelines/Human/immunodeficiency_virus_1/TRACKING/479/93_HIV_T146/SLX/93_HIV_T146_236926/5008_5#1/spades_assembly/contigs.fa /lustre/scratch118/pathogen/pathpipe/viruses/seq-pipelines/Human/immunodeficiency_virus_1/TRACKING/479/93_HIV_T146/SLX/93_HIV_T146_236926/5008_5#1/spades_assembly/contigs.mapped.sorted.bam
+# The command line was:  bamcheck -c 1,20000,5 -r /lustre/scratch118/infgen/pathogen/pathpipe/viruses/seq-pipelines/Human/immunodeficiency_virus_1/TRACKING/479/93_HIV_T146/SLX/93_HIV_T146_236926/5008_5#1/spades_assembly/contigs.fa /lustre/scratch118/infgen/pathogen/pathpipe/viruses/seq-pipelines/Human/immunodeficiency_virus_1/TRACKING/479/93_HIV_T146/SLX/93_HIV_T146_236926/5008_5#1/spades_assembly/contigs.mapped.sorted.bam
 # Summary Numbers. Use `grep ^SN | cut -f 2-` to extract this part.
 SN	fake field:	blah
 SN	filtered sequences:	0
