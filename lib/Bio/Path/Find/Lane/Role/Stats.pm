@@ -213,12 +213,15 @@ sub _depth_of_coverage_sd {
 
   # get the value directly from the mapstats table
   my $depth_sd = $mapstats_row->target_coverage_sd;
+  return 'NA' if not defined $depth_sd;
 
   # if this is a QC mapping, scale it
   if ( $mapstats_row->is_qc and $self->_mapping_is_complete($mapstats_row) ) {
 
     my $qc_bases = $mapstats_row->raw_bases;
     my $bases    = $self->row->raw_bases;
+    return 'NA' if not defined $qc_bases;
+    return 'NA' if not defined $bases;
 
     $depth_sd = ( $depth_sd * $bases ) / $qc_bases;
   }
