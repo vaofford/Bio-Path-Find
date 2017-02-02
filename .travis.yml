@@ -13,4 +13,4 @@ branches:
     - master
 install:
   - "source ./install-travis-dependencies.sh"
-script: "dzil test"
+script: "dzil test -v "
