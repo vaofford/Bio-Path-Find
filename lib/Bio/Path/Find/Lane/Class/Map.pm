@@ -88,6 +88,10 @@ sub _generate_filenames {
     # path (on lustre)
     $returned_file = $markdup_file;
   }
+  elsif(-f file( $self->symlink_path, $markdup_file) )
+  {
+     $returned_file = $markdup_file;
+  }
   else {
     # if the markdup file *doesn't* exist, we fall back on the
     # ".raw.sorted.bam" file, which should always exist. If it doesn't exist
