@@ -86,7 +86,6 @@ sub _get_pseudogenome {
 
 # called from the "_get_mapping_files" method on the HasMapping Role, this method
 # handles the specifics of finding VCF and index files for this lane
-
 sub _generate_filenames {
   my ( $self, $mapstats_id, $pairing, $filetype, $index_suffix ) = @_;
 
@@ -100,13 +99,23 @@ sub _generate_filenames {
   if ( -f file($self->storage_path, $mapping_dir, $file) ) {
     push @returned_files, file($self->symlink_path, $mapping_dir, $file);
   }
-  else {
-    #say STDERR qq(WARNING: couldn't find file "$mapping_dir/$file"; mapping $mapstats_id may not be finished?);
+  elsif (-f file($self->symlink_path, $mapping_dir, $file)) 
+  {
+    # Either the path isnt stored or the stored link is incorrect so fall back to the full path
+    push @returned_files, file($self->symlink_path, $mapping_dir, $file);
+  }
+  else
+  {
+    say STDERR qq(WARNING: couldn't find file "$mapping_dir/$file"; mapping $mapstats_id may not be finished?);
   }
 
   if ( $index_suffix ) {
     if ( -f file($self->storage_path, $mapping_dir, "$file.$index_suffix") ) {
       push @returned_files, file($self->symlink_path, $mapping_dir, "$file.$index_suffix");
+    }
+    elsif( -f file($self->symlink_path, $mapping_dir, "$file.$index_suffix"))
+    {
+    	push @returned_files, file($self->symlink_path, $mapping_dir, "$file.$index_suffix");
     }
   }
 
