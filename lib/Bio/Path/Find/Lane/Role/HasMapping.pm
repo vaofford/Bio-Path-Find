@@ -135,10 +135,22 @@ sub _build_stats_headers {
 sub _build_stats {
   my $self = shift;
 
-  # for each mapstats row for this lane, get a row of statistics, as an
+  # for each mapstats row for this lane, get a row of statistics, filtered by reference, as an
   # arrayref, and push it into the return array.
-  my @stats = map { $self->_get_stats_row($_) } $self->_all_mapstats_rows;
-
+  
+  my @stats;
+  for my $stats_row ($self->_all_mapstats_rows){ 
+    if(defined($self->reference))
+    {
+      if( $stats_row->assembly->name eq $self->reference) {
+        push(@stats, $self->_get_stats_row($stats_row));
+      }
+    }
+    else {
+      push(@stats, $self->_get_stats_row($stats_row));
+    }
+  }
+  
   return \@stats;
 }
 
