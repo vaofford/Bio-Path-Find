@@ -64,7 +64,7 @@ sub _build_filetype_extensions {
 # around and calls "_generate_filenames" back here.
 
 sub _get_bam {
-  return shift->_get_mapping_files('bam');
+  return shift->_get_mapping_files('bam','bai');
   # NOTE that the filetype argument isn't really necessary, because the
   # "_generate_filenames" method will only return bam files
 }
@@ -76,11 +76,12 @@ sub _get_bam {
 # list of files that its found for this lane.
 
 sub _generate_filenames {
-  my ( $self, $mapstats_id, $pairing ) = @_;
+  my ( $self, $mapstats_id, $pairing, $filetype, $index_suffix ) = @_;
 
   my $markdup_file = "$mapstats_id.$pairing.markdup.bam";
   my $raw_file     = "$mapstats_id.$pairing.raw.sorted.bam";
 
+  my @returned_files;
   my $returned_file;
   if ( -f file($self->storage_path, $markdup_file) ) {
     # if the markdup file exists, we show that. Note that we check that the
@@ -102,8 +103,19 @@ sub _generate_filenames {
     carp qq(WARNING: expected to find raw bam file at "$returned_file", but it was missing)
       unless -f file($self->storage_path, $raw_file);
   }
-
-  return [ file( $self->symlink_path, $returned_file) ];
+  push  @returned_files, file( $self->symlink_path, $returned_file);
+  
+  if ( $index_suffix ) {
+    if ( -f file($self->storage_path, "$returned_file.$index_suffix") ) {
+      push @returned_files, file( $self->symlink_path, "$returned_file.$index_suffix");
+    }
+    elsif( -f file($self->symlink_path, "$returned_file.$index_suffix"))
+    {
+      push @returned_files, file( $self->symlink_path, "$returned_file.$index_suffix");
+    }
+  }
+  
+  return \@returned_files;
 }
 
 #-------------------------------------------------------------------------------

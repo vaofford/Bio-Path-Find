@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 21;
+use Test::More tests => 22;
 use Test::Exception;
 use Test::Warn;
 use Test::Output;
@@ -123,11 +123,14 @@ $job_status_file->remove;
 
 warnings_are { $lane->_get_bam } [], 'no warnings from "_get_bam"';
 
-is $lane->file_count, 1, 'found one file';
+is $lane->file_count, 2, 'found mapping file plus index';
 is $lane->files->[0],
   't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/544477.se.markdup.bam',
-  'found expected file';
+  'found expected mapping file';
 
+is $lane->files->[1],
+    't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/544477.se.markdup.bam.bai',
+    'found expected index file';
 #---------------------------------------
 
 # check the paired end/single end filename distinction
@@ -149,11 +152,12 @@ $lane = $lanes->[4];
 
 warnings_are { $lane->_get_bam } [], 'no warnings from "_get_bam"';
 
-is $lane->file_count, 2, 'found two files';
+is $lane->file_count, 3, 'found two files';
 is_deeply $lane->files,
   [
     't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N1_OP2/SLX/APP_N1_OP2_7492529/10018_1#5/525342.se.markdup.bam',
     't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N1_OP2/SLX/APP_N1_OP2_7492529/10018_1#5/544510.se.markdup.bam',
+    't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N1_OP2/SLX/APP_N1_OP2_7492529/10018_1#5/544510.se.markdup.bam.bai',
   ],
   'got expected file paths';
 

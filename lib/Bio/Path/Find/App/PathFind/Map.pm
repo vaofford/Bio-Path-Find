@@ -322,15 +322,25 @@ sub run {
 
   # should we write out a stats file ?
   $self->_make_stats($lanes) if $self->_stats_flag;
-
-  # print the list of files. Should we show extra info ?
-  if ( $self->details ) {
-    # yes; print file path, reference, mapper and timestamp
-    $_->print_details for @$lanes;
+  
+  if ( $self->_symlink_flag or
+       $self->_tar_flag or
+       $self->_zip_flag ) {
+    # can make symlinks, tarball or zip archive all in the same run
+    $self->_make_symlinks($lanes) if $self->_symlink_flag;
+    $self->_make_tar($lanes)      if $self->_tar_flag;
+    $self->_make_zip($lanes)      if $self->_zip_flag;
   }
   else {
-    # no; just print the paths
-    $_->print_paths   for @$lanes;
+    # print the list of files. Should we show extra info ?
+    if ( $self->details ) {
+      # yes; print file path, reference, mapper and timestamp
+      $_->print_details for @$lanes;
+    }
+    else {
+      # no; just print the paths
+      $_->print_paths   for @$lanes;
+    }
   }
 }
 
