@@ -331,7 +331,7 @@ sub run {
        $self->_summary_flag ) {
     $self->_make_tar($lanes) if $self->_tar_flag;
     $self->_make_zip($lanes) if $self->_zip_flag;
-    $self->_make_links($lanes) if $self->_symlink_flag;
+    $self->_make_symlinks($lanes) if $self->_symlink_flag;
     $self->_make_summary($lanes) if $self->_summary_flag;
   }
   else {
@@ -342,6 +342,31 @@ sub run {
 #-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------
 #-------------------------------------------------------------------------------
+
+# given a "from" and "to" filename, edit the destination to change the format
+# of the filename. This gives this Lane a chance to edit the filenames that are
+# used, so that they can be specialised to assembly data.
+#
+# For example, this method is called by B::P::F::Role::Linker before it creates
+# links. This method makes the link destination look like:
+#
+#   <dst_path directory> / <id>_kraken.report
+#
+#  e.g. 11657_5#33/11657_5#33_kraken.report
+
+sub _edit_filenames {
+  my ( $self, $src_path, $dst_path ) = @_;
+
+  my @src_path_components = $src_path->components;
+
+  my $id_dir      = $src_path_components[-2];
+  my $filename    = $src_path_components[-1];
+
+  my $new_dst = file( $dst_path->dir, $id_dir . '_' . $filename );
+
+  return ( $src_path, $new_dst );
+}
+
 
 # override the default method from Bio::Path::Find::App::Role::Archivist. This
 # one doesn't bother creating a stats file, which the origin method does, by
