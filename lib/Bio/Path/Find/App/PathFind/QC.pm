@@ -331,7 +331,7 @@ sub run {
        $self->_summary_flag ) {
     $self->_make_tar($lanes) if $self->_tar_flag;
     $self->_make_zip($lanes) if $self->_zip_flag;
-    $self->_make_links($lanes) if $self->_symlink_flag;
+    $self->_make_symlinks($lanes) if $self->_symlink_flag;
     $self->_make_summary($lanes) if $self->_summary_flag;
   }
   else {
