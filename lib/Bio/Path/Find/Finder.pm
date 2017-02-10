@@ -367,11 +367,8 @@ sub _find_lanes {
       $self->log->debug( qq(looking for ID "$id") );
 
       my $rs = $database->schema->get_lanes_by_id($id, $type, $processed);
-
-      next ID if( $rs->count == 0); # no matching lanes
-
-      $self->log->debug('found ' . $rs->count . ' lanes');
-
+      
+      # Dont count the lanes, it causes another long running query.
       ROW: while ( my $lane_row = $rs->next ) {
 
         # build the Lane object, subject to any filters
