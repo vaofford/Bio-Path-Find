@@ -363,34 +363,30 @@ sub _find_lanes {
 
     my $database = $self->_db_manager->get_database($db_name);
 
-    ID: foreach my $id ( @$ids ) {
-      $self->log->debug( qq(looking for ID "$id") );
-
-      my $rs = $database->schema->get_lanes_by_id($id, $type, $processed);
-      
-      # Dont count the lanes, it causes another long running query.
-      ROW: while ( my $lane_row = $rs->next ) {
-
-        # build the Lane object, subject to any filters
-        my $lane = $self->_create_lane(
-          $lane_row,
-          $processed,
-          $qc,
-          $lane_attributes
-        );
-
-        next unless defined $lane;
-
-        # tell every result (a Bio::Track::Schema::Result object) which
-        # database it comes from. We need this later to generate paths on disk
-        # for the files associated with each result
-        $lane->row->database($database);
-
-        push @lanes, $lane if defined $lane;
-      }
-
-      $pb++;
+    my $rs = $database->schema->get_lanes_by_id($ids, $type, $processed);
+    
+    # Dont count the lanes, it causes another long running query.
+    ROW: while ( my $lane_row = $rs->next ) {
+   
+      # build the Lane object, subject to any filters
+      my $lane = $self->_create_lane(
+        $lane_row,
+        $processed,
+        $qc,
+        $lane_attributes
+      );
+   
+      next unless defined $lane;
+   
+      # tell every result (a Bio::Track::Schema::Result object) which
+      # database it comes from. We need this later to generate paths on disk
+      # for the files associated with each result
+      $lane->row->database($database);
+   
+      push @lanes, $lane if defined $lane;
     }
+   
+    $pb++;
 
   }
 
