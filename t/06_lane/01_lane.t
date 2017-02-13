@@ -47,7 +47,7 @@ my $dbm = Bio::Path::Find::DatabaseManager->new(
 );
 
 my $database     = $dbm->get_database('pathogen_prok_track');
-my $lane_rows_rs = $database->schema->get_lanes_by_id('10018_1', 'lane');
+my $lane_rows_rs = $database->schema->get_lanes_by_id(['10018_1'], 'lane');
 
 is $lane_rows_rs->count, 50, 'got 50 lanes';
 

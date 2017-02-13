@@ -157,7 +157,7 @@ declare_coercion 'URLFromStr',
   from    Str, q{ URI::URL->new($_) };
 
 enum IDType,         [qw( lane sample database study file library species )];
-enum FileIDType,     [qw( lane sample study )];
+enum FileIDType,     [qw( lane library sample study species )];
 enum QCState,        [qw( passed failed pending )];
 enum Assembler,      [qw( velvet spades iva pacbio )];
 enum Mapper,         [qw( bowtie2 bwa bwa_aln smalt ssaha2 stampy tophat )];
