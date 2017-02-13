@@ -47,7 +47,7 @@ my $dbm = Bio::Path::Find::DatabaseManager->new( schema_name => 'tracking' );
 my $schema = $dbm->get_database('pathogen_prok_track')->schema;
 # my $schema = $dbm->get_database('pathogen_track_test')->schema;
 
-my $unsorted_rs = $schema->get_lanes_by_id('5477_6','lane');
+my $unsorted_rs = $schema->get_lanes_by_id(['5477_6'],'lane');
 my @unsorted_lane_rows = $unsorted_rs->all;
 
 # the order of the UNsorted lanes directly from the database
