@@ -73,7 +73,7 @@ sub _get_scaffold {
 
   foreach my $assembler ( @{ $self->assemblers} ) {
     my $filename = file( $self->symlink_path, "${assembler}_assembly", 'contigs.fa' );
-    $self->_add_file($filename) if -f $filename;
+    $self->_add_file($filename) if( -f $filename || -l $filename);
   }
 }
 
@@ -86,7 +86,7 @@ sub _get_contigs {
 
   foreach my $assembler ( @{ $self->assemblers} ) {
     my $filename = file( $self->symlink_path, "${assembler}_assembly", 'unscaffolded_contigs.fa' );
-    $self->_add_file($filename) if -f $filename;
+    $self->_add_file($filename) if( -f $filename || -l $filename);
   }
 }
 

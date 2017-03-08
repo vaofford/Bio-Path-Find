@@ -79,7 +79,7 @@ sub _filter_by_file_extension {
   my $lane_name = $self->row->hierarchy_name;
   foreach my $assembler ( sort @{ $self->assemblers} ) {
     my $filename = file( $self->symlink_path, "${assembler}_assembly", 'annotation', $lane_name.'.'.$file_extension );
-    $self->_add_file($filename) if -f $filename;
+    $self->_add_file($filename) if( -f $filename || -l $filename);
   }
 }
 
