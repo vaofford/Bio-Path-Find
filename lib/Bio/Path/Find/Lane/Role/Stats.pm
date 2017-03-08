@@ -197,6 +197,14 @@ sub _depth_of_coverage {
 
     $depth = ( $depth * $bases ) / $qc_bases;
   }
+  elsif(defined($depth) && $depth >= 0)
+  {
+  	return $self->_trimf( $depth );
+  }
+  else
+  {
+	return 'NA';
+  }
 
   # tidy up the value and return it
   return $self->_trimf( $depth );
@@ -224,6 +232,14 @@ sub _depth_of_coverage_sd {
     return 'NA' if not defined $bases;
 
     $depth_sd = ( $depth_sd * $bases ) / $qc_bases;
+  }
+  elsif(defined($depth_sd) && $depth_sd >= 0)
+  {
+  	return $self->_trimf( $depth_sd );
+  }
+  else
+  {
+	return 'NA';
   }
 
   return $self->_trimf( $depth_sd );

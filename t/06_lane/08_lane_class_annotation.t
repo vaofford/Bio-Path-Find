@@ -83,16 +83,16 @@ my $expected_stats = [
   317093,
   undef,
   undef,
-  '0.0',
-  'NA',
-  'NA',
-  5983,
-  64,
-  95,
-  225633,
-  30.9,
+  undef,
+  undef,
+  undef,
+  '5983',
+  '64',
+  '95',
+  '225633',
+  '30.9',
   3,
-  1,
+  1
 ];
 
 is_deeply $stats, $expected_stats, 'got expected stats row';
@@ -158,16 +158,16 @@ $expected_stats = [
   397141,
   undef,
   undef,
-  '0.0',
-  'NA',
-  'NA',
-  2895,
-  36,
-  73,
-  308610,
-  30.9,
+  undef,
+  undef,
+  undef,
+  '2895',
+  '36',
+  '73',
+  '308610',
+  '30.9',
   3,
-  1,
+  1
 ];
 
 is_deeply $stats, $expected_stats, 'got expected stats row';
