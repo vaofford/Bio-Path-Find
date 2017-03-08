@@ -561,7 +561,7 @@ sub BUILD {
       # read multiple IDs from a file
       my $filename = file $self->id;
       Bio::Path::Find::Exception->throw( msg => "ERROR: no such file ($filename)" )
-        unless -f $filename;
+        unless ( -f $filename || -l $filename);
 
       my @ids_from_file = $filename->slurp(chomp => 1);
 
