@@ -164,28 +164,9 @@ sub _make_tar {
     $self->_write_csv($stats, $stats_file);
   }
 
-  # build the tar archive in memory
-  my $tar = $self->_create_tar_archive($filenames, $stats_file);
-
-  # we could write the archive in a single call, like this:
-  #   $tar->write( $tar_filename, COMPRESS_GZIP );
-  # but it's nicer to have a progress bar. Since gzipping and writing can be
-  # performed as separate operations, we'll do progress bars for both of them
-
-  # get the contents of the tar file. This is a little slow but we can't
-  # break it down and use a progress bar, so at least tell the user what's
-  # going on
   print STDERR 'Building tar file... ';
-  my $tar_contents = $tar->write;
+  $self->_create_tar_archive($filenames, $stats_file, $archive_filename, $self->no_tar_compression );
   print STDERR "done\n";
-
-  # gzip compress the archive ?
-  my $output = $self->no_tar_compression
-             ? $tar_contents
-             : $self->_compress_data($tar_contents);
-
-  # and write it out
-  $self->_write_data( $output, $archive_filename );
 
   #---------------------------------------
 
@@ -324,57 +305,49 @@ sub _rename_file {
 
 #-------------------------------------------------------------------------------
 
-# creates an in-memory tar archive containing the specified files
+# creates a tar archive containing the specified files
 
 sub _create_tar_archive {
-  my ( $self, $files, $stats_file ) = @_;
-
-  my $tar = Archive::Tar->new;
-
-  my $pb = $self->_create_pb('adding files', scalar @$files);
-
-  # the files are added with their full paths. We want them to be relative, so
-  # we'll go through the archive and rename them all. If the "-rename" option
-  # is specified, we'll also rename the individual files to convert hashes to
-  # underscores
+  my ( $self, $files, $stats_file, $output_file, $no_tar_compression ) = @_;    
+  
+  my @transform_parameters;
+  my @file_list;
   foreach my $file ( @$files ) {
-    my ( $from, $to ) = each %$file;
-    keys %$file; # reset the "each" iterator, or next $from and $to are empty
+      my ( $from, $to ) = each %$file;
+      keys %$file; # reset the "each" iterator, or next $from and $to are empty
+      
+      ( my $trimmed_from = $from ) =~ s|^/||;
+      my $renamed_to = $self->_rename_file($to);
 
-    # put the real file into the archive
-    $tar->add_files($from);
-
-    # filenames in the archive itself are relative to the root directory, i.e.
-    # they lack a leading slash. Trim off that slash before trying to rename
-    # files in the archive, otherwise they're simply not found. Take a copy
-    # of the original filename before we trim it, to avoid stomping on the
-    # original
-    ( my $trimmed_from = $from ) =~ s|^/||;
-
-    # edit the "to" name to do things like changing hash to underscore
-    my $renamed_to = $self->_rename_file($to);
-
-    # and now, in the archive, change the name of the file from "from"
-    # to "to"
-    $tar->rename( $trimmed_from, $renamed_to )
-      or carp "WARNING: couldn't rename '$trimmed_from' in archive";
-
-    $pb++;
+    push(@transform_parameters, $self->_create_transform_rename_parameter( $trimmed_from, $renamed_to );
+    push(@file_list,$from);
   }
-
-  # add the stats file, if there is one
+  
   if ( $stats_file ) {
     my $renamed_stats_file = file( $self->_renamed_id, 'stats.csv');
-    $tar->add_files($stats_file);
-
+    push(@file_list,$stats_file);
     $stats_file =~ s|^/||;
-    $tar->rename($stats_file, $renamed_stats_file);
+    push(@transform_parameters, $self->_create_transform_rename_parameter( $stats_file, $renamed_stats_file );
   }
-
-  return $tar;
+  
+  my $tar_mode_str = '-czf';
+  if($no_tar_compression == 1)
+  {
+    $tar_mode_str = '-cf';
+  }
+  
+  my $tar_command = join(" ",'tar', @transform_parameters, $tar_mode_str, $output_file, @file_list );
+  system($tar_command);
 }
-
 #-------------------------------------------------------------------------------
+
+sub _create_transform_rename_parameter
+{
+	my ( $self, $from_file, $to_file ) = @_;
+	
+	my $transform_string = '--transform "s|'.$from_file.'|'.$to_file.'|"';
+	return $transform_string
+}
 
 # creates a ZIP archive containing the specified files
 
