@@ -18,7 +18,6 @@ use Path::Class;
 use File::Temp;
 use Try::Tiny;
 use IO::Compress::Gzip;
-use Archive::Tar;
 use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
 use Carp qw( carp );
 
@@ -305,7 +304,8 @@ sub _rename_file {
 
 #-------------------------------------------------------------------------------
 
-# creates a tar archive containing the specified files
+# creates a tar archive containing the specified files. This uses Tar directly rather than the
+# in memory module which doesnt work well with large datasets of FASTQ files.
 
 sub _create_tar_archive {
   my ( $self, $files, $stats_file, $output_file, $no_tar_compression ) = @_;    
@@ -319,7 +319,7 @@ sub _create_tar_archive {
       ( my $trimmed_from = $from ) =~ s|^/||;
       my $renamed_to = $self->_rename_file($to);
 
-    push(@transform_parameters, $self->_create_transform_rename_parameter( $trimmed_from, $renamed_to );
+    push(@transform_parameters, $self->_create_transform_rename_parameter( $trimmed_from, $renamed_to ));
     push(@file_list,$from);
   }
   
@@ -327,11 +327,11 @@ sub _create_tar_archive {
     my $renamed_stats_file = file( $self->_renamed_id, 'stats.csv');
     push(@file_list,$stats_file);
     $stats_file =~ s|^/||;
-    push(@transform_parameters, $self->_create_transform_rename_parameter( $stats_file, $renamed_stats_file );
+    push(@transform_parameters, $self->_create_transform_rename_parameter( $stats_file, $renamed_stats_file ));
   }
   
   my $tar_mode_str = '-czf';
-  if($no_tar_compression == 1)
+  if(defined($no_tar_compression) && $no_tar_compression == 1)
   {
     $tar_mode_str = '-cf';
   }
@@ -341,6 +341,8 @@ sub _create_tar_archive {
 }
 #-------------------------------------------------------------------------------
 
+# tar has the ability to rename files based on regexes. Use this to go from absolute paths
+# on the existing file system to relative paths
 sub _create_transform_rename_parameter
 {
 	my ( $self, $from_file, $to_file ) = @_;
