@@ -313,11 +313,17 @@ sub _create_tar_archive {
   my @transform_parameters;
   my @file_list;
   foreach my $file ( @$files ) {
-      my ( $from, $to ) = each %$file;
-      keys %$file; # reset the "each" iterator, or next $from and $to are empty
-      
-      ( my $trimmed_from = $from ) =~ s|^/||;
-      my $renamed_to = $self->_rename_file($to);
+    my ( $from, $to ) = each %$file;
+    keys %$file; # reset the "each" iterator, or next $from and $to are empty
+    
+    if(! -e $from )
+    {
+      carp qq(No such file: $from);
+      next;
+    }
+    
+    ( my $trimmed_from = $from ) =~ s|^/||;
+    my $renamed_to = $self->_rename_file($to);
 
     push(@transform_parameters, $self->_create_transform_rename_parameter( $trimmed_from, $renamed_to ));
     push(@file_list,$from);
@@ -422,46 +428,6 @@ sub _compress_data {
   return $compressed_data;
 }
 
-#-------------------------------------------------------------------------------
-
-# writes the supplied data to the specified file. This method doesn't care what
-# form the data take, it just dumps the raw data to file, showing a progress
-# bar if required.
-
-sub _write_data {
-  my ( $self, $data, $filename ) = @_;
-
-  if ( -e $filename and not $self->force ) {
-    Bio::Path::Find::Exception->throw(
-      msg => qq(ERROR: output file "$filename" already exists; not overwriting. Use "-F" to force overwriting)
-    );
-  }
-
-  my $max        = length $data;
-  my $num_chunks = 100;
-  my $chunk_size = int( $max / $num_chunks ) + 1;
-
-  my $pb = $self->_create_pb('writing', $num_chunks);
-
-  open ( FILE, '>', $filename )
-    or Bio::Path::Find::Exception->throw( msg => "ERROR: couldn't write output file ($filename): $!" );
-
-  binmode FILE;
-
-  my $written;
-  my $offset      = 0;
-  my $remaining   = $max;
-  my $cycle = 0;
-  while ( $remaining > 0 ) {
-    $written = syswrite FILE, $data, $chunk_size, $offset;
-    $offset    += $written;
-    $remaining -= $written;
-    $pb++;
-    $cycle++;
-  }
-
-  close FILE;
-}
 
 #-------------------------------------------------------------------------------
 

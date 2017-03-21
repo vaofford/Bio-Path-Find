@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 45;
+use Test::More tests => 39;
 use Test::Exception;
 use Test::Output;
 use Capture::Tiny qw( :all );
@@ -143,9 +143,13 @@ lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
 # add the stats file to the archive
 my $stats_file = file( qw( t data 12_pf_data_archiving stats.csv ) );
 
-my $archive;
-lives_ok { $archive = $pf->_create_tar_archive(\@expected_file_hashes, $stats_file) }
-  'no problems adding files to archive';
+my $output_file = 'output.tar.gz';
+my $no_tar_compression = 0;
+lives_ok { $pf->_create_tar_archive(\@expected_file_hashes, $stats_file, $output_file, $no_tar_compression) }
+  'no problems creating tar file';
+
+my $archive = Archive::Tar->new;
+ok($archive->read($output_file), 'tar file read');
 
 my @archived_files = $archive->list_files;
 
@@ -162,23 +166,6 @@ my $expected_stats_file = file( qw( t data 12_pf_data_archiving stats.csv ) )->s
 
 is $got_stats_file, $expected_stats_file, 'extracted stats file looks right';
 
-#---------------------------------------
-
-# check the exception when we try to add a non-existent file to the archive
-
-# put a bad file on the front of the list of hashes
-unshift @expected_file_hashes, { 'bad_filename' => file('bad_filename') };
-
-warnings_like { $pf->_create_tar_archive(\@expected_file_hashes, $stats_file) }
-  [
-    { carped => qr/No such file:/ },
-    { carped => qr/No such file in archive/ },
-    { carped => qr/couldn't rename/ },
-  ],
-  'warnings when adding bogus file to archive';
-
-# reset file hashes; remove bad file
-shift @expected_file_hashes;
 
 #---------------------------------------
 
@@ -194,69 +181,17 @@ shift @expected_file_hashes;
 lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
   'no exception with "rename" option';
 
-lives_ok { $archive = $pf->_create_tar_archive(\@expected_file_hashes, $stats_file) }
+$output_file = 'output_rename.tar.gz';
+lives_ok { $pf->_create_tar_archive(\@expected_file_hashes, $stats_file,$output_file, $no_tar_compression) }
   'no problems adding files to archive';
+  
+$archive = Archive::Tar->new;
+ok($archive->read($output_file), 'tar file read'); 
 
 @archived_files = $archive->list_files;
 
 is scalar @archived_files, 51, 'got expected number of files in archive';
 is scalar( grep(m/\#/, @archived_files) ), 0, 'filenames have been renamed';
-
-#---------------------------------------
-
-# check compression
-
-%params = (
-  # no need to pass "config_file"; it will come from the HasConfig Role
-  id               => '10018_1',
-  type             => 'lane',
-  no_progress_bars => 1,
-);
-
-$pf = Bio::Path::Find::App::PathFind::Data->new(%params);
-
-my $data = file( qw( t data 12_pf_data_archiving test_data.txt ) )->slurp;
-my $compressed_data = $pf->_compress_data($data);
-my $compressed_data_copy = $compressed_data; # because memGunzip hoses its input...
-my $uncompressed_compressed_data = Compress::Zlib::memGunzip($compressed_data_copy);
-
-is $uncompressed_compressed_data, $data, 'data same before and after compression';
-
-is md5_hex($uncompressed_compressed_data), '8611ce14475a877d3acdbccf319360e1',
-  'MD5 for uncompressed data is correct';
-
-#---------------------------------------
-
-# check writing
-
-$filename = file( 'non-existent-dir', 'output.txt.gz' );
-
-throws_ok { $pf->_write_data($compressed_data, $filename) }
-  qr/couldn't write output file/,
-  'exception when writing to non-existent directory';
-
-$filename = file( $temp_dir, 'output.txt.gz' );
-
-# write out the compressed tar file that we generated earlier
-lives_ok { $pf->_write_data($compressed_data, $filename) }
-  'no exception when writing file to valid directory';
-
-# should get an error when writing to the same output filename
-throws_ok { $pf->_write_data($compressed_data, $filename) }
-  qr/already exists/,
-  'exception when writing file to valid directory';
-
-$params{force} = 1;
-
-$pf = Bio::Path::Find::App::PathFind::Data->new(%params);
-
-lives_ok { $pf->_write_data($compressed_data, $filename) }
-  'no exception when writing to existing file but "force" is true';
-
-my $slurped_file = $filename->slurp;
-my $uncompressed_slurped_data = Compress::Zlib::memGunzip $slurped_file;
-
-is $uncompressed_slurped_data, $data, 'file written to disk matches original';
 
 #-------------------------------------------------------------------------------
 
