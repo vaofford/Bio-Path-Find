@@ -325,9 +325,9 @@ sub run {
     push @info, [
       $lane->row->name,
       $lane->row->latest_library->latest_sample->name,
-      $row->supplier_name || 'NA',
-      $row->public_name || 'NA',
-      $row->strain || 'NA',
+      defined($row) ? ($row->supplier_name || 'NA') : 'NA',
+      defined($row) ? ($row->public_name || 'NA') : 'NA',
+      defined($row) ? ($row->strain || 'NA') : 'NA',
     ];
 
     $pb++;
