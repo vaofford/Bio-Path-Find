@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 9;
+use Test::More tests => 7;
 use Test::Exception;
 use Test::Output;
 use Test::Script::Run;
