@@ -94,7 +94,7 @@ like $stderr, qr/WARNING: searching for genes.*?Ignoring product name "HIV_PBS".
 
 my @log_lines = file('pathfind.log')->slurp;
 
-is scalar @log_lines, 6, 'got expected number of log entries';
+is scalar @log_lines, 4, 'got expected number of log entries';
 
 like $log_lines[-1], qr|bin/pf annotation -t lane -i 10018_1#1|, 'log line is correct';
 
