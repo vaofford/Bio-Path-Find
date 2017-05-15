@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 9;
+use Test::More tests => 7;
 use Test::Exception;
 use Test::Output;
 use Test::Script::Run;
@@ -59,20 +59,20 @@ EOF_output
 is $stdout, $file_list, 'got expected fasta file list on STDOUT';
 
 #---------------------------------------
-
-( $rv, $stdout, $stderr ) = run_script( $script, [ 'annotation', '-t', 'lane', '-i', '10018_1#1', '-P', 'spades' ] );
-
-$file_list = <<'EOF_output';
-t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/spades_assembly/annotation/10018_1#1.gff
-EOF_output
-is $stdout, $file_list, 'got only a spades assembly on STDOUT';
-
-#---------------------------------------
-
-( $rv, $stdout, $stderr ) = run_script( $script, [ 'annotation', '-t', 'lane', '-i', '10018_1#1', '-g', 'gag', '-P', 'iva' ] );
-
-like $stdout, qr|Samples containing gene:\t1.*missing gene:   \t+0|s,
-  'got expected gene-finding output';
+#
+#( $rv, $stdout, $stderr ) = run_script( $script, [ 'annotation', '-t', 'lane', '-i', '10018_1#1', '-P', 'spades' ] );
+#
+#$file_list = <<'EOF_output';
+#t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/spades_assembly/annotation/10018_1#1.gff
+#EOF_output
+#is $stdout, $file_list, 'got only a spades assembly on STDOUT';
+#
+##---------------------------------------
+#
+#( $rv, $stdout, $stderr ) = run_script( $script, [ 'annotation', '-t', 'lane', '-i', '10018_1#1', '-g', 'gag', '-P', 'iva' ] );
+#
+#like $stdout, qr|Samples containing gene:\t1.*missing gene:   \t+0|s,
+#  'got expected gene-finding output';
 
 #---------------------------------------
 
@@ -94,7 +94,7 @@ like $stderr, qr/WARNING: searching for genes.*?Ignoring product name "HIV_PBS".
 
 my @log_lines = file('pathfind.log')->slurp;
 
-is scalar @log_lines, 6, 'got expected number of log entries';
+is scalar @log_lines, 4, 'got expected number of log entries';
 
 like $log_lines[-1], qr|bin/pf annotation -t lane -i 10018_1#1|, 'log line is correct';
 

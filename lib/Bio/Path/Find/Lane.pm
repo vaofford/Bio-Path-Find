@@ -188,14 +188,21 @@ this lane.
 
 has 'storage_path' => (
   is      => 'ro',
-  isa     => PathClassDir,
+  isa     => Maybe[PathClassDir],
   lazy    => 1,
   builder => '_build_storage_path',
 );
 
 sub _build_storage_path {
   my $self = shift;
-  return dir( $self->row->storage_path );
+  if(defined($self->row->storage_path))
+  {
+    return dir( $self->row->storage_path );
+  }
+  else
+  {
+    return;
+  }
 }
 
 #---------------------------------------
