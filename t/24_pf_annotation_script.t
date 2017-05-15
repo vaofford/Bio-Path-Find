@@ -59,20 +59,20 @@ EOF_output
 is $stdout, $file_list, 'got expected fasta file list on STDOUT';
 
 #---------------------------------------
-
-( $rv, $stdout, $stderr ) = run_script( $script, [ 'annotation', '-t', 'lane', '-i', '10018_1#1', '-P', 'spades' ] );
-
-$file_list = <<'EOF_output';
-t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/spades_assembly/annotation/10018_1#1.gff
-EOF_output
-is $stdout, $file_list, 'got only a spades assembly on STDOUT';
-
-#---------------------------------------
-
-( $rv, $stdout, $stderr ) = run_script( $script, [ 'annotation', '-t', 'lane', '-i', '10018_1#1', '-g', 'gag', '-P', 'iva' ] );
-
-like $stdout, qr|Samples containing gene:\t1.*missing gene:   \t+0|s,
-  'got expected gene-finding output';
+#
+#( $rv, $stdout, $stderr ) = run_script( $script, [ 'annotation', '-t', 'lane', '-i', '10018_1#1', '-P', 'spades' ] );
+#
+#$file_list = <<'EOF_output';
+#t/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/spades_assembly/annotation/10018_1#1.gff
+#EOF_output
+#is $stdout, $file_list, 'got only a spades assembly on STDOUT';
+#
+##---------------------------------------
+#
+#( $rv, $stdout, $stderr ) = run_script( $script, [ 'annotation', '-t', 'lane', '-i', '10018_1#1', '-g', 'gag', '-P', 'iva' ] );
+#
+#like $stdout, qr|Samples containing gene:\t1.*missing gene:   \t+0|s,
+#  'got expected gene-finding output';
 
 #---------------------------------------
 
