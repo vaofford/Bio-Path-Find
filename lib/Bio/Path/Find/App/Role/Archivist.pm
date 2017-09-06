@@ -339,7 +339,7 @@ sub _create_tar_archive {
         }
         my $tar_command = join( " ",
             'tar', $self->_create_transform_rename_parameter( $trimmed_from, $renamed_to ),
-            $tar_options, $base_output_file, $from );
+            $tar_options, $base_output_file, $from ,'> /dev/null 2>&1');
 
         $self->log->debug("adding file to tar with command: $tar_command");
         system($tar_command);
@@ -353,7 +353,7 @@ sub _create_tar_archive {
         # Add files stats file to archive
         my $tar_command = join( " ",
             'tar', $self->_create_transform_rename_parameter( $no_slash_stats_file, $renamed_stats_file ),
-            '-rf', $base_output_file, $stats_file );
+            '-rf', $base_output_file, $stats_file ,'> /dev/null 2>&1');
         $self->log->debug("adding file to tar with command: $tar_command");
         system($tar_command);
     }
