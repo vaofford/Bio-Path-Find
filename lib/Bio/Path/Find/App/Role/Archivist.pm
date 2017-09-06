@@ -332,7 +332,7 @@ sub _create_tar_archive {
         my $renamed_to = $self->_rename_file($to);
 
         # Add files one by one to the uncompressed archive
-        my $tar_options = '-Af';
+        my $tar_options = '-rf';
         if ( $create == 1 ) {
             $tar_options = '-cf';
             $create      = 0;
@@ -353,7 +353,7 @@ sub _create_tar_archive {
         # Add files stats file to archive
         my $tar_command = join( " ",
             'tar', $self->_create_transform_rename_parameter( $no_slash_stats_file, $renamed_stats_file ),
-            '-Af', $base_output_file, $stats_file );
+            '-rf', $base_output_file, $stats_file );
         $self->log->debug("adding file to tar with command: $tar_command");
         system($tar_command);
     }
