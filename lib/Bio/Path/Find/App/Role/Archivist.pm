@@ -310,6 +310,9 @@ sub _rename_file {
 sub _create_tar_archive {
   my ( $self, $files, $stats_file, $output_file, $no_tar_compression ) = @_;    
   
+  my $base_output_file = $output_file;
+  $base_output_file =~ s!\.gz!!;
+  
   my @transform_parameters;
   my @file_list;
   foreach my $file ( @$files ) {
@@ -324,26 +327,28 @@ sub _create_tar_archive {
     
     ( my $trimmed_from = $from ) =~ s|^/||;
     my $renamed_to = $self->_rename_file($to);
-
-    push(@transform_parameters, $self->_create_transform_rename_parameter( $trimmed_from, $renamed_to ));
-    push(@file_list,$from);
+	
+	# Add files one by one to the uncompressed archive
+    my $tar_command = join(" ",'tar', $self->_create_transform_rename_parameter( $trimmed_from, $renamed_to ), '-Af', $base_output_file, $from );
+    system($tar_command);
   }
   
   if ( $stats_file ) {
     my $renamed_stats_file = file( $self->_renamed_id, 'stats.csv');
-    push(@file_list,$stats_file);
-    $stats_file =~ s|^/||;
-    push(@transform_parameters, $self->_create_transform_rename_parameter( $stats_file, $renamed_stats_file ));
+	my $no_slash_stats_file = $stats_file;
+    $no_slash_stats_file =~ s|^/||;
+
+	# Add files stats file to archive
+    my $tar_command = join(" ",'tar', $self->_create_transform_rename_parameter( $no_slash_stats_file, $renamed_stats_file ), '-Af', $base_output_file, $stats_file );
+    system($tar_command);
   }
   
-  my $tar_mode_str = '-czf';
-  if(defined($no_tar_compression) && $no_tar_compression == 1)
+  unless(defined($no_tar_compression) && $no_tar_compression == 1)
   {
-    $tar_mode_str = '-cf';
+	  my $gzip_command = join(" ", ('gzip', $base_output_file));
+	  system($gzip_command);
   }
-  
-  my $tar_command = join(" ",'tar', @transform_parameters, $tar_mode_str, $output_file, @file_list );
-  system($tar_command);
+
 }
 #-------------------------------------------------------------------------------
 
