@@ -330,6 +330,8 @@ sub _create_tar_archive {
 	
 	# Add files one by one to the uncompressed archive
     my $tar_command = join(" ",'tar', $self->_create_transform_rename_parameter( $trimmed_from, $renamed_to ), '-Af', $base_output_file, $from );
+	
+	$self->log->debug( "adding file to tar with command: $tar_command" );
     system($tar_command);
   }
   
@@ -340,12 +342,14 @@ sub _create_tar_archive {
 
 	# Add files stats file to archive
     my $tar_command = join(" ",'tar', $self->_create_transform_rename_parameter( $no_slash_stats_file, $renamed_stats_file ), '-Af', $base_output_file, $stats_file );
+	$self->log->debug( "adding file to tar with command: $tar_command" );
     system($tar_command);
   }
   
   unless(defined($no_tar_compression) && $no_tar_compression == 1)
   {
 	  my $gzip_command = join(" ", ('gzip', $base_output_file));
+	  $self->log->debug( "gzipping archive: $gzip_command" );
 	  system($gzip_command);
   }
 
