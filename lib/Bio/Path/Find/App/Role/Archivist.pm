@@ -315,6 +315,17 @@ sub _create_tar_archive {
 
     my $base_output_file = $output_file;
     $base_output_file =~ s!\.gz!!;
+	
+	unlink($base_output_file) if( -e $base_output_file);
+	
+    if ( -e $output_file and not $self->force ) {
+        Bio::Path::Find::Exception->throw(
+            msg => qq(ERROR: output file "$output_file" already exists; not overwriting. Use "-F" to force overwriting) );
+    }
+	elsif(-e $output_file and $self->force)
+	{
+		unlink($output_file);
+	}
 
     my @transform_parameters;
     my @file_list;
