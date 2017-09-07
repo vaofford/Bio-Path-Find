@@ -247,16 +247,19 @@ $tf->clear_config;
 delete $params{stats};
 delete $params{zip};
 
+my $output = file( $temp_dir, 'output.gz' );
+$params{archive} = $output;
+
 $sf->clear_config;
 $sf = Bio::Path::Find::App::PathFind::RNASeq->new(%params);
 combined_like { $sf->run }
-  qr/Archiving data to 'my_tar'/,
+  qr/Archiving data to '.+\/output.gz'/,
   'got message about writing tar file';
 
-ok -f 'my_tar', 'found tar file';
+ok -f 'output.gz', 'found tar file';
 
 throws_ok { $sf->run }
-  qr/tar archive "my_tar" already exists/,
+  qr/Use "-F" to force overwriting/,
   'got exception when trying to overwrite tar file';
 
 #---------------------------------------
