@@ -128,11 +128,11 @@ sub _generate_filenames {
   
   if(@{$returned_files} == 0)
   {
-      $self->_generate_filenames_generic($mapstats_id, $pairing, $filetype, $index_suffix,'raw.sorted' );
+      $returned_files = $self->_generate_filenames_generic($mapstats_id, $pairing, $filetype, $index_suffix,'raw.sorted' );
   }
-  else
+  
+  if(@{$returned_files} == 0)
   {
-	  
 	  my $file = $filetype eq 'vcf'
 	           ? 'mpileup.unfilt.vcf.gz'
 	           : 'pseudo_genome.fasta';
