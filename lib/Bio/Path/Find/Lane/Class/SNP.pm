@@ -86,10 +86,12 @@ sub _get_pseudogenome {
 
 # called from the "_get_mapping_files" method on the HasMapping Role, this method
 # handles the specifics of finding VCF and index files for this lane
-sub _generate_filenames {
-  my ( $self, $mapstats_id, $pairing, $filetype, $index_suffix ) = @_;
 
-  my $mapping_dir = "$mapstats_id.$pairing.markdup.snp";
+
+sub _generate_filenames_generic {
+  my ( $self, $mapstats_id, $pairing, $filetype, $index_suffix, $stage ) = @_;
+
+  my $mapping_dir = "$mapstats_id.$pairing.$stage.snp";
   my $file = $filetype eq 'vcf'
            ? 'mpileup.unfilt.vcf.gz'
            : 'pseudo_genome.fasta';
@@ -104,10 +106,6 @@ sub _generate_filenames {
     # Either the path isnt stored or the stored link is incorrect so fall back to the full path
     push @returned_files, file($self->symlink_path, $mapping_dir, $file);
   }
-  else
-  {
-    say STDERR qq(WARNING: couldn't find file "$mapping_dir/$file"; mapping $mapstats_id may not be finished?);
-  }
 
   if ( $index_suffix ) {
     if ( -f file($self->storage_path, $mapping_dir, "$file.$index_suffix") ) {
@@ -120,6 +118,27 @@ sub _generate_filenames {
   }
 
   return \@returned_files;
+}
+
+
+sub _generate_filenames {
+  my ( $self, $mapstats_id, $pairing, $filetype, $index_suffix ) = @_;
+
+  my $returned_files = $self->_generate_filenames_generic($mapstats_id, $pairing, $filetype, $index_suffix,'markdup' );
+  
+  if(@{$returned_files} == 0)
+  {
+      $returned_files = $self->_generate_filenames_generic($mapstats_id, $pairing, $filetype, $index_suffix,'raw.sorted' );
+  }
+  
+  if(@{$returned_files} == 0)
+  {
+	  my $file = $filetype eq 'vcf'
+	           ? 'mpileup.unfilt.vcf.gz'
+	           : 'pseudo_genome.fasta';
+      say STDERR qq(WARNING: couldn't find file "$mapstats_id.$pairing.(markdup|raw.sorted).snp/$file"; mapping $mapstats_id may not be finished?);
+  }
+  return $returned_files;
 }
 
 #-------------------------------------------------------------------------------
