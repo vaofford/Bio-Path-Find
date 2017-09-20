@@ -231,7 +231,7 @@ sub _get_fastq {
   my $files = $self->row->latest_files;
 
   FILE: while ( my $file = $files->next ) {
-    my $filename = $file->hierarchy_name;
+    my $filename = $file->name;
 
     # for illumina, the database stores the names of the fastq files directly.
     # For pacbio, however, the database stores the names of the bax files. Work
