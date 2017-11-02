@@ -206,7 +206,7 @@ option 'directly' => (
 #---------------------------------------
 
 option 'level' => (
-  documentation => 'output specified taxonomic level',
+  documentation => '<D|P|C|O|F|G|S|T> output specified taxonomic level',
   is            => 'ro',
   isa           => TaxLevel->plus_coercions(LevelCodeFromName),
   coerce        => 1,
