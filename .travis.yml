@@ -4,6 +4,7 @@ addons:
   apt:
     packages:
     - libssl-dev
+    - cpanminus
 perl:
   - "5.14"
   - "5.24"
