@@ -35,6 +35,8 @@ L<type library|Bio::Path::Find::Types>:
 
 =item pacbio
 
+=item hgap_4_0
+
 =item spades
 
 =item velvet
