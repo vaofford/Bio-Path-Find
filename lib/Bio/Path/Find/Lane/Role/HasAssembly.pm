@@ -179,7 +179,9 @@ sub _build_pipeline_versions {
     '3.2'   => 'Normalisation + SPAdes + Improvement',
     '4'     => 'Correction + Velvet + Improvement',
     '5'     => 'IVA',
-    '6.0'   => 'SMRT analysis 2.2.0'
+    '6.0'   => 'SMRT analysis 2.2.0',
+	'7.0'   => 'SMRT analysis 2.3.0 + circlator + quiver',
+	'8.0'   => 'HGAP 4.0 + circlator + quiver'
   };
 }
 
