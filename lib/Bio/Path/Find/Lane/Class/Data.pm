@@ -240,8 +240,8 @@ sub _get_fastq {
 
     if($self->row->database->name =~ m/pacbio/)
 	{
-		my($basefilename, $dirs, $suffix) = fileparse($path, (qr/\d\.ba[xs]\.h5$/, qr/subreads\.bam$/));
-		$filename =~ $basefilename.'fastq.gz';
+		my($basefilename, $dirs, $suffix) = fileparse($filename, (qr/\d\.ba[xs]\.h5$/, qr/subreads\.bam$/));
+		$filename = $basefilename.'fastq.gz';
 	}
 
     my $filepath = file( $self->symlink_path, $filename );
