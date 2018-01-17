@@ -127,8 +127,8 @@ lives_ok { $lane->_get_corrected } 'no exception when finding corrected files';
 ok $lane->has_files, 'lane has files';
 is $lane->file_count, 1, 'found one corrected file';
 is $lane->files->[0]->stringify,
-  't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/10018_1#1.corrected.fastq.gz',
-  'got expected corrected fastq file';
+  't/data/linked/prokaryotes/seq-pipelines/Actinobacillus/pleuropneumoniae/TRACKING/607/APP_N2_OP1/SLX/APP_N2_OP1_7492530/10018_1#1/10018_1#1.corrected.fasta.gz',
+  'got expected corrected fasta file';
 
 #---------------------------------------
 
