@@ -235,12 +235,12 @@ sub _get_fastq {
     my $filename = $file->name;
 
     # for illumina, the database stores the names of the fastq files directly.
-    # For pacbio, however, the database stores the names of the bax files. Work
-    # out the names of the fastq files from those bax filenames
-
+    # For pacbio, however, the database stores the names of the bas files or BAM files. Work
+    # out the names of the fastq files from those filenames
     if($self->row->database->name =~ m/pacbio/)
 	{
-		my($basefilename, $dirs, $suffix) = fileparse($filename, (qr/\d\.ba[xs]\.h5$/, qr/subreads\.bam$/));
+		next FILE if( $filename =~ m/bax\.h5/ || $filename =~ m/scraps\.bam$/);
+		my($basefilename, $dirs, $suffix) = fileparse($filename, (qr/bas\.h5$/, qr/subreads\.bam$/));
 		$filename = $basefilename.'fastq.gz';
 	}
 
@@ -271,7 +271,7 @@ sub _get_corrected {
 
   $self->log->trace('looking for "corrected" files');
 
-  my $filename = $self->row->hierarchy_name . '.corrected.fastq.gz';
+  my $filename = $self->row->hierarchy_name . '.corrected.fasta.gz';
   my $filepath = file( $self->symlink_path, $filename );
 
   $self->_add_file($filepath) if -e $filepath;
