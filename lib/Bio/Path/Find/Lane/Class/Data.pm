@@ -6,6 +6,7 @@ package Bio::Path::Find::Lane::Class::Data;
 use Moose;
 use Path::Class;
 use Carp qw( carp );
+use File::Basename;
 
 use Types::Standard qw( Maybe );
 
@@ -236,8 +237,12 @@ sub _get_fastq {
     # for illumina, the database stores the names of the fastq files directly.
     # For pacbio, however, the database stores the names of the bax files. Work
     # out the names of the fastq files from those bax filenames
-    $filename =~ s/\d\.ba[xs]\.h5$/fastq.gz/
-      if $self->row->database->name =~ m/pacbio/;
+
+    if($self->row->database->name =~ m/pacbio/)
+	{
+		my($basefilename, $dirs, $suffix) = fileparse($path, (qr/\d\.ba[xs]\.h5$/, qr/subreads\.bam$/));
+		$filename =~ $basefilename.'fastq.gz';
+	}
 
     my $filepath = file( $self->symlink_path, $filename );
 
