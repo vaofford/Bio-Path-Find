@@ -273,16 +273,15 @@ sub _get_bam {
   
   for my $filename (@{$files})
   {
-	  
 	  if($self->row->database->name =~ m/pacbio/)
 	  {
-		  my $filepath = file( $self->symlink_path, $filename.'.pbi' );
+		  my $filepath = $filename.'.pbi';
 		  next unless(-e $filepath);
 		  $self->_add_file($filepath);
 	  }
-	  my $filepath = file( $self->symlink_path, $filename );
-	  next unless(-e $filepath);
-	  $self->_add_file($filepath);
+	  
+	  next unless(-e $filename);
+	  $self->_add_file($filename);
   }  
 }
 
