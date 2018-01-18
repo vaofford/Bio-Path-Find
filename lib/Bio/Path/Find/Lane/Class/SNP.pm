@@ -136,7 +136,7 @@ sub _generate_filenames {
 	  my $file = $filetype eq 'vcf'
 	           ? 'mpileup.unfilt.vcf.gz'
 	           : 'pseudo_genome.fasta';
-      say STDERR qq(WARNING: couldn't find file "$mapstats_id.$pairing.(markdup|raw.sorted).snp/$file"; mapping $mapstats_id may not be finished?);
+      say STDERR qq(WARNING: couldn't find file "$mapstats_id.$pairing.(markdup|raw.sorted).snp/$file"; snp calling may have failed or may not be finished. This means the vcf or pseudogenome may not appear in the results, however if it does then you can IGNORE THIS WARNING.);
   }
   return $returned_files;
 }
