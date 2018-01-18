@@ -264,6 +264,27 @@ sub _get_fastq {
   }
 }
 
+# The pacbio raw BAM files require an index file if they are to be used with the pacbio analysis software
+sub _get_bam {
+  my $self = shift;
+  
+  $self->log->trace('looking for BAM files');
+  my $files = $self->_get_files_by_extension($self->filetype_extensions()->{'bam'});
+  
+  for my $filename (@{$files})
+  {
+	  if($self->row->database->name =~ m/pacbio/)
+	  {
+		  my $filepath = $filename.'.pbi';
+		  next unless(-e $filepath);
+		  $self->_add_file($filepath);
+	  }
+	  
+	  next unless(-e $filename);
+	  $self->_add_file($filename);
+  }  
+}
+
 #-------------------------------------------------------------------------------
 
 sub _get_corrected {
