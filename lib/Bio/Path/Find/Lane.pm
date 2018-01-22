@@ -516,7 +516,7 @@ If C<$dest> is not supplied, we create symlinks in the current working
 directory.
 
 An optional filetype may also be given. This must be one of "C<fastq>",
-"C<bam>", "C<pacbio>" or "C<corrected>" (see L<Bio::Path::Find::Types>, type
+"C<bam>" or "C<corrected>" (see L<Bio::Path::Find::Types>, type
 C<FileType>). If C<$filetype> is supplied, the lane will look for files of the
 specified type, even if it has already searched for files, allowing the caller
 to override the filetype that was specified when instantiating the
