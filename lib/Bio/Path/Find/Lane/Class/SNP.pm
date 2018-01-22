@@ -125,6 +125,8 @@ sub _generate_filenames {
   my ( $self, $mapstats_id, $pairing, $filetype, $index_suffix ) = @_;
 
   my $returned_files = $self->_generate_filenames_generic($mapstats_id, $pairing, $filetype, $index_suffix,'markdup' );
+
+  my $lane_id = $self->row->name;
   
   if(@{$returned_files} == 0)
   {
@@ -136,7 +138,7 @@ sub _generate_filenames {
 	  my $file = $filetype eq 'vcf'
 	           ? 'mpileup.unfilt.vcf.gz'
 	           : 'pseudo_genome.fasta';
-      say STDERR qq(WARNING: couldn't find file "$mapstats_id.$pairing.(markdup|raw.sorted).snp/$file"; snp calling may have failed or may not be finished. This means the vcf or pseudogenome may not appear in the results, however if it does then you can IGNORE THIS WARNING.);
+      say STDERR qq(WARNING: couldn't find file "$mapstats_id.$pairing.(markdup|raw.sorted).snp/$file"; snp calling may have failed or may not be finished for $lane_id. This means the vcf or pseudogenome may not appear in the results, however if it does then you can IGNORE THIS WARNING.);
   }
   return $returned_files;
 }
