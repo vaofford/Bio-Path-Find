@@ -37,7 +37,6 @@ the L<_build_filetype_extensions> builder. The mapping is:
 
   fastq     => '.fastq.gz',
   bam       => '*.bam',
-  pacbio    => '*.h5',
   corrected => '*.corrected.*',
 
 Finally, the class provides builders for attributes that generate stats about
@@ -205,7 +204,6 @@ sub _build_filetype_extensions {
   {
     fastq     => '.fastq.gz',
     bam       => '*.bam', # NOTE no wildcard in mapping in original PathFind
-    pacbio    => '*.h5',
     corrected => '*.corrected.*',
   };
 }
@@ -233,16 +231,6 @@ sub _get_fastq {
 
   FILE: while ( my $file = $files->next ) {
     my $filename = $file->name;
-
-    # for illumina, the database stores the names of the fastq files directly.
-    # For pacbio, however, the database stores the names of the bas files or BAM files. Work
-    # out the names of the fastq files from those filenames
-    if($self->row->database->name =~ m/pacbio/)
-	{
-		next FILE if( $filename =~ m/bax\.h5/ || $filename =~ m/scraps\.bam$/);
-		my($basefilename, $dirs, $suffix) = fileparse($filename, (qr/bas\.h5$/, qr/subreads\.bam$/));
-		$filename = $basefilename.'fastq.gz';
-	}
 
     my $filepath = file( $self->symlink_path, $filename );
 

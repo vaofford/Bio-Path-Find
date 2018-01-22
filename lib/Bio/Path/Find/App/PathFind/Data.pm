@@ -132,7 +132,7 @@ using the C<--filetype> option (C<--ft>):
 
   pf data -t lane -i 12345_1 --ft fastq
 
-You can choose to find C<fastq>, C<bam>, C<corrected> or C<pacbio> files.
+You can choose to find C<fastq>, C<bam> or C<corrected> files.
 
 You can also filter the results to show only lanes with a specific QC status,
 using the C<--qc> (C<-q>) option:
