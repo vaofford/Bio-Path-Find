@@ -88,18 +88,48 @@ sub _generate_filenames {
   my ( $self, $mapstats_id, $pairing, $filetype, $index_suffix ) = @_;
 
   my $extension = $self->filetype_extensions->{$filetype};
+  $extension =~ s!\*!!;
+  
+  my $markdup_file = "$mapstats_id.$pairing.markdup.bam.".$extension;
+  my $raw_file     = "$mapstats_id.$pairing.raw.sorted.bam.".$extension;
 
-  # Should Never Happen (tm). The extension should *always* be found in the
-  # list of extensions, otherwise $filetype would have hit a Moose type
-  # validation exception when it was set. This is true as long as the list of
-  # extensions in "_build_filetype_extensions" is in sync with the list in the
-  # enum in B::P::F::Types.
-  return unless defined $extension;
+  my @returned_files;
+  my $returned_file;
+  if ( -f file($self->storage_path, $markdup_file) ) {
+    # if the markdup file exists, we show that. Note that we check that the
+    # file exists using the storage path (on NFS), but return the symlink
+    # path (on lustre)
+    $returned_file = $markdup_file;
+  }
+  elsif(-f file( $self->symlink_path, $markdup_file) )
+  {
+     $returned_file = $markdup_file;
+  }
+  else {
+    # if the markdup file *doesn't* exist, we fall back on the
+    # ".raw.sorted.bam" file, which should always exist. If it doesn't exist
+    # (check on the NFS filesystem), issue a warning, but return the path to
+    # file anyway
+    $returned_file = $raw_file;
 
-  my $files = $self->_get_files_by_extension($extension);
-
-  return $files;
+    carp qq(WARNING: expected to find raw bam file at "$returned_file", but it was missing)
+      unless -f file($self->storage_path, $raw_file);
+  }
+  push  @returned_files, file( $self->symlink_path, $returned_file);
+  
+  if ( $index_suffix ) {
+    if ( -f file($self->storage_path, "$returned_file.$index_suffix") ) {
+      push @returned_files, file( $self->symlink_path, "$returned_file.$index_suffix");
+    }
+    elsif( -f file($self->symlink_path, "$returned_file.$index_suffix"))
+    {
+      push @returned_files, file( $self->symlink_path, "$returned_file.$index_suffix");
+    }
+  }
+  
+  return \@returned_files;
 }
+
 
 #-------------------------------------------------------------------------------
 
