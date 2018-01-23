@@ -165,11 +165,14 @@ sub _get_stats_row {
   my $assembly_dir   = dir( $self->symlink_path, "${assembler}_assembly" );
 
   my $stats_file     = file( $assembly_dir, $assembly_file );
+  return [$self->row->name, $self->_get_assembly_type($assembly_dir, $assembly_file) || 'NA'] unless(-e $stats_file && -s $stats_file);
   my $file_stats     = $self->_parse_stats_file($stats_file);
 
   my $bamcheck_file  = file( $assembly_dir, 'contigs.mapped.sorted.bam.bc' );
+  return [$self->row->name, $self->_get_assembly_type($assembly_dir, $assembly_file) || 'NA'] unless(-e $bamcheck_file && -s $bamcheck_file);
   my $bamcheck_stats = $self->_parse_bc_file($bamcheck_file);
 
+  return [$self->row->name, $self->_get_assembly_type($assembly_dir, $assembly_file) || 'NA'] unless(-e $gff_file && -s $gff_file);
   my $gff_stats      = $self->_parse_gff_file($gff_file);
 
   return [
