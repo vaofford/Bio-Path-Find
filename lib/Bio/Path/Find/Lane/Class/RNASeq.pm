@@ -106,14 +106,7 @@ sub _generate_filenames {
      $returned_file = $markdup_file;
   }
   else {
-    # if the markdup file *doesn't* exist, we fall back on the
-    # ".raw.sorted.bam" file, which should always exist. If it doesn't exist
-    # (check on the NFS filesystem), issue a warning, but return the path to
-    # file anyway
     $returned_file = $raw_file;
-
-    carp qq(WARNING: expected to find raw bam file at "$returned_file", but it was missing)
-      unless -f file($self->storage_path, $raw_file);
   }
   push  @returned_files, file( $self->symlink_path, $returned_file);
   
