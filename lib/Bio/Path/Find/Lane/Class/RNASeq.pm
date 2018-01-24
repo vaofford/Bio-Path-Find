@@ -44,7 +44,7 @@ has '+filetype' => (
 sub _build_filetype_extensions {
   {
     bam           => '*corrected.bam',
-    coverage      => '*coverageplot.gz',
+    coverage      => '*all_for_tabix.coverageplot.gz',
     featurecounts => '*featurecounts.csv',
     intergenic    => '*tab.gz',
     spreadsheet   => '*expression.csv',
