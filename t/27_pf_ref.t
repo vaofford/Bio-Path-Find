@@ -56,6 +56,7 @@ unless ( -d dir( qw( t data linked ) ) ) {
   diag 'creating symlink directory';
   Test::Setup::make_symlinks;
 }
+delete $ENV{HARNESS_ACTIVE};
 
 # don't initialise l4p here because we want to test that command line logging
 # is correctly set up by the App class

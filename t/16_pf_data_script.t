@@ -23,6 +23,7 @@ unless ( -d dir( qw( t data linked ) ) ) {
   Test::Setup::make_symlinks;
 }
 
+delete $ENV{HARNESS_ACTIVE};
 #-------------------------------------------------------------------------------
 
 # set up a temp dir
