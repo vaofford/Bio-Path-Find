@@ -15,5 +15,4 @@ perl:
   - "5.24"
 install:
   - "source ./install-travis-dependencies.sh"
-  - "cpanm MooseX::App@1.37"
 script: "dzil test"
