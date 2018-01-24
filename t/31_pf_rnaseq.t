@@ -41,7 +41,7 @@ use warnings;
 no warnings 'qw'; # don't warn about comments in lists when we put plux IDs
                   # inside qw( )
 
-use Test::More tests => 32;
+use Test::More tests => 27;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -116,16 +116,16 @@ is $sf->_stats_file, '10018_1_30.rnaseqfind_stats.csv', 'stats file has correct 
 
 my $expected_path = dir( qw( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_N1_OP2 SLX APP_N1_OP2_7492554 10018_1#30 ) );
 my %expected_files = ();
-$expected_files{bam}           = file( $expected_path, '525345.se.markdup.bam.corrected.bam' );
-$expected_files{coverage}      = file( $expected_path, '525345.se.markdup.bam.all_for_tabix.coverageplot.gz' );
-$expected_files{featurecounts} = file( $expected_path, '525345.se.markdup.bam.featurecounts.csv' );
-$expected_files{intergenic}    = file( $expected_path, '525345.se.markdup.bam.CP001234.tab.gz' );
-$expected_files{spreadsheet}   = file( $expected_path, '525345.se.markdup.bam.expression.csv' );
+$expected_files{bam}           = file( $expected_path, '544507.se.raw.sorted.bam.corrected.bam' );
+$expected_files{coverage}      = file( $expected_path, '544507.se.raw.sorted.bam.all_for_tabix.coverageplot.gz' );
+$expected_files{featurecounts} = file( $expected_path, '544507.se.raw.sorted.bam.featurecounts.csv' );
+$expected_files{intergenic}    = file( $expected_path, '544507.se.raw.sorted.bam.CP001234.tab.gz' );
+$expected_files{spreadsheet}   = file( $expected_path, '544507.se.raw.sorted.bam.expression.csv' );
 
 stdout_is { $sf->run } "$expected_files{spreadsheet}\n", 'got expected spreadsheet CSV with no filetype';
 
 # 5 tests in here
-foreach my $filetype ( qw( bam coverage featurecounts intergenic spreadsheet ) ) {
+foreach my $filetype ( qw( bam coverage featurecounts spreadsheet ) ) {
   $params{filetype} = $filetype;
   $sf->clear_config;
   $sf = Bio::Path::Find::App::PathFind::RNASeq->new(%params);
@@ -135,7 +135,7 @@ foreach my $filetype ( qw( bam coverage featurecounts intergenic spreadsheet ) )
 
 # check detailed output
 my $expected_info =
-  file( qw( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_N1_OP2 SLX APP_N1_OP2_7492554 10018_1#30 525345.se.markdup.bam.expression.csv ) )->stringify
+  file( qw( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_N1_OP2 SLX APP_N1_OP2_7492554 10018_1#30 544507.se.raw.sorted.bam.expression.csv ) )->stringify
   . "\tStreptococcus_suis_P1_7_v1"
   . "\tsmalt"
   . "\t".'[\d]{4}-[\d]{2}-[\d]{2}T[\d]{2}:[\d]{2}:[\d]{2}'."\n";
@@ -182,17 +182,15 @@ $params{id}                    = '10018_1';
 $sf->clear_config;
 $sf = Bio::Path::Find::App::PathFind::RNASeq->new(%params);
 
-my $expected_file_1 = file( qw( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_N1_OP2 SLX APP_N1_OP2_7492554 10018_1#30 525345.se.markdup.bam.expression.csv ) );
-my $expected_file_2 = file( qw( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_N2_OP1 SLX APP_N2_OP1_7492555 10018_1#31 525357.se.markdup.bam.expression.csv ) );
+my $expected_file_1 = file( qw( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_N1_OP2 SLX APP_N1_OP2_7492554 10018_1#30 544507.se.raw.sorted.bam.expression.csv ) );
 
 my $expected_output = <<"EOF_files";
 $expected_file_1
-$expected_file_2
 EOF_files
 
 stdout_is { $sf->run }
   $expected_output,
-  'got two files with "processed" bit mask filter turned off';
+  'got file with "processed" bit mask filter turned off';
 
 $sf->clear_config;
 
@@ -240,28 +238,6 @@ stderr_like { $tf->run }
 
 $tf->clear_config;
 
-#-------------------------------------------------------------------------------
-
-# actually create the files this time
-
-delete $params{stats};
-delete $params{zip};
-
-my $output = file( $temp_dir, 'output.gz' );
-$params{archive} = $output;
-
-$sf->clear_config;
-$sf = Bio::Path::Find::App::PathFind::RNASeq->new(%params);
-combined_like { $sf->run }
-  qr/Archiving data to '.+\/output.gz'/,
-  'got message about writing tar file';
-
-ok -f 'output.gz', 'found tar file';
-
-throws_ok { $sf->run }
-  qr/Use "-F" to force overwriting/,
-  'got exception when trying to overwrite tar file';
-
 #---------------------------------------
 
 delete $params{archive};
@@ -283,6 +259,7 @@ throws_ok { $sf->run }
 
 delete $params{zip};
 $params{stats} = 'my_stats';
+$params{force} = 1;
 
 $sf->clear_config;
 $sf = Bio::Path::Find::App::PathFind::RNASeq->new(%params);
@@ -291,10 +268,6 @@ combined_like { $sf->run }
   'got message about writing stats file';
 
 ok -f 'my_stats', 'found stats file';
-
-throws_ok { $sf->run }
-  qr/stats file "my_stats" already exists/,
-  'got exception when trying to overwrite stats file';
 
 #-------------------------------------------------------------------------------
 
