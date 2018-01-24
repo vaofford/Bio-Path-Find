@@ -88,7 +88,7 @@ is "$dst", "$to",   '"_edit_filenames" returns expected destination path';
 # we can only test "_generate_filenames" indirectly, by calling
 # Lane::find_files and letting that method call it.
 
-my $expected_file = file( qw( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_N1_OP2 SLX APP_N1_OP2_7492554 10018_1#30 525345.se.markdup.bam.corrected.bam ) );
+my $expected_file = file( qw( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_N1_OP2 SLX APP_N1_OP2_7492554 10018_1#30 544507.se.raw.sorted.bam.corrected.bam ) );
 
 my @files = $lane->find_files('bam');
 is $files[0], $expected_file, 'got expected file returned from "find_files"';
