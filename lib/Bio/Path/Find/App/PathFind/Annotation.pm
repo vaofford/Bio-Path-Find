@@ -137,7 +137,7 @@ or by giving it a comma-separated list of assembler names:
 
   pf annotation -t lane -i 12345 -P iva,spades
 
-The assembler must be one of C<iva>, C<pacbio>, C<hgap_4_0>, C<spades>, or C<velvet>.
+The assembler must be one of C<iva>, C<pacbio>, C<hgap_4_0>, C<canu_1_6>, C<spades>, or C<velvet>.
 Default: return files from all assembly pipelines.
 
 =item --filetype, -f <filetype>
@@ -425,6 +425,7 @@ sub _build_subdirs {
     dir(qw( velvet_assembly annotation )),
     dir(qw( pacbio_assembly annotation )),
 	dir(qw( hgap_4_0_assembly annotation )),
+	dir(qw( canu_1_6_assembly annotation )),
   ];
 }
 

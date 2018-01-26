@@ -159,7 +159,7 @@ declare_coercion 'URLFromStr',
 enum IDType,         [qw( lane sample database study file library species )];
 enum FileIDType,     [qw( lane library sample study species )];
 enum QCState,        [qw( passed failed pending )];
-enum Assembler,      [qw( velvet spades iva pacbio hgap_4_0 )];
+enum Assembler,      [qw( velvet spades iva pacbio hgap_4_0 canu_1_6)];
 enum Mapper,         [qw( bowtie2 bwa bwa_aln smalt ssaha2 stampy tophat )];
 enum DataType,       [qw( fastq bam pacbio corrected )];
 enum AssemblyType,   [qw( scaffold contigs all )];

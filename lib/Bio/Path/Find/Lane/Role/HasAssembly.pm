@@ -37,6 +37,8 @@ L<type library|Bio::Path::Find::Types>:
 
 =item hgap_4_0
 
+=item canu_1_6
+
 =item spades
 
 =item velvet
@@ -181,7 +183,8 @@ sub _build_pipeline_versions {
     '5'     => 'IVA',
     '6.0'   => 'SMRT analysis 2.2.0',
 	'7.0'   => 'SMRT analysis 2.3.0 + circlator + quiver',
-	'8.0'   => 'HGAP 4.0 + circlator + quiver'
+	'8.0'   => 'HGAP 4.0 + circlator + quiver',
+	'9.0'   => 'CANU 1.6 + circlator + quiver'
   };
 }
 
