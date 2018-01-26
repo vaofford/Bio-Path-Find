@@ -165,6 +165,7 @@ my %finder_params = (
     dir(qw( velvet_assembly annotation )),
     dir(qw( pacbio_assembly annotation )),
 	dir(qw( hgap_4_0_assembly annotation )),
+	dir(qw( canu_1_6_assembly annotation )),
   ],
   lane_attributes => {
     search_depth    => 3,

@@ -134,7 +134,8 @@ my $expected_pv = {
   '5'     => 'IVA',
   '6.0'   => 'SMRT analysis 2.2.0',
   '7.0'   => 'SMRT analysis 2.3.0 + circlator + quiver',
-  '8.0'   => 'HGAP 4.0 + circlator + quiver'
+  '8.0'   => 'HGAP 4.0 + circlator + quiver',
+  '9.0'   => 'CANU 1.6 + circlator + quiver'
 };
 
 is_deeply $got_pv, $expected_pv, 'got expected pipeline version mapping from assembly Role';
