@@ -30,6 +30,7 @@ extends 'Bio::Path::Find::App::PathFind';
 with 'Bio::Path::Find::App::Role::Archivist',
      'Bio::Path::Find::App::Role::Linker',
      'Bio::Path::Find::App::Role::Statistician',
+     'Bio::Path::Find::App::Role::Summariser',
      'Bio::Path::Find::App::Role::UsesMappings';
 
 #-------------------------------------------------------------------------------
@@ -71,8 +72,11 @@ Use "pf man" or "pf man rnaseq" to see more information.
   # find coverage plots for lanes that were mapped using a specific mapper
   pf rnaseq -t lane -i 12345_1 -M smalt -f coverage
 
-  # get statisticss for lanes mapped against a specific reference
+  # get statistics for lanes mapped against a specific reference
   pf rnaseq -t lane -i 12345_1 -R Streptococcus_suis_P1_7_v1 -s
+
+  # get summary with lane metadata and corresponding expression filenames
+  pf rnaseq -t lane -i 12345_1 -S
 
 =cut
 
@@ -114,6 +118,11 @@ reference.
 
 Write a file with statistics for the found lanes. Save to specified filename,
 if given.
+
+=item --summary, -S [<summary filename>]
+
+Write a file with metadata and file paths for the found lanes. If a
+filename is given, the summary will be writen to that file.
 
 =item --symlink, -l [<symlink directory>]
 
@@ -233,6 +242,17 @@ name for a reference using C<pf ref>:
   Escherichia_coli_9000_v0.1
   ...
 
+=head2 Write a summary TSV file
+
+You can generate a single summary file which contains the lane metadata and the 
+corresponding expression pipeline filename using C<--summary> (abbreviated to C<-S>):
+
+pf rnaseq -t lane -i 12345_1 -S
+
+If the file type has been set, the corresponding file names will be used:
+
+pf rnaseq -t lane -i 12345_1 -f featurecounts -S
+
 =head2 Archive or link the found files
 
 You can generate a tar file or a zip file containing all of the files that are
@@ -350,6 +370,12 @@ sub run {
         msg => 'ERROR: stats file "' . $self->_stats_file . '" already exists; not overwriting. Use "-F" to force overwriting'
       );
     }
+
+    if ( $self->_summary_flag and -f $self->_summary_file and not $self->force ) {
+      Bio::Path::Find::Exception->throw(
+        msg => q(ERROR: TSV file ") . $self->_summary_file . q(" already exists; not overwriting existing file)
+      );
+    }
   }
 
   #---------------------------------------
@@ -403,12 +429,14 @@ sub run {
   if ( $self->_symlink_flag or
        $self->_tar_flag or
        $self->_zip_flag or
-       $self->_stats_flag ) {
+       $self->_stats_flag or
+       $self->_summary_flag ) {
     # can make symlinks, tarball or zip archive all in the same run
     $self->_make_symlinks($lanes) if $self->_symlink_flag;
     $self->_make_tar($lanes)      if $self->_tar_flag;
     $self->_make_zip($lanes)      if $self->_zip_flag;
     $self->_make_stats($lanes)    if $self->_stats_flag;
+    $self->_make_summary($lanes)  if $self->_summary_flag;
   }
   else {
     # print the list of files. Should we show extra info ?

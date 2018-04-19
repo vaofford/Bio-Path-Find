@@ -226,6 +226,10 @@ $tf->clear_config;
 $tf = Bio::Path::Find::App::TestFind->new(%params);
 stderr_is { $tf->run } 'called _make_stats', 'correctly called _make_stats';
 
+# make summary
+delete $params{summary};
+$params{summary} = 'my_summary';
+
 # multiple flags
 $params{archive} = 'my_tar';
 $params{stats}   = 'my_stats';
