@@ -83,6 +83,12 @@ my %params = (
         dbname       => file(qw( t data pathogen_prok_track.db ))->stringify,
         schema_class => 'Bio::Track::Schema',
       },
+      sequencescape => {
+        driver       => 'SQLite',
+        dbname       => file( qw( t data sequencescape_warehouse.db ) )->stringify,
+        schema_class => 'Bio::Sequencescape::Schema',
+        no_db_root   => 1,
+      },
     },
     refs_index => file(qw( t data 31_pf_rnaseq refs.index ))->stringify,
     refs_root  => file(qw( t data 31_pf_rnaseq            ))->stringify,
