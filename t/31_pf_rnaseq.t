@@ -28,6 +28,9 @@ around '_make_zip'      => sub {
 around '_make_stats'    => sub {
   print STDERR 'called _make_stats';
 };
+around '_make_summary'    => sub {
+  print STDERR 'called _make_summary';
+};
 
 #-------------------------------------------------------------------------------
 #- main test script ------------------------------------------------------------
@@ -41,7 +44,7 @@ use warnings;
 no warnings 'qw'; # don't warn about comments in lists when we put plux IDs
                   # inside qw( )
 
-use Test::More tests => 27;
+use Test::More tests => 29;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -114,9 +117,10 @@ delete $params{no_tar_compression};
 $sf->clear_config;
 $sf = Bio::Path::Find::App::PathFind::RNASeq->new(%params);
 
-is $sf->_tar,        '10018_1_30.rnaseqfind.tar.gz',    'gzipped tar file has correct name';
-is $sf->_zip,        '10018_1_30.rnaseqfind.zip',       'zip file has correct name';
-is $sf->_stats_file, '10018_1_30.rnaseqfind_stats.csv', 'stats file has correct name';
+is $sf->_tar,          '10018_1_30.rnaseqfind.tar.gz',    'gzipped tar file has correct name';
+is $sf->_zip,          '10018_1_30.rnaseqfind.zip',       'zip file has correct name';
+is $sf->_stats_file,   '10018_1_30.rnaseqfind_stats.csv', 'stats file has correct name';
+is $sf->_summary_file, '10018_1_30.rnaseqfind_summary.csv', 'summary file has correct name';
 
 #-------------------------------------------------------------------------------
 
@@ -188,10 +192,14 @@ $params{id}                    = '10018_1';
 $sf->clear_config;
 $sf = Bio::Path::Find::App::PathFind::RNASeq->new(%params);
 
-my $expected_file_1 = file( qw( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_N1_OP2 SLX APP_N1_OP2_7492554 10018_1#30 544507.se.raw.sorted.bam.expression.csv ) );
+my $expected_file_1 = file( qw( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_T1_OP2 SLX APP_T1_OP2_7492533 10018_1#3 544387.se.raw.sorted.bam.expression.csv ) );
+my $expected_file_2 = file( qw( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_T5_OP2 SLX APP_T5_OP2_7492550 10018_1#25 544063.se.raw.sorted.bam.expression.csv ) );
+my $expected_file_3 = file( qw( t data linked prokaryotes seq-pipelines Actinobacillus pleuropneumoniae TRACKING 607 APP_N1_OP2 SLX APP_N1_OP2_7492554 10018_1#30 544507.se.raw.sorted.bam.expression.csv ) );
 
 my $expected_output = <<"EOF_files";
 $expected_file_1
+$expected_file_2
+$expected_file_3
 EOF_files
 
 stdout_is { $sf->run }
@@ -202,7 +210,7 @@ $sf->clear_config;
 
 #-------------------------------------------------------------------------------
 
-# check stats, zip, tar files
+# check stats, summary, zip, tar files
 
 $params{id}      = '10018_1#30';
 $params{symlink} = 'my_links_dir';
@@ -233,17 +241,21 @@ $tf = Bio::Path::Find::App::TestFind->new(%params);
 stderr_is { $tf->run } 'called _make_stats', 'correctly called _make_stats';
 
 # make summary
-delete $params{summary};
+delete $params{stats};
 $params{summary} = 'my_summary';
+$tf->clear_config;
+$tf = Bio::Path::Find::App::TestFind->new(%params);
+stderr_is { $tf->run } 'called _make_summary', 'correctly called _make_summary';
 
 # multiple flags
 $params{archive} = 'my_tar';
 $params{stats}   = 'my_stats';
 $params{zip}     = 'my_zip';
+$params{summary} = 'my_summary';
 $tf->clear_config;
 $tf = Bio::Path::Find::App::TestFind->new(%params);
 stderr_like { $tf->run }
-  qr/called _make_tar.*?_make_zip.*?_make_stats/,
+  qr/called _make_tar.*?_make_zip.*?_make_stats.*?_make_summary/,
   'correctly called multiple _make_* methods';
 
 $tf->clear_config;
