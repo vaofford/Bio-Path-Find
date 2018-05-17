@@ -21,6 +21,7 @@ use Bio::Path::Find::Types qw( :all );
 extends 'Bio::Path::Find::Lane';
 
 with 'Bio::Path::Find::Lane::Role::HasMapping';
+with 'Bio::Path::Find::Lane::Role::RNASeqSummary';
 	
 #-------------------------------------------------------------------------------
 #- public attributes -----------------------------------------------------------
@@ -58,6 +59,39 @@ sub _build_filetype_extensions {
 # filters
 
 sub _build_skip_extension_fallback { 1 }
+
+
+#-------------------------------------------------------------------------------
+
+# collect together the fields for the RNASeq summary display
+#
+# required by the RNASeqSummary Role
+
+sub _build_summary {
+
+  use Data::Dumper;
+  print Dumper shift->_get_mapping_files('featurecounts');
+
+}
+
+#-------------------------------------------------------------------------------
+
+# build an array of headers for the RNASeq summary display
+#
+# required by the RNASeqSummary Role
+
+sub _build_summary_headers {
+  my $self = shift;
+
+  return [  'Lane',
+            'Sample',
+            'Supplier Name',
+            'Public Name',
+            'Strain',
+            'Filename',
+            'File Path'
+        ];
+}
 
 #-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------
