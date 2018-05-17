@@ -274,6 +274,30 @@ sub _build_ss_db {
   return $db;
 }
 
+sub _get_lane_info {
+  my $self = $_[0];
+  my $lane = $_[1];
+
+  my $ssid = $lane->row
+                      ->latest_library
+                        ->latest_sample
+                          ->ssid;
+
+  # and get the corresponding row in sequencescape_warehouse.current_sample
+  my $row = $self->_ss_db
+                     ->schema
+                       ->resultset('CurrentSample')
+                         ->find( { internal_id => $ssid } );
+  my @lane_info = [
+                    $lane->row->name,
+                    $lane->row->latest_library->latest_sample->name,
+                    defined($row) ? ($row->supplier_name || 'NA') : 'NA',
+                    defined($row) ? ($row->public_name || 'NA') : 'NA',
+                    defined($row) ? ($row->strain || 'NA') : 'NA',
+                  ];
+  return @lane_info;
+}
+
 #-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -309,26 +333,8 @@ sub run {
   );
 
   foreach my $lane ( @$lanes ) {
-    # walk across the relationships between the latest_lane and latest_sample
-    # tables, to get the SSID
-    my $ssid = $lane->row
-                      ->latest_library
-                        ->latest_sample
-                          ->ssid;
-
-    # and get the corresponding row in sequencescape_warehouse.current_sample
-    my $row = $self->_ss_db
-                     ->schema
-                       ->resultset('CurrentSample')
-                         ->find( { internal_id => $ssid } );
-
-    push @info, [
-      $lane->row->name,
-      $lane->row->latest_library->latest_sample->name,
-      defined($row) ? ($row->supplier_name || 'NA') : 'NA',
-      defined($row) ? ($row->public_name || 'NA') : 'NA',
-      defined($row) ? ($row->strain || 'NA') : 'NA',
-    ];
+    my @lane_info = $self->_get_lane_info($lane);
+    push @info, @lane_info;
 
     $pb++;
   }
