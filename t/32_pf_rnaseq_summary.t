@@ -49,8 +49,8 @@ my $f = Bio::Path::Find::Finder->new(
   lane_class => 'Bio::Path::Find::Lane::Class::Data',
 );
 
-my $lanes = $f->find_lanes( ids => [ '10018_1#30' ], type => 'lane' );
-is scalar @$lanes, 1, 'found 1 lane with ID 10018_1#30 using Finder';
+my $lanes = $f->find_lanes( ids => [ '10018_1' ], type => 'lane' );
+is scalar @$lanes, 50, 'found 50 lanes using Finder';
 ok $lanes->[0]->does('Bio::Path::Find::Lane::Role::Stats'), 'Stats Role applied to Lanes';
 
 #print Dumper $lanes;
