@@ -27,6 +27,7 @@ use Bio::Path::Find::Lane::Class::RNASeq;
 
 extends 'Bio::Path::Find::App::PathFind';
 
+
 with 'Bio::Path::Find::App::Role::Archivist',
      'Bio::Path::Find::App::Role::Linker',
      'Bio::Path::Find::App::Role::Statistician',

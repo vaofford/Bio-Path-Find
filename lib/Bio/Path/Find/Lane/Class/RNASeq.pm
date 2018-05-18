@@ -18,6 +18,8 @@ use Types::Standard qw(
 
 use Bio::Path::Find::Types qw( :all );
 
+use Bio::Path::Find::App::PathFind::Info;
+
 extends 'Bio::Path::Find::Lane';
 
 with 'Bio::Path::Find::Lane::Role::HasMapping';
@@ -68,10 +70,19 @@ sub _build_skip_extension_fallback { 1 }
 # required by the RNASeqSummary Role
 
 sub _build_summary {
+  my $lane = shift;
+  my $file_path = shift;
 
-  use Data::Dumper;
-  print Dumper shift->_get_mapping_files('featurecounts');
+  my $lane_name = $lane->row->{'_column_data'}->{'name'}; 
+  my $if = Bio::Path::Find::App::PathFind::Info->new('id' => $lane_name, 'type' => 'lane');
+  my @lane_summary = $if->_get_lane_info($lane);
+  my $summary = $lane_summary[0];
 
+  my $file = file($lane->all_files); 
+  push @{$summary}, $file->basename;
+  push @{$summary}, $file->stringify;
+  
+  return $summary;
 }
 
 #-------------------------------------------------------------------------------

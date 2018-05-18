@@ -44,7 +44,7 @@ use warnings;
 no warnings 'qw'; # don't warn about comments in lists when we put plux IDs
                   # inside qw( )
 
-use Test::More tests => 29;
+use Test::More tests => 31;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -287,6 +287,20 @@ combined_like { $sf->run }
   'got message about writing stats file';
 
 ok -f 'my_stats', 'found stats file';
+
+#---------------------------------------
+
+delete $params{stats};
+$params{summary} = 'my_summary';
+$params{force} = 1;
+
+$sf->clear_config;
+$sf = Bio::Path::Find::App::PathFind::RNASeq->new(%params);
+combined_like { $sf->run }
+  qr/Wrote summary to "my_summary"/,
+  'got message about writing summary file';
+
+ok -f 'my_summary', 'found summary file';
 
 #-------------------------------------------------------------------------------
 

@@ -27,6 +27,7 @@ use Bio::Path::Find::Types qw(
 
 with 'Bio::Path::Find::Role::HasProgressBar';
 
+
 #-------------------------------------------------------------------------------
 #- private attributes ----------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -85,12 +86,12 @@ sub _make_summary {
   my $pb = $self->_create_pb('collecting summary', scalar @$lanes);
 
   foreach my $lane ( @$lanes ) {
-    $lane->filetype($self->filetype);
-    #push @summary, @{ $lane->summary };
+    push @summary, $lane->summary;
     $pb++;
   }
 
-  #$self->_write_csv(\@stats, $self->_stats_file);
+  $self->_csv->sep("\t");
+  $self->_write_csv(\@summary, $self->_summary_file);
 
   say q(Wrote summary to ") . $self->_summary_file . q(");
 }

@@ -75,6 +75,7 @@ my $lane_rows = $database->schema->get_lanes_by_id(['10018_1#30'], 'lane');
 my $lane_row = $lane_rows->first;
 $lane_row->database($database);
 
+
 #---------------------------------------
 
 # get a Lane, with Role applied
@@ -86,6 +87,7 @@ lives_ok { $lane = Bio::Path::Find::Lane->with_traits('TestRole')
   'no exception when creating Lane with RNASeqSummary Role applied';
 
 ok $lane->does('Bio::Path::Find::Lane::Role::RNASeqSummary'), 'lane has RNASeqSummary Role applied';
+
 
 # make sure the overridden methods work
 my $expected_headers = [ qw( one two ) ];

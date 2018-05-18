@@ -335,7 +335,6 @@ sub run {
   foreach my $lane ( @$lanes ) {
     my @lane_info = $self->_get_lane_info($lane);
     push @info, @lane_info;
-
     $pb++;
   }
 

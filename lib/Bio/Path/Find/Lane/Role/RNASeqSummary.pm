@@ -51,7 +51,7 @@ L<headers>.
 
 has 'summary' => (
   is      => 'ro',
-  isa     => ArrayRef[ArrayRef],
+#  isa     => ArrayRef[ArrayRef],
   lazy    => 1,
   builder => '_build_summary',
 );
