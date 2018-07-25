@@ -101,7 +101,7 @@ sub _generate_filenames {
     $returned_file = $raw_file;
 
     carp qq(WARNING: expected to find raw bam file at "$returned_file", but it was missing)
-      unless -f file($self->storage_path, $raw_file);
+      unless -f file($self->symlink_path, $raw_file);
   }
   push  @returned_files, file( $self->symlink_path, $returned_file);
   

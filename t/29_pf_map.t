@@ -110,6 +110,8 @@ $mf->clear_config;
 $mf = Bio::Path::Find::App::PathFind::Map->new(%params);
 my $expected_stdout = join '', <DATA>;
 
+# Stops map warnings for file path. Remove if testing details.
+local( $SIG{__WARN__} )= sub { my $warnings="# ",@_ };
 stdout_like { $mf->run } qr/$expected_stdout/, 'got expected details';
 
 #-------------------------------------------------------------------------------
