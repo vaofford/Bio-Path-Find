@@ -158,7 +158,7 @@ directory, if given, or in the current working directory by default.
 =item --archive, -a [<tar filename>]
 
 Create a tar archive containing annotation files. Save to specified filename,
-if given. Default filename: assemblyfind_<ID>.tar.gz
+if given. Default filename: annotationfind_<ID>.tar.gz
 
 =item --no-tar-compression, -u
 
@@ -167,7 +167,7 @@ Don't compress tar archives.
 =item --zip, -z [<zip filename>]
 
 Create a zip archive containing annotation files. Save to specified filename,
-if given. Default filename: assemblyfind_<ID>.zip
+if given. Default filename: annotationfind_<ID>.zip
 
 =item --rename, -r
 
@@ -388,7 +388,7 @@ around '_build_symlink_dest' => sub {
   my $self = shift;
 
   my $dir = $self->$orig->stringify;
-  $dir =~ s/^pf_/assemblyfind_/;
+  $dir =~ s/^pf_/annotationfind_/;
 
   return dir( $dir );
 };
