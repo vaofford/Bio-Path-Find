@@ -8,6 +8,7 @@ use v5.10; # for "say"
 use Moose;
 use Path::Class;
 use Carp qw( carp );
+use Data::Dumper;
 
 use Types::Standard qw(
   Maybe
@@ -17,10 +18,12 @@ use Types::Standard qw(
 );
 
 use Bio::Path::Find::Types qw( :all );
+use Bio::Path::Find::App::PathFind::Info;
 
 extends 'Bio::Path::Find::Lane';
 
 with 'Bio::Path::Find::Lane::Role::HasMapping';
+with 'Bio::Path::Find::Lane::Role::RNASeqSummary';
 	
 #-------------------------------------------------------------------------------
 #- public attributes -----------------------------------------------------------
@@ -58,6 +61,51 @@ sub _build_filetype_extensions {
 # filters
 
 sub _build_skip_extension_fallback { 1 }
+
+
+#-------------------------------------------------------------------------------
+
+# collect together the fields for the RNASeq summary display
+#
+# required by the RNASeqSummary Role
+
+sub _build_summary {
+
+  my $lane = shift;
+  my $file_path = shift;
+  
+  my $lane_name = $lane->row->{'_column_data'}->{'name'}; 
+  my $if = Bio::Path::Find::App::PathFind::Info->new('id' => $lane_name, 'type' => 'lane');
+  my @lane_summary = $if->_get_lane_info($lane);
+  my $summary = $lane_summary[0];
+  my $file = $lane->files->[0];
+
+  if ($file) {
+    push @{$summary}, $file->basename;
+    push @{$summary}, $file->stringify;
+  }
+ 
+  return $summary;
+}
+
+#-------------------------------------------------------------------------------
+
+# build an array of headers for the RNASeq summary display
+#
+# required by the RNASeqSummary Role
+
+sub _build_summary_headers {
+  my $self = shift;
+
+  return [  'Lane',
+            'Sample',
+            'Supplier_Name',
+            'Public_Name',
+            'Strain',
+            'Filename',
+            'File_Path'
+        ];
+}
 
 #-------------------------------------------------------------------------------
 #- private methods -------------------------------------------------------------

@@ -28,6 +28,9 @@ around '_make_zip'      => sub {
 around '_make_stats'    => sub {
   print STDERR 'called _make_stats';
 };
+around '_make_summary'    => sub {
+  print STDERR 'called _make_summary';
+};
 
 #-------------------------------------------------------------------------------
 #- main test script ------------------------------------------------------------
@@ -41,7 +44,7 @@ use warnings;
 no warnings 'qw'; # don't warn about comments in lists when we put plux IDs
                   # inside qw( )
 
-use Test::More tests => 27;
+use Test::More tests => 31;
 use Test::Exception;
 use Test::Output;
 use Test::Warn;
@@ -83,9 +86,13 @@ my %params = (
         dbname       => file(qw( t data pathogen_prok_track.db ))->stringify,
         schema_class => 'Bio::Track::Schema',
       },
+      sequencescape => {
+        driver       => 'SQLite',
+        dbname       => file( qw( t data sequencescape_warehouse.db ) )->stringify,
+        schema_class => 'Bio::Sequencescape::Schema',
+        no_db_root   => 1,
+      },
     },
-    refs_index => file(qw( t data 31_pf_rnaseq refs.index ))->stringify,
-    refs_root  => file(qw( t data 31_pf_rnaseq            ))->stringify,
   },
   no_progress_bars   => 1,
   id                 => '10018_1#30',
@@ -111,6 +118,8 @@ $sf = Bio::Path::Find::App::PathFind::RNASeq->new(%params);
 is $sf->_tar,        '10018_1_30.rnaseqfind.tar.gz',    'gzipped tar file has correct name';
 is $sf->_zip,        '10018_1_30.rnaseqfind.zip',       'zip file has correct name';
 is $sf->_stats_file, '10018_1_30.rnaseqfind_stats.csv', 'stats file has correct name';
+is $sf->_summary_file, '10018_1_30.rnaseqfind_summary.tsv', 'summary file has correct name';
+
 
 #-------------------------------------------------------------------------------
 
@@ -226,14 +235,23 @@ $tf->clear_config;
 $tf = Bio::Path::Find::App::TestFind->new(%params);
 stderr_is { $tf->run } 'called _make_stats', 'correctly called _make_stats';
 
+# make summary
+delete $params{stats};
+$params{summary} = 'my_summary';
+$tf->clear_config;
+$tf = Bio::Path::Find::App::TestFind->new(%params);
+stderr_is { $tf->run } 'called _make_summary', 'correctly called _make_summary';
+
 # multiple flags
+delete $params{summary};
 $params{archive} = 'my_tar';
 $params{stats}   = 'my_stats';
+$params{summary} = 'my_summary';
 $params{zip}     = 'my_zip';
 $tf->clear_config;
 $tf = Bio::Path::Find::App::TestFind->new(%params);
 stderr_like { $tf->run }
-  qr/called _make_tar.*?_make_zip.*?_make_stats/,
+  qr/called _make_tar.*?_make_zip.*?_make_stats.*?_make_summary/,
   'correctly called multiple _make_* methods';
 
 $tf->clear_config;
@@ -268,6 +286,20 @@ combined_like { $sf->run }
   'got message about writing stats file';
 
 ok -f 'my_stats', 'found stats file';
+
+#---------------------------------------
+
+delete $params{stats};
+$params{summary} = 'my_summary';
+$params{force} = 1;
+
+$sf->clear_config;
+$sf = Bio::Path::Find::App::PathFind::RNASeq->new(%params);
+combined_like { $sf->run }
+  qr/Wrote summary to "my_summary"/,
+  'got message about writing summary file';
+
+ok -f 'my_summary', 'found summary file';
 
 #-------------------------------------------------------------------------------
 
