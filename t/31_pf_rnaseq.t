@@ -93,8 +93,6 @@ my %params = (
         no_db_root   => 1,
       },
     },
-    refs_index => file(qw( t data 31_pf_rnaseq refs.index ))->stringify,
-    refs_root  => file(qw( t data 31_pf_rnaseq            ))->stringify,
   },
   no_progress_bars   => 1,
   id                 => '10018_1#30',
@@ -245,6 +243,7 @@ $tf = Bio::Path::Find::App::TestFind->new(%params);
 stderr_is { $tf->run } 'called _make_summary', 'correctly called _make_summary';
 
 # multiple flags
+delete $params{summary};
 $params{archive} = 'my_tar';
 $params{stats}   = 'my_stats';
 $params{summary} = 'my_summary';

@@ -25,6 +25,8 @@ use Bio::Path::Find::Types qw(
   PathClassFile
 );
 
+use Data::Dumper;
+
 with 'Bio::Path::Find::Role::HasProgressBar';
 
 
@@ -78,20 +80,23 @@ sub _build_summary_file {
 sub _make_summary {
   my ( $self, $lanes ) = @_;
 
-  #collect the info for the supplied lanes
+  #Get summary headers
   my @summary = (
     $lanes->[0]->summary_headers,
   );
 
+  # Progress bar
   my $pb = $self->_create_pb('collecting summary', scalar @$lanes);
 
+  #Get lane summary
   foreach my $lane ( @$lanes ) {
     push @summary, $lane->summary;
     $pb++;
   }
 
-  $self->_csv->sep("\t");
-  $self->_write_csv(\@summary, $self->_summary_file);
+  # Write summary to file (tab-delimited)
+  $self->csv_separator("\t");
+  $self->_write_csv(\@summary, $self->_summary_file,);
 
   say q(Wrote summary to ") . $self->_summary_file . q(");
 }

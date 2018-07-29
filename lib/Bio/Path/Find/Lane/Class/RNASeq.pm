@@ -8,6 +8,7 @@ use v5.10; # for "say"
 use Moose;
 use Path::Class;
 use Carp qw( carp );
+use Data::Dumper;
 
 use Types::Standard qw(
   Maybe
@@ -17,7 +18,6 @@ use Types::Standard qw(
 );
 
 use Bio::Path::Find::Types qw( :all );
-
 use Bio::Path::Find::App::PathFind::Info;
 
 extends 'Bio::Path::Find::Lane';
@@ -70,18 +70,21 @@ sub _build_skip_extension_fallback { 1 }
 # required by the RNASeqSummary Role
 
 sub _build_summary {
+
   my $lane = shift;
   my $file_path = shift;
-
+  
   my $lane_name = $lane->row->{'_column_data'}->{'name'}; 
   my $if = Bio::Path::Find::App::PathFind::Info->new('id' => $lane_name, 'type' => 'lane');
   my @lane_summary = $if->_get_lane_info($lane);
   my $summary = $lane_summary[0];
+  my $file = $lane->files->[0];
 
-  my $file = file($lane->all_files); 
-  push @{$summary}, $file->basename;
-  push @{$summary}, $file->stringify;
-  
+  if ($file) {
+    push @{$summary}, $file->basename;
+    push @{$summary}, $file->stringify;
+  }
+ 
   return $summary;
 }
 
@@ -96,11 +99,11 @@ sub _build_summary_headers {
 
   return [  'Lane',
             'Sample',
-            'Supplier Name',
-            'Public Name',
+            'Supplier_Name',
+            'Public_Name',
             'Strain',
             'Filename',
-            'File Path'
+            'File_Path'
         ];
 }
 
