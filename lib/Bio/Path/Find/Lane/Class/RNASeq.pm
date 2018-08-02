@@ -72,7 +72,6 @@ sub _build_skip_extension_fallback { 1 }
 sub _build_summary {
 
   my $lane = shift;
-  my $file_path = shift;
   
   my $lane_name = $lane->row->{'_column_data'}->{'name'}; 
   my $if = Bio::Path::Find::App::PathFind::Info->new('id' => $lane_name, 'type' => 'lane');
@@ -81,8 +80,12 @@ sub _build_summary {
   my $file = $lane->files->[0];
 
   if ($file) {
-    push @{$summary}, $file->basename;
-    push @{$summary}, $file->stringify;
+    my $filename = $file->basename;
+    my $symlink_filename = $lane_name . "." . $filename;
+    my $filepath = $file->stringify;
+
+    push @{$summary}, $symlink_filename;
+    push @{$summary}, $filepath;
   }
  
   return $summary;
