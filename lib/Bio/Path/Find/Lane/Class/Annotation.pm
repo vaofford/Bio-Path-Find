@@ -5,6 +5,7 @@ package Bio::Path::Find::Lane::Class::Annotation;
 
 use Moose;
 use Path::Class;
+use File::Basename;
 
 use Types::Standard qw(
   Maybe
@@ -193,6 +194,43 @@ sub _get_stats_row {
     $gff_stats->{gene_count},
     $gff_stats->{cds_count},
   ];
+}
+
+#-------------------------------------------------------------------------------
+#- methods for file finding ----------------------------------------------------
+#-------------------------------------------------------------------------------
+
+# these methods are used by B::P::F::Finder when looking for annotation-related
+# files on disk
+
+# given a "from" and "to" filename, edit the destination to change the format
+# of the filename. This gives this Lane a chance to edit the filenames that are
+# used, so that they can be specialised to annotation data.
+#
+# For example, this method is called by B::P::F::Role::Linker before it creates
+# links. This method makes the link destination look like:
+#
+#   <dst_path directory> / <id>.<assembler>.<ext>
+#
+# e.g.: /home/user/12345_1#1.canu_1_6.<ext>
+#       /home/user/12345_1#1.hgap_4_0.<ext>
+
+sub _edit_filenames {
+  my ( $self, $src_path, $dst_path ) = @_;
+
+  my @src_path_components = $src_path->components;
+  use Data::Dumper;
+
+  my $id_dir        = $src_path_components[-4];
+  my $assembler_dir = $src_path_components[-3];
+  my $filename      = $src_path_components[-1];
+
+  ( my $assembler = $assembler_dir ) =~ s/^(\w+)_assembly$/$1/;
+  my ($prefix,$path,$suffix) = fileparse($filename,qr"\..[^.]*$");
+
+  my $new_dst = file( $dst_path->dir, $prefix . '.' . $assembler  . $suffix );
+
+  return ( $src_path, $new_dst );
 }
 
 #-------------------------------------------------------------------------------
