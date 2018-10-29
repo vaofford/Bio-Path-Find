@@ -472,6 +472,7 @@ sub _generate_url {
   #
   # so we split on newline and use the second row in the map below
   my @content = split m/\n/, $res->decoded_content;
+  $content[1] =~ s/\#/\%23/;
 
   # if we ask for URLs for fastq files, we could get a semi-colon delimited
   # list of URLs. Split the response string on ";" and tack on "ftp://" to
