@@ -48,7 +48,7 @@ has '+filetype' => (
 sub _build_filetype_extensions {
   return {
     contigs  => 'unscaffolded_contigs.fa',
-    scaffold => 'contigs.ga',
+    scaffold => 'contigs.fa',
     all      => '*contigs.fa',
   };
 }

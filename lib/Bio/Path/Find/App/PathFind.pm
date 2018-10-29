@@ -324,7 +324,7 @@ option 'id' => (
   required      => 1,
   trigger       => sub {
     my ( $self, $id ) = @_;
-    ( my $renamed_id = $id ) =~ s/\#/_/g;
+    ( my $renamed_id = $id ) =~ s/\#|\s|\//_/g;
     $self->_renamed_id( $renamed_id );
   },
 );

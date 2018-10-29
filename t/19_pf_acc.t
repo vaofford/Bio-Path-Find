@@ -122,7 +122,7 @@ ftp.ebi.ac.uk/vol1/fastq/ERR028/ERR028809/ERR028809_1.fastq.gz;ftp.sra.ebi.ac.uk
 );
 $ua->map_response(
   qr(submitted_ftp) => HTTP::Response->new( 200, 'OK', undef, 'submitted_ftp
-ftp.ebi.ac.uk/vol1/ERA020/ERA020634/srf/5477_6#1.srf'),
+ftp.ebi.ac.uk/vol1/ERA020/ERA020634/srf/5477_6%231.srf'),
 );
 
 $params{_ua}   = $ua;           # pass in the fake UA
@@ -168,7 +168,7 @@ stderr_like { $af->run } qr/Wrote ENA URLs for submitted files to "s.txt"/, 'wri
 
 # check file contents
 $expected_urls = <<'EOF_urls';
-ftp://ftp.ebi.ac.uk/vol1/ERA020/ERA020634/srf/5477_6#1.srf
+ftp://ftp.ebi.ac.uk/vol1/ERA020/ERA020634/srf/5477_6%231.srf
 EOF_urls
 
 $got_urls = file('s.txt')->slurp;

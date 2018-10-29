@@ -35,7 +35,7 @@ pf status - Find the status of samples
 
 =head1 USAGE
 
-  pf info --id <id> --type <ID type> [options]
+  pf status --id <id> --type <ID type> [options]
 
 =head1 DESCRIPTION
 
