@@ -228,7 +228,12 @@ sub _edit_filenames {
   ( my $assembler = $assembler_dir ) =~ s/^(\w+)_assembly$/$1/;
   my ($prefix,$path,$suffix) = fileparse($filename,qr"\..[^.]*$");
 
-  my $new_dst = file( $dst_path->dir, $prefix . '.' . $assembler  . $suffix );
+  my $new_dst;
+  if ( $assembler eq '' ) {
+    $new_dst = file( $dst_path->dir, $filename );
+  } else { 
+    $new_dst = file( $dst_path->dir, $prefix . '.' . $assembler . $suffix );
+  }
 
   return ( $src_path, $new_dst );
 }
