@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 7;
+use Test::More tests => 8;
 use Test::Exception;
 use Test::Output;
 use Test::Script::Run;
@@ -77,11 +77,19 @@ like $stderr, qr/Wrote info to "if.csv"/, 'expected output on STDERR when writin
 
 ok -f 'if.csv', 'found other CSV file';
 
+#---------------------------------------
+
+# check no info returned when ssid matches internal_id but names don't match
+( $rv, $stdout, $stderr ) = run_script( $script, [ 'info', '-t', 'sample', '-i', '2363STDY5509321' ] );
+
+my $expected_stdout = join '', <DATA>;
+is $stdout, $expected_stdout, 'got expected info with ssid clash';
+
 #-------------------------------------------------------------------------------
 
 my @log_lines = file('pathfind.log')->slurp;
 
-is scalar @log_lines, 2, 'got expected number of log entries';
+is scalar @log_lines, 3, 'got expected number of log entries';
 
 like $log_lines[0], qr|bin/pf info -t lane -i 10018_1#1$|, 'log looks sensible';
 
@@ -91,3 +99,6 @@ like $log_lines[0], qr|bin/pf info -t lane -i 10018_1#1$|, 'log looks sensible';
 
 chdir $orig_cwd;
 
+__DATA__
+Lane            Sample                    Supplier Name             Public Name               Strain
+10050_2#88      2363STDY5509321           NA                        NA                        NA
