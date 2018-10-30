@@ -283,18 +283,27 @@ sub _get_lane_info {
                         ->latest_sample
                           ->ssid;
 
+  # get the sample name in case the ssid matches an internal_id but name does not 
+  my $name = $lane->row
+                      ->latest_library
+                        ->latest_sample
+                          ->name;
+
+
   # and get the corresponding row in sequencescape_warehouse.current_sample
   my $row = $self->_ss_db
                      ->schema
                        ->resultset('CurrentSample')
-                         ->find( { internal_id => $ssid } );
+                         ->find( { internal_id => $ssid  } );
+
   my @lane_info = [
                     $lane->row->name,
                     $lane->row->latest_library->latest_sample->name,
-                    defined($row) ? ($row->supplier_name || 'NA') : 'NA',
-                    defined($row) ? ($row->public_name || 'NA') : 'NA',
-                    defined($row) ? ($row->strain || 'NA') : 'NA',
+                    defined($row) && $row->name eq $name ? ($row->supplier_name || 'NA') : 'NA',
+                    defined($row) && $row->name eq $name ? ($row->public_name || 'NA') : 'NA',
+                    defined($row) && $row->name eq $name ? ($row->strain || 'NA') : 'NA',
                   ];
+
   return @lane_info;
 }
 
