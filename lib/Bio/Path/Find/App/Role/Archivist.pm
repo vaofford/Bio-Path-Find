@@ -56,6 +56,11 @@ sub _check_for_archive_value {
     }
     elsif ( not is_Bool($new) ) {
         $self->_tar_flag(1);
+
+        # Strip file extensions from user-defined filename 
+        # Add extension based on no_tar_compression value
+        $new =~ s/\.(gz|tar|tar.gz)$//;
+        $new .= ( $self->no_tar_compression ? '.tar' : '.tar.gz' ) ;
         $self->_tar( file $new );
     }
     else {
