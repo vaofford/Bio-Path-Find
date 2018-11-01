@@ -143,18 +143,14 @@ lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
 # add the stats file to the archive
 my $stats_file = file( qw( t data 12_pf_data_archiving stats.csv ) );
 
-my $compressed_tar_file = 'compressed_output.tar.gz';
-my $tar_compression = 0;
-lives_ok { $pf->_create_tar_archive(\@expected_file_hashes, $stats_file, $compressed_tar_file, $tar_compression) }
-  'no problems creating compressed tar file';
-
-my $uncompressed_tar_file = 'output.tar.gz';
-my $no_tar_compression = 1;
-lives_ok { $pf->_create_tar_archive(\@expected_file_hashes, $stats_file, $uncompressed_tar_file, $no_tar_compression) }
-  'no problems creating uncompressed tar file';
+my $output_prefix = 'output';
+my $output_file = $output_prefix . '.tar.gz';
+my $no_tar_compression = 0;
+lives_ok { $pf->_create_tar_archive(\@expected_file_hashes, $stats_file, $output_file, $no_tar_compression) }
+  'no problems creating user-defined tar file';
 
 my $archive = Archive::Tar->new;
-ok($archive->read($compressed_tar_file), 'compressed tar file read');
+ok($archive->read($output_file), 'tar file read');
 
 my @archived_files = $archive->list_files;
 
@@ -186,7 +182,7 @@ is $got_stats_file, $expected_stats_file, 'extracted stats file looks right';
 lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
   'no exception with "rename" option';
 
-my $output_file = 'output_rename.tar.gz';
+$output_file = 'output_rename.tar.gz';
 lives_ok { $pf->_create_tar_archive(\@expected_file_hashes, $stats_file,$output_file, $no_tar_compression) }
   'no problems adding files to archive';
   
