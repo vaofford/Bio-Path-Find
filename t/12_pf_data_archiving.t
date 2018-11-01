@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 40;
+use Test::More tests => 41;
 use Test::Exception;
 use Test::Output;
 use Capture::Tiny qw( :all );
@@ -147,9 +147,17 @@ my $output_prefix = 'output';
 my $output_file = $output_prefix . '.tar.gz';
 my $no_tar_compression = 0;
 lives_ok { $pf->_create_tar_archive(\@expected_file_hashes, $stats_file, $output_file, $no_tar_compression) }
-  'no problems creating user-defined tar file';
+  'no problems creating compressed tar file';
 
 my $archive = Archive::Tar->new;
+ok($archive->read($output_file), 'tar file read');
+
+$output_file = $output_prefix . '.tar';
+$no_tar_compression = 1;
+lives_ok { $pf->_create_tar_archive(\@expected_file_hashes, $stats_file, $output_file, $no_tar_compression) }
+  'no problems creating uncompressed tar file';
+
+$archive = Archive::Tar->new;
 ok($archive->read($output_file), 'tar file read');
 
 my @archived_files = $archive->list_files;
