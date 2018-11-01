@@ -186,7 +186,7 @@ is $got_stats_file, $expected_stats_file, 'extracted stats file looks right';
 lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
   'no exception with "rename" option';
 
-$output_file = 'output_rename.tar.gz';
+my output_file = 'output_rename.tar.gz';
 lives_ok { $pf->_create_tar_archive(\@expected_file_hashes, $stats_file,$output_file, $no_tar_compression) }
   'no problems adding files to archive';
   
