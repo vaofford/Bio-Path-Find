@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 39;
+use Test::More tests => 41;
 use Test::Exception;
 use Test::Output;
 use Capture::Tiny qw( :all );
@@ -143,12 +143,21 @@ lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
 # add the stats file to the archive
 my $stats_file = file( qw( t data 12_pf_data_archiving stats.csv ) );
 
-my $output_file = 'output.tar.gz';
+my $output_prefix = 'output';
+my $output_file = $output_prefix . '.tar.gz';
 my $no_tar_compression = 0;
 lives_ok { $pf->_create_tar_archive(\@expected_file_hashes, $stats_file, $output_file, $no_tar_compression) }
-  'no problems creating tar file';
+  'no problems creating compressed tar file';
 
 my $archive = Archive::Tar->new;
+ok($archive->read($output_file), 'tar file read');
+
+$output_file = $output_prefix . '.tar';
+$no_tar_compression = 1;
+lives_ok { $pf->_create_tar_archive(\@expected_file_hashes, $stats_file, $output_file, $no_tar_compression) }
+  'no problems creating uncompressed tar file';
+
+$archive = Archive::Tar->new;
 ok($archive->read($output_file), 'tar file read');
 
 my @archived_files = $archive->list_files;
@@ -182,6 +191,7 @@ lives_ok { $pf = Bio::Path::Find::App::PathFind::Data->new(%params) }
   'no exception with "rename" option';
 
 $output_file = 'output_rename.tar.gz';
+$no_tar_compression = 0;
 lives_ok { $pf->_create_tar_archive(\@expected_file_hashes, $stats_file,$output_file, $no_tar_compression) }
   'no problems adding files to archive';
   

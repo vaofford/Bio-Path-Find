@@ -66,7 +66,7 @@ stdout_is { $qc->run } $expected_info, 'list of reports is correct';
 
 # check archiving (tar file)
 
-my $output = file( $temp_dir, 'output.gz' );
+my $output = file( $temp_dir, 'output.tar.gz' );
 $params{archive} = $output;
 
 $qc->clear_config;
