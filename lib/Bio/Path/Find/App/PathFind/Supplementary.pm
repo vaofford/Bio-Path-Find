@@ -184,10 +184,32 @@ sub _get_study_info {
   my @study_info = [
                     defined($row) && $row->name eq $study_name ? ($row->internal_id || 'NA') : 'NA',
                     defined($row) && $row->name eq $study_name ? ($row->accession_number || 'NA') : 'NA',
-                    defined($row) && $row->name eq $study_name ? ($row->name || 'NA') : 'NA',
+#                    defined($row) && $row->name eq $study_name ? ($row->name || 'NA') : 'NA',
                   ];
 
   return @study_info;
+}
+
+#-------------------------------------------------------------------------------
+
+sub _get_supplementary_info {
+  my $self = $_[0];
+  my $lane = $_[1];
+
+  my @lane_info = $self->_get_lane_info($lane);
+  my $af = Bio::Path::Find::App::PathFind::Accession->new(id => $lane->row->name, type => 'lane');
+  my @accession_info = $af->_get_accession_info($lane);
+  my @study_info = $self->_get_study_info($lane);
+
+  my @supplementary_info =  [
+                              @{ $accession_info[0] },
+                              $lane_info[0]->[2], 
+                              $lane_info[0]->[3],
+                              $lane_info[0]->[4],
+                              @{ $study_info[0] }
+                            ];
+
+  return @supplementary_info;
 }
 
 #-------------------------------------------------------------------------------
@@ -221,16 +243,16 @@ sub run {
 
   # start with headers
   my @info = (
-    [ 'Lane Name', 'Sample Name', 'Supplier Name', 'Public Name', 'Strain', 'Study ID', 'Study Accession', 'Study Name' ]
+    [ 'Sample Name', 'Sample Acc', 
+      'Lane Name', 'Lane Acc',
+      'Supplier Name', 'Public Name', 'Strain', 
+      'Study ID', 'Study Accession' 
+    ]
   );
 
   foreach my $lane ( @$lanes ) {
-
-    my @lane_info = $self->_get_lane_info($lane);
-    my @study_info = $self->_get_study_info($lane);
-
-    push @info, [ @{ $lane_info[0] }, @{ $study_info[0] } ];
-
+    my @supplementary_info = $self->_get_supplementary_info($lane);
+    push @info, @supplementary_info;
     $pb++;
   }
 
@@ -243,7 +265,7 @@ sub run {
     # fix the formats of the columns so that everything lines up
     # (printf format patterned on the one from the old infofind;
     # ditched the trailing spaces...)
-    printf "%-15s %-25s %-15s %-25s %-25s %-25s %-25s %s\n", @$_ for @info;
+    printf "%-25s %-15s %-15s %-15s %-15s %-25s %-15s %-15s %s\n", @$_ for @info;
   }
 
 }
