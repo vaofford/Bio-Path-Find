@@ -99,7 +99,7 @@ $sp->clear_config;
 lives_ok { $sp = Bio::Path::Find::App::PathFind::Supplementary->new(%params) }
   'got a new Supplementary command object set up to write CSV files';
 
-stderr_like { $sp->run } qr/Wrote supplememtary information to "sup.csv"/, 'write supplementary information to CSV file';
+stderr_like { $sp->run } qr/Wrote supplememtary information to "sp.csv"/, 'write supplementary information to CSV file';
 
 # check CSV file contents
 #my $expected_csv = <<'EOF_csv';
@@ -113,7 +113,7 @@ my $got_csv = file('sp.csv')->slurp;
 
 # we should get an error if we try to write the same file again
 throws_ok { $sp->run }
-  qr/ERROR: CSV file "sup.csv" already exists; not overwriting existing file/,
+  qr/ERROR: CSV file "sp.csv" already exists; not overwriting existing file/,
   'exception when trying to overwrite existing CSV';
 
 #-------------------------------------------------------------------------------
