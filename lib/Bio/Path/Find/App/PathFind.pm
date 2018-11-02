@@ -129,6 +129,10 @@ Find VCF files and generate pseudogenomes for sets of mapped lanes.
 
 Shows the status of lanes for various pathogen informatics pipelines.
 
+=head2 supplementary
+
+Shows supplementary information about the samples associated with sequencing runs.
+
 =cut
 
 =head1 COMMON OPTIONS
