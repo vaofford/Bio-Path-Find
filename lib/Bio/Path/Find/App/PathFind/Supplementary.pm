@@ -237,7 +237,7 @@ sub run {
   # write a CSV file or print to STDOUT
   if ( $self->_outfile_flag ) {
     $self->_write_csv( \@info, $self->_outfile );
-    say STDERR q(Wrote supplementary information to ") . $self->_outfile . q(");
+    say STDERR q(Wrote supplememtary information to ") . $self->_outfile . q(");
   }
   else {
     # fix the formats of the columns so that everything lines up
