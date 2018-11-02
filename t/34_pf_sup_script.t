@@ -71,7 +71,7 @@ is $stderr, '', 'no output on STDERR';
 #---------------------------------------
 
 # specify a different filename
-( $rv, $stdout, $stderr ) = run_script( $script, [ 'supplementary', '-t', 'lane', '-i', '10018_1#1', '-o', 'if.csv' ] );
+( $rv, $stdout, $stderr ) = run_script( $script, [ 'supplementary', '-t', 'lane', '-i', '10018_1#1', '-o', 'sp.csv' ] );
 
 like $stderr, qr/Wrote supplememtary information to "sp.csv"/, 'expected output on STDERR when writing CSV';
 

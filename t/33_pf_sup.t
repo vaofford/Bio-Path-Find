@@ -61,7 +61,7 @@ my %params = (
 # make sure a sensible config and sensible query get us the output we expect
 my $sp;
 lives_ok { $sp = Bio::Path::Find::App::PathFind::Supplementary->new(%params) }
-  'got a new Info command object';
+  'got a new Supplementary command object';
 
 # print paths
 my $expected_info = join '', <DATA>;
