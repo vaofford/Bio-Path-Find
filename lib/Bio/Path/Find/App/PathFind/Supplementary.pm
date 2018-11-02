@@ -19,8 +19,9 @@ use Types::Standard qw(
   +Bool
 );
 
-use Bio::Path::Find::Types qw( :types );
+use Data::Dumper;
 
+use Bio::Path::Find::Types qw( :types );
 use Bio::Path::Find::App::PathFind::Accession;
 
 extends 'Bio::Path::Find::App::PathFind::Info';
@@ -145,10 +146,107 @@ resulting file more readable:
 #- command line options --------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-# None at the moment, inherits from pf info
+# private attributes to store the (optional) value of the "outfile" attribute.
+# When using all of this we can check for "_outfile_flag" being true or false,
+# and, if it's true, check "_outfile" for a value
+has '_outfile'      => ( is => 'rw', isa => PathClassFile, default => sub { file 'supplementaryfind.csv' } );
+
 
 #-------------------------------------------------------------------------------
+#- private attributes ----------------------------------------------------------
+#-------------------------------------------------------------------------------
 
+
+sub _get_study_info {
+  my $self = $_[0];
+  my $lane = $_[1];
+
+  # Get study ssid from pathogen database
+  my $study_ssid = $lane->row
+                      ->latest_library
+                        ->latest_sample
+                          ->latest_project
+                            ->ssid;
+
+  # Get study ssid from pathogen database
+  my $study_name = $lane->row
+                      ->latest_library
+                        ->latest_sample
+                          ->latest_project
+                            ->name;
+
+  # and get the corresponding row in sequencescape_warehouse.current_study
+  my $row = $self->_ss_db
+                     ->schema
+                       ->resultset('CurrentStudy')
+                         ->find( { internal_id => $study_ssid  } );
+
+  my @study_info = [
+                    defined($row) && $row->name eq $study_name ? ($row->internal_id || 'NA') : 'NA',
+                    defined($row) && $row->name eq $study_name ? ($row->accession_number || 'NA') : 'NA',
+                    defined($row) && $row->name eq $study_name ? ($row->name || 'NA') : 'NA',
+                  ];
+
+  return @study_info;
+}
+
+#-------------------------------------------------------------------------------
+#- public methods --------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+sub run {
+  my $self = shift;
+
+  # if we're writing to file, check that the output file doesn't exist. If we
+  # leave it to _write_csv to check, we could end up searching for lanes for
+  # hours and THEN fail, which would leave the user mildly updset. Better to
+  # fail early, before we've done any work at all.
+  if ( $self->_outfile_flag and -f $self->_outfile and not $self->force ) {
+    Bio::Path::Find::Exception->throw(
+      msg => q(ERROR: CSV file ") . $self->_outfile . q(" already exists; not overwriting existing file)
+    );
+  }
+
+  # find lanes
+  my $lanes = $self->_finder->find_lanes(
+    ids  => $self->_ids,
+    type => $self->_type,
+  );
+
+  my $pb = $self->_create_pb('collecting supplementary info', scalar @$lanes);
+
+  # gather the info. We could collect and print the info in the same loop, but
+  # then we wouldn't be able to show the progress bar, which is probably worth
+  # doing. Instead we'll print in a separate loop at the end.
+
+  # start with headers
+  my @info = (
+    [ 'Lane Name', 'Sample Name', 'Supplier Name', 'Public Name', 'Strain', 'Study ID', 'Study Accession', 'Study Name' ]
+  );
+
+  foreach my $lane ( @$lanes ) {
+
+    my @lane_info = $self->_get_lane_info($lane);
+    my @study_info = $self->_get_study_info($lane);
+
+    push @info, [ @{ $lane_info[0] }, @{ $study_info[0] } ];
+
+    $pb++;
+  }
+
+  # write a CSV file or print to STDOUT
+  if ( $self->_outfile_flag ) {
+    $self->_write_csv( \@info, $self->_outfile );
+    say STDERR q(Wrote info to ") . $self->_outfile . q(");
+  }
+  else {
+    # fix the formats of the columns so that everything lines up
+    # (printf format patterned on the one from the old infofind;
+    # ditched the trailing spaces...)
+    printf "%-15s %-25s %-15s %-25s %-25s %-25s %-25s %s\n", @$_ for @info;
+  }
+
+}
 
 #-------------------------------------------------------------------------------
 
