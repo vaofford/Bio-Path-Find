@@ -134,7 +134,7 @@ resulting file more readable:
 
 =item pf accession - find accessions for sequencing runs
 
-=item pf status - pf info - find information about samples
+=item pf info - find information about samples
 
 =back
 
