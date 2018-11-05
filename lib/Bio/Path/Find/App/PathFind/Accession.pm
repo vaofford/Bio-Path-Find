@@ -332,6 +332,26 @@ sub _build_filereport_url {
   return URI::URL->new($url);
 }
 
+#---------------------------------------
+
+sub _get_accession_info {
+  my $self = $_[0];
+  my $lane = $_[1];
+
+  my $lane_row       = $lane->row;
+  my $sample_row     = $lane_row->latest_library->latest_sample;
+  my $individual_row = $sample_row->individual;
+
+  my @accession_info= [
+                        $sample_row->name    || 'not found',
+                        $individual_row->acc || 'not found',
+                        $lane_row->name      || 'not found',
+                        $lane_row->acc       || 'not found',
+                      ];
+
+  return @accession_info;
+}
+
 #-------------------------------------------------------------------------------
 #- public methods --------------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -370,19 +390,9 @@ sub run {
   my $pb = $self->_create_pb('finding accessions', scalar @$lanes);
 
   foreach my $lane ( @$lanes ) {
-
-    my $lane_row       = $lane->row;
-    my $sample_row     = $lane_row->latest_library->latest_sample;
-    my $individual_row = $sample_row->individual;
-
-    push @info, [
-      $sample_row->name    || 'not found',
-      $individual_row->acc || 'not found',
-      $lane_row->name      || 'not found',
-      $lane_row->acc       || 'not found',
-    ];
-
-    push @accessions, $lane_row->acc if defined $lane_row->acc;
+    my @accession_info = $self->_get_accession_info($lane);
+    push @info, @accession_info;
+    push @accessions, $lane->row->acc if defined $lane->row->acc;
     $pb++;
   }
 
