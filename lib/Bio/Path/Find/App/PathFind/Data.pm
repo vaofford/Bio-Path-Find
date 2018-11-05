@@ -116,6 +116,10 @@ filename, if given.
 Rename filenames when creating archives or symlinks, replacing hashed (#)
 with underscores (_).
 
+=item --prefix_with_library_name, -p
+
+Prefix symlinked files with the library name.
+
 =back
 
 =head1 SCENARIOS
@@ -206,6 +210,9 @@ necessary permissions for creating files or links in the working directory.
 As when creating archives, you can rename filenames when creating symlinks
 using C<--rename> to convert hashes to underscores.
 
+Symlinked files can also be prefixed with their corresponding library name 
+using C<--prefix_with_library_name>.
+
 =head1 SEE ALSO
 
 =over
@@ -234,6 +241,13 @@ option 'qc' => (
   is            => 'ro',
   isa           => QCState,
   cmd_aliases   => 'q',
+);
+
+option 'prefix_with_library_name' => ( 
+  documentation => 'prefix symlinked files with library name',
+  is            => 'ro',
+  isa           => 'Bool',
+  cmd_aliases   => 'p',
 );
 
 #-------------------------------------------------------------------------------
