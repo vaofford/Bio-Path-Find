@@ -166,7 +166,7 @@ sub _get_study_info {
                           ->latest_project
                             ->ssid;
 
-  # Get study ssid from pathogen database
+  # Get study name from pathogen database
   my $study_name = $lane->row
                       ->latest_library
                         ->latest_sample
