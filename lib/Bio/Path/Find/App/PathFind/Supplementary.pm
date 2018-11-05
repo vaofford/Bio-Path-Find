@@ -84,13 +84,13 @@ tracking and sequencescape databases:
 
 =over
 
-=item study id
-
-=item study accession
-
 =item sample name
 
 =item sample accession
+
+=item lane name
+
+=item lane accession
 
 =item supplier name
 
@@ -98,11 +98,9 @@ tracking and sequencescape databases:
 
 =item strain
 
-=item lane name
+=item study id
 
-=item lane accession
-
-=item strain
+=item study accession
 
 =back
 
