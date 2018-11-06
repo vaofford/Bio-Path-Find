@@ -25,8 +25,6 @@ use Bio::Path::Find::Types qw(
   PathClassFile
 );
 
-use Data::Dumper;
-
 with 'Bio::Path::Find::Role::HasProgressBar';
 
 

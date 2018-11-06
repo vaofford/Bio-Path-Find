@@ -19,8 +19,6 @@ use Types::Standard qw(
   +Bool
 );
 
-use Data::Dumper;
-
 use Bio::Path::Find::Types qw( :types );
 use Bio::Path::Find::App::PathFind::Accession;
 
