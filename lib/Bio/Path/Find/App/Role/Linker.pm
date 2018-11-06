@@ -15,7 +15,6 @@ path-help@sanger.ac.uk
 
 use Path::Class;
 use Try::Tiny;
-
 use Bio::Path::Find::Exception;
 
 use Types::Standard qw(
@@ -115,12 +114,13 @@ sub _make_symlinks {
   my $pb = $self->_create_pb('linking', scalar @$lanes);
 
   my @links = ();
+
   foreach my $lane ( @$lanes ) {
     # the call to "make_symlinks" returns a reference to an array containing a
     # list of the entities (files or directories) for which the Lane has
     # successfully created links. We need to collect those and list them later,
     # when we're not in the middle of showing a progress bar
-    push @links, $lane->make_symlinks( dest => $dest, rename => $self->rename );
+    push @links, $lane->make_symlinks( dest => $dest, rename => $self->rename, prefix => $self->prefix_with_library_name );
     $pb++;
   }
 

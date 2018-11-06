@@ -13,6 +13,9 @@ use Path::Class;
 use Cwd;
 
 use Bio::Path::Find::Types qw( :types );
+use Types::Standard qw(
+  +Bool
+);
 
 use Bio::Path::Find::Exception;
 use Bio::Path::Find::Lane::Class::Data;
@@ -243,11 +246,12 @@ option 'qc' => (
   cmd_aliases   => 'q',
 );
 
-option 'prefix_with_library_name' => ( 
+option 'prefix_with_library_name' => (
   documentation => 'prefix symlinked files with library name',
   is            => 'ro',
-  isa           => 'Bool',
+  isa           => Bool,
   cmd_aliases   => 'p',
+  cmd_flag      => 'prefix-with-library-name',
 );
 
 #-------------------------------------------------------------------------------

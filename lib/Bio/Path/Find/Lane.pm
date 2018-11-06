@@ -544,8 +544,10 @@ sub make_symlinks {
       dest     => Optional[PathClassDir],
       rename   => Optional[Bool],
       filetype => Optional[FileType],
+      prefix   => Optional[Bool]
     ],
   );
+
   my ( $self, $params ) = $check->(@_);
 
   if ( not defined $params->{dest} ) {
@@ -570,10 +572,10 @@ sub make_symlinks {
       carp 'WARNING: no files found for linking';
       return 0;
     }
-    $links = $self->_make_file_symlinks( $params->{dest}, $params->{rename} );
+    $links = $self->_make_file_symlinks( $params->{dest}, $params->{rename}, $params->{prefix} );
   }
   else {
-    $links = $self->_make_dir_symlink( $params->{dest}, $params->{rename} );
+    $links = $self->_make_dir_symlink( $params->{dest}, $params->{rename}, $params->{prefix} );
   }
 
   return $links;
@@ -589,7 +591,7 @@ sub make_symlinks {
 # or an empty array if we couldn't create any links
 
 sub _make_file_symlinks {
-  my ( $self, $dest, $rename ) = @_;
+  my ( $self, $dest, $rename, $prefix ) = @_;
 
   my @links = ();
   FILE: foreach my $src_file ( $self->all_files ) {
@@ -598,6 +600,9 @@ sub _make_file_symlinks {
 
     # do we need to rename the link (convert hashes to underscores) ?
     $filename =~ s/\#/_/g if $rename;
+
+    # prefix destination filename with library_name
+    $filename = $self->_prefix_with_library_name($filename) if $prefix;
 
     my $dst_file = file( $dest, $filename );
 
@@ -657,7 +662,7 @@ sub _make_file_symlinks {
 # linked, or an empty array if we couldn't create the link
 
 sub _make_dir_symlink {
-  my ( $self, $dest, $rename ) = @_;
+  my ( $self, $dest, $rename, $prefix ) = @_;
 
   # symlink_path gives the path to the directory containing the data files for
   # the lane. Here we chop off the final component of that path and use that
@@ -666,6 +671,9 @@ sub _make_dir_symlink {
 
   # do we need to rename the link (convert hashes to underscores) ?
   $dir_name =~ s/\#/_/g if $rename;
+
+  # prefix destination directory with library_name
+  $dir_name = $self->_prefix_with_library_name($dir_name) if $prefix;
 
   my $src_dir = $self->symlink_path;
   my $dst_dir = file( $dest, $dir_name );
@@ -726,6 +734,24 @@ sub _get_files_by_extension {
 
 #-------------------------------------------------------------------------------
 
+# get library name from database to prefix symlinks
+
+sub _prefix_with_library_name {
+  my ($self, $dest) = @_; # dest can be a file or directory name
+
+  # get library name from database
+  my $library_name = $self->row->latest_library->name;
+
+  # check library name isn't empty (won't add a prefix if it is)
+  if ( $library_name ne '' ) {
+    $library_name =~ s/ /_/g; # replace spaces with underscores
+    $dest = $library_name . "_" . $dest;
+  }
+
+  return $dest;
+}
+
+#-------------------------------------------------------------------------------
 __PACKAGE__->meta->make_immutable;
 
 1;
