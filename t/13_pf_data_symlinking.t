@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 12;
+use Test::More tests => 16;
 use Test::Exception;
 use Test::Output;
 use Path::Class;
@@ -83,6 +83,7 @@ ok -d $dest, 'found link directory';
 
 my @links = $dest->children;
 is scalar( @links ), 50, 'found all links';
+$dest->rmtree;
 
 # link in a specific directory, this time with a progress bar
 
@@ -110,6 +111,32 @@ $pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 throws_ok { $pf->_make_symlinks($lanes) }
   qr/couldn't make link directory/,
   'exception when destination exists as a file';
+
+#-------------------------------------------------------------------------------
+
+# Check links get prefixed with library name
+
+# Check linked directory name 
+$params{symlink} = 1;
+$params{prefix_with_library_name} = 1;
+$pf = Bio::Path::Find::App::PathFind::Data->new(%params);
+$lanes = $f->find_lanes( ids => [ '10018_1' ], type => 'lane');
+
+combined_like { $pf->_make_symlinks($lanes) }
+  qr|Creating links in 'pathfind_10018_1'|s,
+  'creating links in correct directory';
+
+$dest = dir( $temp_dir, 'pathfind_10018_1', 'APP_N2_OP1_7492530_10018_1#1');
+ok -l $dest, 'found prefixed link directory';
+
+# Check linked filename
+$lanes = $f->find_lanes( ids => [ '10018_1' ], type => 'lane', filetype => 'fastq');
+$dest->rmtree;
+combined_like { $pf->_make_symlinks($lanes) }
+  qr|Creating links in 'pathfind_10018_1'.*10018_1#51_1\.fastq\.gz|s,
+  'creating links in correct directory';
+$dest = file( $temp_dir, 'pathfind_10018_1', 'APP_N2_OP1_7492530_10018_1#1_1.fastq.gz' );
+ok -l $dest, 'found prefixed link file';
 
 #-------------------------------------------------------------------------------
 
