@@ -120,7 +120,11 @@ sub _make_symlinks {
     # list of the entities (files or directories) for which the Lane has
     # successfully created links. We need to collect those and list them later,
     # when we're not in the middle of showing a progress bar
-    push @links, $lane->make_symlinks( dest => $dest, rename => $self->rename, prefix => $self->prefix_with_library_name );
+    if ( my $ref = eval { $self->can( 'prefix_with_library_name'  ) } ) {
+		push @links, $lane->make_symlinks( dest => $dest, rename => $self->rename, prefix => $self->prefix_with_library_name );
+	} else {
+		push @links, $lane->make_symlinks( dest => $dest, rename => $self->rename);
+	}
     $pb++;
   }
 

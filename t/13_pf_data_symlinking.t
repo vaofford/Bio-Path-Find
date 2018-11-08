@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 16;
+use Test::More tests => 18;
 use Test::Exception;
 use Test::Output;
 use Path::Class;
@@ -111,6 +111,16 @@ $pf = Bio::Path::Find::App::PathFind::Data->new(%params);
 throws_ok { $pf->_make_symlinks($lanes) }
   qr/couldn't make link directory/,
   'exception when destination exists as a file';
+
+# link to '.' with a progress bar
+$params{symlink} = '.';
+$pf = Bio::Path::Find::App::PathFind::Data->new(%params);
+$lanes = $f->find_lanes( ids => [ '10018_1#1' ], type => 'lane');
+combined_like { $pf->_make_symlinks($lanes) }
+  qr|Creating links in '.'|s, 
+  'creating links in correct directory (.)';
+$dest = dir( $temp_dir, '10018_1#1' );
+ok -l $dest, "found link directory '.'";
 
 #-------------------------------------------------------------------------------
 
