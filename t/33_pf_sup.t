@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 9;
+use Test::More tests => 13;
 use Test::Exception;
 use Test::Output;
 use Path::Class;
@@ -65,6 +65,7 @@ lives_ok { $sp = Bio::Path::Find::App::PathFind::Supplementary->new(%params) }
 
 # print paths
 my $expected_info = join '', <DATA>;
+
 stdout_is { $sp->run }
   $expected_info,
   'printed correct info';
@@ -108,13 +109,47 @@ APP_N2_OP1,ERS153571,10018_1#1,"not found",NA,APP_N2_OP1,NA,607,ERP000714
 EOF_csv
 
 my $got_csv = file('sp.csv')->slurp;
-
 is $got_csv, $expected_csv, 'got expected CSV contents';
 
 # we should get an error if we try to write the same file again
 throws_ok { $sp->run }
   qr/ERROR: CSV file "sp.csv" already exists; not overwriting existing file/,
   'exception when trying to overwrite existing CSV';
+
+#-------------------------------------------------------------------------------
+
+# include sample description 
+
+$params{outfile} = '';
+$params{description}  = 1;
+$sp->clear_config;
+
+lives_ok { $sp = Bio::Path::Find::App::PathFind::Supplementary->new(%params) }
+  'got a new Supplementary command object set up to include sample description';
+
+my $expected_description_info = "Sample Name               Sample Acc      Lane Name       Lane Acc        Supplier Name   Public Name               Strain          Study ID        Study Accession           Sample Description
+APP_N2_OP1                ERS153571       10018_1#1       not found       NA              APP_N2_OP1                NA              607             ERP000714                 test sample description
+";
+
+stdout_is { $sp->run }
+  $expected_description_info,
+  'printed correct decription info'; 
+
+#-------------------------------------------------------------------------------
+$params{id}      = '10018_1#10';
+$params{description}  = 1;
+$sp->clear_config;
+
+lives_ok { $sp = Bio::Path::Find::App::PathFind::Supplementary->new(%params) }
+  'got a new Supplementary command object set up to include sample description';
+
+$expected_description_info = "Sample Name               Sample Acc      Lane Name       Lane Acc        Supplier Name   Public Name               Strain          Study ID        Study Accession           Sample Description
+APP_IN_1                  ERS153567       10018_1#10      not found       NA              APP_IN_1                  NA              607             ERP000714                 NA
+";
+
+stdout_is { $sp->run }
+  $expected_description_info,
+  'printed correct decription info with null description'; 
 
 #-------------------------------------------------------------------------------
 

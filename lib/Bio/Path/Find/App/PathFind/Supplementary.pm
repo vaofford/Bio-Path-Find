@@ -70,6 +70,10 @@ to see information about the options that are common to all C<pf> commands.
 Write the information to a CSV-format file. If a filename is given, write 
 supplementary information to that file, or to C<supplementaryfind.csv> otherwise.
 
+=item --description, -d
+
+Include sample description in the supplementary information.
+
 =back
 
 =head1 SCENARIOS
@@ -126,6 +130,14 @@ resulting file more readable:
 
 (To enter a tab character you might need to press ctrl-V followed by tab.)
 
+=head2 Include sample descriptions
+
+By default C<pf supplementary > will not include sample descriptions. You 
+can include sample descriptions in the output, using the 
+C<--description> (C<-d>) option:
+
+  % pf supplementary  -t lane -i 10018_1 -d
+
 =head1 SEE ALSO
 
 =over
@@ -147,6 +159,15 @@ resulting file more readable:
 # and, if it's true, check "_outfile" for a value
 has '_outfile'      => ( is => 'rw', isa => PathClassFile, default => sub { file 'supplementaryfind.csv' } );
 
+# Boolean for sample description inclusion
+option 'description' => (
+  documentation => 'include sample description',
+  is            => 'ro',
+  isa           => Bool,
+  cmd_aliases   => 'd',
+  cmd_flag      => 'description',
+  default       => 0,
+);
 
 #-------------------------------------------------------------------------------
 #- private attributes ----------------------------------------------------------
@@ -186,6 +207,17 @@ sub _get_study_info {
   return @study_info;
 }
 
+sub _get_sample_description {
+  my $self = $_[0];
+  my $lane = $_[1];
+
+  my $current_sample = $self->_get_current_sample($lane);
+  my $study_name = $self->_get_sample_name($lane);
+  my $sample_description = $current_sample->description, if defined($current_sample) && $current_sample->name eq $study_name;
+  $sample_description = 'NA' unless defined $sample_description;
+  return $sample_description;
+}
+
 #-------------------------------------------------------------------------------
 
 sub _get_supplementary_info {
@@ -203,8 +235,13 @@ sub _get_supplementary_info {
                               $lane_info[0]->[3],
                               $lane_info[0]->[4],
                               @{ $study_info[0] }
-                            ];
+                            ];  
 
+  if ( $self->description ) {
+    my $sample_description = $self->_get_sample_description($lane);
+    push $supplementary_info[0], $sample_description; 
+  }                          
+           
   return @supplementary_info;
 }
 
@@ -244,7 +281,8 @@ sub run {
       'Supplier Name', 'Public Name', 'Strain', 
       'Study ID', 'Study Accession' 
     ]
-  );
+  );  
+  push $info[0], 'Sample Description' if ( $self->description );  
 
   foreach my $lane ( @$lanes ) {
     my @supplementary_info = $self->_get_supplementary_info($lane);
@@ -261,7 +299,11 @@ sub run {
     # fix the formats of the columns so that everything lines up
     # (printf format patterned on the one from the old infofind;
     # ditched the trailing spaces...)
-    printf "%-25s %-15s %-15s %-15s %-15s %-25s %-15s %-15s %s\n", @$_ for @info;
+    if ( $self->description) {
+      printf "%-25s %-15s %-15s %-15s %-15s %-25s %-15s %-15s %-25s %s\n", @$_ for @info;
+    } else {
+      printf "%-25s %-15s %-15s %-15s %-15s %-25s %-15s %-15s %s\n", @$_ for @info;
+    }
   }
 
 }

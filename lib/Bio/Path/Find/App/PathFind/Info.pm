@@ -274,14 +274,27 @@ sub _build_ss_db {
   return $db;
 }
 
-sub _get_lane_info {
+sub _get_current_sample {
   my $self = $_[0];
   my $lane = $_[1];
-
+  # get ssid to gather information 
   my $ssid = $lane->row
-                      ->latest_library
-                        ->latest_sample
-                          ->ssid;
+                    ->latest_library
+                      ->latest_sample
+                        ->ssid;
+
+  # and get the corresponding row in sequencescape_warehouse.current_sample
+  my $row = $self->_ss_db
+                     ->schema
+                       ->resultset('CurrentSample')
+                         ->find( { internal_id => $ssid  } );       
+
+  return $row;              
+}
+
+sub _get_sample_name {
+  my $self = $_[0];
+  my $lane = $_[1];
 
   # get the sample name in case the ssid matches an internal_id but name does not 
   my $name = $lane->row
@@ -289,12 +302,15 @@ sub _get_lane_info {
                         ->latest_sample
                           ->name;
 
+  return($name);
+}
 
-  # and get the corresponding row in sequencescape_warehouse.current_sample
-  my $row = $self->_ss_db
-                     ->schema
-                       ->resultset('CurrentSample')
-                         ->find( { internal_id => $ssid  } );
+sub _get_lane_info {
+  my $self = $_[0];
+  my $lane = $_[1];
+
+  my $row = $self->_get_current_sample($lane);
+  my $name = $self->_get_sample_name($lane);
 
   my @lane_info = [
                     $lane->row->name,
