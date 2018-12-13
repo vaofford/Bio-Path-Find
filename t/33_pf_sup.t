@@ -127,8 +127,8 @@ $sp->clear_config;
 lives_ok { $sp = Bio::Path::Find::App::PathFind::Supplementary->new(%params) }
   'got a new Supplementary command object set up to include sample description';
 
-my $expected_description_info = "Sample Name               Sample Acc      Lane Name       Lane Acc        Supplier Name   Public Name               Strain          Study ID        Study Accession           Sample Description
-APP_N2_OP1                ERS153571       10018_1#1       not found       NA              APP_N2_OP1                NA              607             ERP000714                 test sample description
+my $expected_description_info = "Sample Name               Sample Acc      Lane Name       Lane Acc        Supplier Name             Public Name               Strain                    Study ID        Study Accession Sample Description
+APP_N2_OP1                ERS153571       10018_1#1       not found       NA                        APP_N2_OP1                NA                        607             ERP000714       test sample description
 ";
 
 stdout_is { $sp->run }
@@ -143,8 +143,8 @@ $sp->clear_config;
 lives_ok { $sp = Bio::Path::Find::App::PathFind::Supplementary->new(%params) }
   'got a new Supplementary command object set up to include sample description';
 
-$expected_description_info = "Sample Name               Sample Acc      Lane Name       Lane Acc        Supplier Name   Public Name               Strain          Study ID        Study Accession           Sample Description
-APP_IN_1                  ERS153567       10018_1#10      not found       NA              APP_IN_1                  NA              607             ERP000714                 NA
+$expected_description_info = "Sample Name               Sample Acc      Lane Name       Lane Acc        Supplier Name             Public Name               Strain                    Study ID        Study Accession Sample Description
+APP_IN_1                  ERS153567       10018_1#10      not found       NA                        APP_IN_1                  NA                        607             ERP000714       NA
 ";
 
 stdout_is { $sp->run }
@@ -158,54 +158,54 @@ stdout_is { $sp->run }
 chdir $orig_cwd;
 
 __DATA__
-Sample Name               Sample Acc      Lane Name       Lane Acc        Supplier Name   Public Name               Strain          Study ID        Study Accession
-APP_N2_OP1                ERS153571       10018_1#1       not found       NA              APP_N2_OP1                NA              607             ERP000714
-APP_IN_2                  ERS153568       10018_1#2       not found       NA              APP_IN_2                  NA              607             ERP000714
-APP_T1_OP2                ERS153574       10018_1#3       not found       NA              APP_T1_OP2                NA              607             ERP000714
-APP_IN_4                  ERS153578       10018_1#4       not found       NA              APP_IN_4                  NA              607             ERP000714
-APP_N1_OP2                ERS153570       10018_1#5       not found       NA              APP_N1_OP2                NA              607             ERP000714
-APP_N1_OP1                ERS153569       10018_1#6       not found       NA              APP_N1_OP1                NA              607             ERP000714
-APP_T1_OP1                ERS153573       10018_1#7       not found       NA              APP_T1_OP1                NA              607             ERP000714
-APP_IN_3                  ERS153577       10018_1#8       not found       NA              APP_IN_3                  NA              607             ERP000714
-APP_N2_OP2                ERS153572       10018_1#9       not found       NA              APP_N2_OP2                NA              607             ERP000714
-APP_IN_1                  ERS153567       10018_1#10      not found       NA              APP_IN_1                  NA              607             ERP000714
-APP_T2_OP1                ERS153575       10018_1#11      not found       NA              APP_T2_OP1                NA              607             ERP000714
-APP_T2_OP2                ERS153576       10018_1#12      not found       NA              APP_T2_OP2                NA              607             ERP000714
-APP_IN_5                  ERS153579       10018_1#13      not found       NA              APP_IN_5                  NA              607             ERP000714
-APP_N3_OP1                ERS153580       10018_1#14      not found       NA              APP_N3_OP1                NA              607             ERP000714
-APP_N3_OP2                ERS153581       10018_1#15      not found       NA              APP_N3_OP2                NA              607             ERP000714
-APP_N4_OP1                ERS153582       10018_1#16      not found       NA              APP_N4_OP1                NA              607             ERP000714
-APP_N4_OP2                ERS153583       10018_1#17      not found       NA              APP_N4_OP2                NA              607             ERP000714
-APP_N5_OP1                ERS153584       10018_1#18      not found       NA              APP_N5_OP1                NA              607             ERP000714
-APP_N5_OP2                ERS153585       10018_1#19      not found       NA              APP_N5_OP2                NA              607             ERP000714
-APP_T3_OP1                ERS153586       10018_1#20      not found       NA              APP_T3_OP1                NA              607             ERP000714
-APP_T3_OP2                ERS153587       10018_1#21      not found       NA              APP_T3_OP2                NA              607             ERP000714
-APP_T4_OP1                ERS153588       10018_1#22      not found       NA              APP_T4_OP1                NA              607             ERP000714
-APP_T4_OP2                ERS153589       10018_1#23      not found       NA              APP_T4_OP2                NA              607             ERP000714
-APP_T5_OP1                ERS153590       10018_1#24      not found       NA              APP_T5_OP1                NA              607             ERP000714
-APP_T5_OP2                ERS153591       10018_1#25      not found       NA              APP_T5_OP2                NA              607             ERP000714
-APP_IN_1                  ERS153567       10018_1#27      not found       NA              APP_IN_1                  NA              607             ERP000714
-APP_IN_2                  ERS153568       10018_1#28      not found       NA              APP_IN_2                  NA              607             ERP000714
-APP_N1_OP1                ERS153569       10018_1#29      not found       NA              APP_N1_OP1                NA              607             ERP000714
-APP_N1_OP2                ERS153570       10018_1#30      not found       NA              APP_N1_OP2                NA              607             ERP000714
-APP_N2_OP1                ERS153571       10018_1#31      not found       NA              APP_N2_OP1                NA              607             ERP000714
-APP_N2_OP2                ERS153572       10018_1#32      not found       NA              APP_N2_OP2                NA              607             ERP000714
-APP_T1_OP1                ERS153573       10018_1#33      not found       NA              APP_T1_OP1                NA              607             ERP000714
-APP_T1_OP2                ERS153574       10018_1#34      not found       NA              APP_T1_OP2                NA              607             ERP000714
-APP_T2_OP1                ERS153575       10018_1#35      not found       NA              APP_T2_OP1                NA              607             ERP000714
-APP_T2_OP2                ERS153576       10018_1#36      not found       NA              APP_T2_OP2                NA              607             ERP000714
-APP_IN_3                  ERS153577       10018_1#37      not found       NA              APP_IN_3                  NA              607             ERP000714
-APP_IN_4                  ERS153578       10018_1#38      not found       NA              APP_IN_4                  NA              607             ERP000714
-APP_IN_5                  ERS153579       10018_1#39      not found       NA              APP_IN_5                  NA              607             ERP000714
-APP_N3_OP1                ERS153580       10018_1#40      not found       NA              APP_N3_OP1                NA              607             ERP000714
-APP_N3_OP2                ERS153581       10018_1#41      not found       NA              APP_N3_OP2                NA              607             ERP000714
-APP_N4_OP1                ERS153582       10018_1#42      not found       NA              APP_N4_OP1                NA              607             ERP000714
-APP_N4_OP2                ERS153583       10018_1#43      not found       NA              APP_N4_OP2                NA              607             ERP000714
-APP_N5_OP1                ERS153584       10018_1#44      not found       NA              APP_N5_OP1                NA              607             ERP000714
-APP_N5_OP2                ERS153585       10018_1#45      not found       NA              APP_N5_OP2                NA              607             ERP000714
-APP_T3_OP1                ERS153586       10018_1#46      not found       NA              APP_T3_OP1                NA              607             ERP000714
-APP_T3_OP2                ERS153587       10018_1#47      not found       NA              APP_T3_OP2                NA              607             ERP000714
-APP_T4_OP1                ERS153588       10018_1#48      not found       NA              APP_T4_OP1                NA              607             ERP000714
-APP_T4_OP2                ERS153589       10018_1#49      not found       NA              APP_T4_OP2                NA              607             ERP000714
-APP_T5_OP1                ERS153590       10018_1#50      not found       NA              APP_T5_OP1                NA              607             ERP000714
-APP_T5_OP2                ERS153591       10018_1#51      not found       NA              APP_T5_OP2                NA              607             ERP000714
+Sample Name               Sample Acc      Lane Name       Lane Acc        Supplier Name             Public Name               Strain                    Study ID        Study Accession
+APP_N2_OP1                ERS153571       10018_1#1       not found       NA                        APP_N2_OP1                NA                        607             ERP000714
+APP_IN_2                  ERS153568       10018_1#2       not found       NA                        APP_IN_2                  NA                        607             ERP000714
+APP_T1_OP2                ERS153574       10018_1#3       not found       NA                        APP_T1_OP2                NA                        607             ERP000714
+APP_IN_4                  ERS153578       10018_1#4       not found       NA                        APP_IN_4                  NA                        607             ERP000714
+APP_N1_OP2                ERS153570       10018_1#5       not found       NA                        APP_N1_OP2                NA                        607             ERP000714
+APP_N1_OP1                ERS153569       10018_1#6       not found       NA                        APP_N1_OP1                NA                        607             ERP000714
+APP_T1_OP1                ERS153573       10018_1#7       not found       NA                        APP_T1_OP1                NA                        607             ERP000714
+APP_IN_3                  ERS153577       10018_1#8       not found       NA                        APP_IN_3                  NA                        607             ERP000714
+APP_N2_OP2                ERS153572       10018_1#9       not found       NA                        APP_N2_OP2                NA                        607             ERP000714
+APP_IN_1                  ERS153567       10018_1#10      not found       NA                        APP_IN_1                  NA                        607             ERP000714
+APP_T2_OP1                ERS153575       10018_1#11      not found       NA                        APP_T2_OP1                NA                        607             ERP000714
+APP_T2_OP2                ERS153576       10018_1#12      not found       NA                        APP_T2_OP2                NA                        607             ERP000714
+APP_IN_5                  ERS153579       10018_1#13      not found       NA                        APP_IN_5                  NA                        607             ERP000714
+APP_N3_OP1                ERS153580       10018_1#14      not found       NA                        APP_N3_OP1                NA                        607             ERP000714
+APP_N3_OP2                ERS153581       10018_1#15      not found       NA                        APP_N3_OP2                NA                        607             ERP000714
+APP_N4_OP1                ERS153582       10018_1#16      not found       NA                        APP_N4_OP1                NA                        607             ERP000714
+APP_N4_OP2                ERS153583       10018_1#17      not found       NA                        APP_N4_OP2                NA                        607             ERP000714
+APP_N5_OP1                ERS153584       10018_1#18      not found       NA                        APP_N5_OP1                NA                        607             ERP000714
+APP_N5_OP2                ERS153585       10018_1#19      not found       NA                        APP_N5_OP2                NA                        607             ERP000714
+APP_T3_OP1                ERS153586       10018_1#20      not found       NA                        APP_T3_OP1                NA                        607             ERP000714
+APP_T3_OP2                ERS153587       10018_1#21      not found       NA                        APP_T3_OP2                NA                        607             ERP000714
+APP_T4_OP1                ERS153588       10018_1#22      not found       NA                        APP_T4_OP1                NA                        607             ERP000714
+APP_T4_OP2                ERS153589       10018_1#23      not found       NA                        APP_T4_OP2                NA                        607             ERP000714
+APP_T5_OP1                ERS153590       10018_1#24      not found       NA                        APP_T5_OP1                NA                        607             ERP000714
+APP_T5_OP2                ERS153591       10018_1#25      not found       NA                        APP_T5_OP2                NA                        607             ERP000714
+APP_IN_1                  ERS153567       10018_1#27      not found       NA                        APP_IN_1                  NA                        607             ERP000714
+APP_IN_2                  ERS153568       10018_1#28      not found       NA                        APP_IN_2                  NA                        607             ERP000714
+APP_N1_OP1                ERS153569       10018_1#29      not found       NA                        APP_N1_OP1                NA                        607             ERP000714
+APP_N1_OP2                ERS153570       10018_1#30      not found       NA                        APP_N1_OP2                NA                        607             ERP000714
+APP_N2_OP1                ERS153571       10018_1#31      not found       NA                        APP_N2_OP1                NA                        607             ERP000714
+APP_N2_OP2                ERS153572       10018_1#32      not found       NA                        APP_N2_OP2                NA                        607             ERP000714
+APP_T1_OP1                ERS153573       10018_1#33      not found       NA                        APP_T1_OP1                NA                        607             ERP000714
+APP_T1_OP2                ERS153574       10018_1#34      not found       NA                        APP_T1_OP2                NA                        607             ERP000714
+APP_T2_OP1                ERS153575       10018_1#35      not found       NA                        APP_T2_OP1                NA                        607             ERP000714
+APP_T2_OP2                ERS153576       10018_1#36      not found       NA                        APP_T2_OP2                NA                        607             ERP000714
+APP_IN_3                  ERS153577       10018_1#37      not found       NA                        APP_IN_3                  NA                        607             ERP000714
+APP_IN_4                  ERS153578       10018_1#38      not found       NA                        APP_IN_4                  NA                        607             ERP000714
+APP_IN_5                  ERS153579       10018_1#39      not found       NA                        APP_IN_5                  NA                        607             ERP000714
+APP_N3_OP1                ERS153580       10018_1#40      not found       NA                        APP_N3_OP1                NA                        607             ERP000714
+APP_N3_OP2                ERS153581       10018_1#41      not found       NA                        APP_N3_OP2                NA                        607             ERP000714
+APP_N4_OP1                ERS153582       10018_1#42      not found       NA                        APP_N4_OP1                NA                        607             ERP000714
+APP_N4_OP2                ERS153583       10018_1#43      not found       NA                        APP_N4_OP2                NA                        607             ERP000714
+APP_N5_OP1                ERS153584       10018_1#44      not found       NA                        APP_N5_OP1                NA                        607             ERP000714
+APP_N5_OP2                ERS153585       10018_1#45      not found       NA                        APP_N5_OP2                NA                        607             ERP000714
+APP_T3_OP1                ERS153586       10018_1#46      not found       NA                        APP_T3_OP1                NA                        607             ERP000714
+APP_T3_OP2                ERS153587       10018_1#47      not found       NA                        APP_T3_OP2                NA                        607             ERP000714
+APP_T4_OP1                ERS153588       10018_1#48      not found       NA                        APP_T4_OP1                NA                        607             ERP000714
+APP_T4_OP2                ERS153589       10018_1#49      not found       NA                        APP_T4_OP2                NA                        607             ERP000714
+APP_T5_OP1                ERS153590       10018_1#50      not found       NA                        APP_T5_OP1                NA                        607             ERP000714
+APP_T5_OP2                ERS153591       10018_1#51      not found       NA                        APP_T5_OP2                NA                        607             ERP000714
