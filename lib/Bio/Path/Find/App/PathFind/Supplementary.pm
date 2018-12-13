@@ -239,7 +239,7 @@ sub _get_supplementary_info {
 
   if ( $self->description ) {
     my $sample_description = $self->_get_sample_description($lane);
-    push $supplementary_info[0], $sample_description; 
+    push @{ $supplementary_info[0] }, $sample_description; 
   }                          
            
   return @supplementary_info;
@@ -282,7 +282,7 @@ sub run {
       'Study ID', 'Study Accession' 
     ]
   );  
-  push $info[0], 'Sample Description' if ( $self->description );  
+  push @{ $info[0] }, 'Sample Description' if ( $self->description );  
 
   foreach my $lane ( @$lanes ) {
     my @supplementary_info = $self->_get_supplementary_info($lane);
