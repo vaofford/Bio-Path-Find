@@ -300,9 +300,9 @@ sub run {
     # (printf format patterned on the one from the old infofind;
     # ditched the trailing spaces...)
     if ( $self->description) {
-      printf "%-25s %-15s %-15s %-15s %-15s %-25s %-15s %-15s %-25s %s\n", @$_ for @info;
+      printf "%-25s %-15s %-15s %-15s %-25s %-25s %-25s %-15s %-15s %s\n", @$_ for @info;
     } else {
-      printf "%-25s %-15s %-15s %-15s %-15s %-25s %-15s %-15s %s\n", @$_ for @info;
+      printf "%-25s %-15s %-15s %-15s %-25s %-25s %-25s %-15s %s\n", @$_ for @info;
     }
   }
 
