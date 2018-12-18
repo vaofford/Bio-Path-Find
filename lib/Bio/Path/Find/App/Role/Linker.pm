@@ -129,13 +129,14 @@ sub _make_symlinks {
   }
 
   # walk the list of array refs...
-  foreach my $lane_links ( @links ) {
-    # and walk the array containing the list of linked entities for each Lane
-    foreach my $link ( @$lane_links ) {
-      say $link;
+  if ( scalar @links > 1 ) {
+    foreach my $lane_links ( @links ) {
+      # and walk the array containing the list of linked entities for each Lane
+      foreach my $link ( @$lane_links ) {
+        say $link;
+      }
     }
-  }
-
+  }  
 }
 
 #-------------------------------------------------------------------------------
